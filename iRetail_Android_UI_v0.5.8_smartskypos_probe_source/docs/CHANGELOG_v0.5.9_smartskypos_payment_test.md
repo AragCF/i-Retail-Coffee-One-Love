@@ -19,7 +19,8 @@ Production i-Retail remains intended for the Android 6 coffee machine. Kozen P12
 - no automatic payment or automatic retry was added;
 - while a payment is in flight the explicit payment button is disabled;
 - transaction result is displayed using non-sensitive fields only;
-- `SMARTSKYPOS_03_CONTROLLED_PAYMENT.bat` no longer asks for an amount on the PC.
+- `SMARTSKYPOS_03_CONTROLLED_PAYMENT.bat` no longer asks for an amount on the PC;
+- added read-only `SMARTSKYPOS_05_LAST_TRANSACTION.bat` recovery check using `getLastTransaction()`.
 
 ## Expected Kozen P12 flow
 
@@ -35,7 +36,20 @@ Production i-Retail remains intended for the Android 6 coffee machine. Kozen P12
 6. Press `ВЫПОЛНИТЬ ТЕСТОВУЮ ОПЛАТУ` once.
 7. Confirm the Android dialog once.
 8. Complete/cancel the operation on SmartSkyPOS/P12 as required.
-9. Run `SMARTSKYPOS_04_COLLECT_LOGS.bat` and inspect `PAYMENT_RESULT`.
+9. If the payment UI disappears or the outcome is uncertain, run `SMARTSKYPOS_05_LAST_TRANSACTION.bat` before starting another payment.
+10. Run `SMARTSKYPOS_04_COLLECT_LOGS.bat` and inspect `PAYMENT_RESULT` / `LAST_TRANSACTION`.
+
+## Read-only recovery check
+
+`SMARTSKYPOS_05_LAST_TRANSACTION.bat` opens a diagnostic activity that performs only:
+
+- `getState()`;
+- `getTerminalData()`;
+- `getLastTransaction(TransactionParams(terminalId))`.
+
+It does not call `payment()`, `cancel()`, `refund()` or another financial command.
+
+The screen displays only non-sensitive fields needed to determine transaction outcome: `code`, bank `rc`, `approved`, `message`, amount/currency, TID, receipt number, RRN, authorization code, operation type and transaction id. PAN/CVV/EMV data are deliberately omitted.
 
 ## Safety rules
 
@@ -43,6 +57,7 @@ Production i-Retail remains intended for the Android 6 coffee machine. Kozen P12
 - There is no auto-retry after timeout/exception.
 - `UNFINISHED_OPERATION(2)` keeps the payment gate closed.
 - A payment route is never accepted from free-form user input.
+- An uncertain result is resolved through `getLastTransaction()` before any new financial operation.
 - PAN/CVV/EMV data and receipt body are not written to the diagnostic log.
 
 ## Version
