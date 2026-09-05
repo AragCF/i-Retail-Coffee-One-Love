@@ -1,0 +1,54 @@
+{
+  "version": "0.5.8-smartskypos-probe",
+  "created_at_utc": "2026-09-05T10:23:23.399268+00:00",
+  "source": {
+    "iretail_base": "iRetail_Android_UI_v0.5.7_build_fix_trash_icon_source(2).zip",
+    "smartskypos_kit": "SmartSkyPOS_Kozen_P12_Integration_Kit_v1.0(1).zip",
+    "target_smartskypos": "1.9.19-RC.1.11057"
+  },
+  "checks": {
+    "recovered_contract_files_exact_copy": true,
+    "reserved_slots_31_32_40_present": true,
+    "binder_core_order_present": true,
+    "aidl_build_feature_enabled": true,
+    "version_0_5_8": true,
+    "smartskypos_package_visibility": true,
+    "diagnostic_activity_registered": true,
+    "main_activity_has_no_smartskypos_payment_call": true,
+    "state_callback_registered_before_probe": true,
+    "terminal_data_ready_gate": true,
+    "unfinished_operation_blocks_payment": true,
+    "no_auto_retry_comment": true,
+    "payment_requires_gate": true,
+    "payment_requires_manual_mode": true,
+    "safe_probe_disables_payment": true,
+    "payment_script_does_not_auto_call": true,
+    "sensitive_result_fields_not_logged": true,
+    "kotlin_new_files_balanced_delimiters": true,
+    "recovered_java_contract_javac_stub_compile_exit_0": true,
+    "diagnostic_log_sensitive_field_hits": true,
+    "standard_main_activity_payment_path_unchanged": true,
+    "controlled_payment_has_no_automatic_retry": true,
+    "windows_scripts_present": true,
+    "fresh_state_revalidated_before_payment": true,
+    "fresh_terminal_data_revalidated_before_payment": true,
+    "stale_terminal_data_invalidated_on_state_change": true
+  },
+  "details": {
+    "contract_mismatches": [],
+    "kotlin_delimiter_checks": {
+      "SmartSkyPosGateway.kt": {
+        "ok": true,
+        "detail": "balanced"
+      },
+      "SmartSkyPosDiagnosticActivity.kt": {
+        "ok": true,
+        "detail": "balanced"
+      }
+    },
+    "sensitive_log_hits": [],
+    "android_full_build_run": false,
+    "android_full_build_reason": "Android SDK, Gradle and Kotlin compiler are not installed in the preparation environment."
+  },
+  "known_preexisting_issue": "app/src/main/assets/content/iretail-api.json from v0.5.7 still contains I-Retail credentials; intentionally not changed in this isolated SmartSkyPOS probe branch."
+}

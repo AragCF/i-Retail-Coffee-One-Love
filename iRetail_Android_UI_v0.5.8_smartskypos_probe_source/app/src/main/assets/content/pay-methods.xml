@@ -1,0 +1,99 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<methods>
+    <method id="7777" slug="payin_payout" enabled="false" phone="false">
+        <currency>RUB</currency>
+        <title>Online</title>
+    </method>
+    <method id="7777" slug="payin_payout" enabled="false" phone="false">
+        <currency>RUB</currency>
+        <title>Онлайн оплата</title>
+    </method>
+    <method id="7777" slug="payin_payout" enabled="false" phone="false">
+        <currency>RUB</currency>
+        <title>онлайн оплата</title>
+    </method>
+    <method id="267" slug="kaspi_kz" enabled="false" phone="false">
+        <title>Kaspi - Тенге</title>
+    </method>
+    <method id="7777" slug="payin_payout" enabled="false" phone="false">
+        <currency>USD</currency>
+        <title>Online</title>
+    </method>
+    <method id="7777" slug="payin_payout" enabled="false" phone="false">
+        <currency>RUB</currency>
+        <title>Online</title>
+    </method>
+    <method id="7777" slug="payin_payout" enabled="true" phone="false">
+        <currency>RUB</currency>
+        <title>Online</title>
+    </method>
+    <method id="17" slug="sms" enabled="false" phone="true">
+        <currency>RUB</currency>
+        <account type="digits" id="userPhone">
+            <title>title.phone</title>
+            <pattern>+7 (###) ###-##-##</pattern>
+        </account>
+    </method>
+    <method id="4" slug="external_plastic_cards" enabled="true" phone="false">
+        <currency>RUB</currency>
+        <title>Внешний эквайринг</title>
+    </method>
+    <method id="7777" enabled="false" phone="false">
+        <currency>RUB</currency>
+        <account type="digits">
+            <title>test online</title>
+            <pattern>###.00</pattern>
+        </account>
+        <title>Online-Payment</title>
+    </method>
+    <method id="13" slug="alfa" enabled="false" phone="false">
+        <currency>RUB</currency>
+        <account type="text" id="customer_id">
+            <title>title.clicklogin</title>
+            <validator>
+                <mask>\d{4,}</mask>
+                <message>message.incorrect_alfalick</message>
+            </validator>
+        </account>
+        <title>Альфа-клик</title>
+    </method>
+    <method id="5" slug="external_plastic_nonitgerated" enabled="true" phone="false">
+        <currency>RUB</currency>
+        <title>Неинтегрированный Внешний Эквайринг</title>
+    </method>
+    <method id="135" slug="inpas_in" enabled="false" phone="false">
+        <currency>RUB</currency>
+        <title>Банковские карты (Интегрированный Pax)</title>
+    </method>
+    <method id="3" slug="external" enabled="true" phone="false">
+        <currency>RUB</currency>
+        <title>Наличные ввод касса</title>
+    </method>
+    <method id="27" slug="payin_payout" enabled="false" phone="true">
+        <currency>RUB</currency>
+        <account type="digits" id="email_or_phone">
+            <title>title.phone</title>
+            <pattern>+7 (###) ###-##-##</pattern>
+        </account>
+        <title>Внутренний перевод</title>
+    </method>
+    <method id="7777" slug="payin_payout" enabled="false" phone="false">
+        <currency>TRY</currency>
+        <title>Online</title>
+    </method>
+    <method id="267" enabled="false" phone="false">
+        <title>Kaspi - Тенге</title>
+    </method>
+    <method id="34" slug="paynet" enabled="false" phone="false">
+        <currency>RUB</currency>
+        <title>Торговый эквайринг Miura</title>
+    </method>
+    <method id="9999" enabled="false" phone="false">
+        <currency>RUB</currency>
+        <account type="digits">
+            <title>test online</title>
+            <pattern>###.00</pattern>
+        </account>
+        <title>Online-Payment</title>
+    </method>
+</methods>

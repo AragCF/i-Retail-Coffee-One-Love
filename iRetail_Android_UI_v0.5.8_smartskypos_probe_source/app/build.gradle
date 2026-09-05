@@ -1,0 +1,47 @@
+plugins {
+    id 'com.android.application'
+    id 'org.jetbrains.kotlin.android'
+}
+
+android {
+    namespace 'com.coffeeonelove.iretail'
+    compileSdk 35
+
+    defaultConfig {
+        applicationId 'com.coffeeonelove.iretail'
+        minSdk 23
+        targetSdk 35
+        versionCode 18
+        versionName '0.5.8-smartskypos-probe'
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_1_8
+        targetCompatibility JavaVersion.VERSION_1_8
+    }
+
+    kotlinOptions {
+        jvmTarget = '1.8'
+    }
+
+    buildFeatures {
+        aidl = true
+    }
+}
+
+
+// v0.4.2 upgrade guard.
+// Some Windows users unpack new archives over an old v0.3/v0.4 folder.
+// ZIP extraction does not remove files that disappeared from the archive, so stale Kotlin
+// sources may remain and break compilation. Remove known obsolete files before compiling.
+tasks.register('removeObsoleteV03Sources') {
+    doLast {
+        delete file('src/main/java/com/coffeeonelove/iretail/ui/MockGateways.kt')
+    }
+}
+
+tasks.matching { task ->
+    task.name.startsWith('compile') || task.name.startsWith('assemble') || task.name.startsWith('bundle')
+}.configureEach {
+    dependsOn tasks.named('removeObsoleteV03Sources')
+}

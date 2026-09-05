@@ -1,0 +1,47 @@
+{
+  "ok": true,
+  "checks": [
+    {
+      "file": "app/src/main/java/com/coffeeonelove/iretail/ui/MainActivity.kt",
+      "brace_balance": 0,
+      "min_brace_balance": 0,
+      "lines": 2128,
+      "sha256": "2ab9948d7c644ef2"
+    },
+    {
+      "file": "app/src/main/java/com/coffeeonelove/iretail/ui/IntegrationGateways.kt",
+      "brace_balance": 0,
+      "min_brace_balance": 0,
+      "lines": 569,
+      "sha256": "cd1a684c1af5693a"
+    },
+    {
+      "file": "app/src/main/java/com/coffeeonelove/iretail/ui/Models.kt",
+      "brace_balance": 0,
+      "min_brace_balance": 0,
+      "lines": 118,
+      "sha256": "83bc43c6e57a8c54"
+    },
+    {
+      "file": "app/build.gradle",
+      "brace_balance": 0,
+      "min_brace_balance": 0,
+      "lines": 44,
+      "sha256": "cccb517a73681274"
+    }
+  ],
+  "required": {
+    "version_name_0_5_5": true,
+    "qr_landscape_renderer": true,
+    "qr_portrait_overlay": true,
+    "qr_landscape_hotspots": true,
+    "loyalty_attached_to_order_state": true,
+    "success_lookup_attaches_card": true,
+    "order_note_helper": true,
+    "payment_suffix_helper": true,
+    "profile_back_to_order": true,
+    "zero_bonus_toast": true,
+    "no_raw_newline_inside_strings": true
+  },
+  "note": "Полную APK-сборку здесь не выполнял: нет Android SDK/Gradle. Kotlin compile check через локальные заглушки был запущен, но kotlinc в контейнере завис; использована структурная проверка исходников."
+}

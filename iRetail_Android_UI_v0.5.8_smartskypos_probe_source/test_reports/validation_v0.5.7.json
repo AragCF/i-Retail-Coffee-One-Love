@@ -1,0 +1,14 @@
+{
+  "version": "0.5.7-build-fix-trash-icon",
+  "created_at_utc": "2026-06-18T12:35:29Z",
+  "checks": {
+    "compile_error_line_827_fixed": true,
+    "old_int_assignment_removed": true,
+    "version_name_updated": true,
+    "status_label_updated": true,
+    "real_channel_5676_present": true,
+    "loyalty_code_0736816_present": true,
+    "trash_icon_view_present": true
+  },
+  "note": "Full Android APK build was not run in this sandbox because Android SDK/Gradle is unavailable here."
+}

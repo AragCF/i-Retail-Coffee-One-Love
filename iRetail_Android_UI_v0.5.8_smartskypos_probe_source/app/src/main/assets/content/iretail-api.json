@@ -1,0 +1,14 @@
+{
+  "enabled": true,
+  "base_url": "https://my.i-retail.com/api/",
+  "login": "79154043031",
+  "password": "123456",
+  "client_id": "IRETAIL_TERMINAL",
+  "client_secret": "2758bb5da44242c8cc36f070ec09655d",
+  "profile_id": "2512",
+  "channel_id": "5676",
+  "currency_id": "643",
+  "device_code": "6287",
+  "device_id": "6287",
+  "target_profile_name": "Выставка"
+}

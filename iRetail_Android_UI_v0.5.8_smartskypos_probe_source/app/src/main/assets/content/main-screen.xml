@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<mainScreen>
+    <shop category="22407;" color="#5bc0de" caption="Микромаркеты"/>
+    <shop category="22409;" color="#337ab7" caption="Комплектующие"/>
+    <shop category="22410;" color="#337ab7" caption="Онлайн кассы"/>
+    <shop category="22411;" color="#337ab7" caption="Готовые комплекты"/>
+    <shop category="22412;" color="#777777" caption="Товары со скидкой"/>
+    <shop category="22413;" color="#337ab7" caption="Предложения партнеров"/>
+    <shop category="22414;" color="#d9534f" picture="https://nightlybuilds.stend.i-retail.com/static_files/static/images/icons/bottle.png" caption="Ингредиенты для кофейни"/>
+    <shop category="22416;" color="#777777" caption="Еда"/>
+    <shop category="22418;" color="#337ab7" caption="Заморозка"/>
+    <shop category="22425;" color="#5cb85c" caption="Услуги"/>
+    <shop category="22426;" color="#f0ad4e" picture="https://nightlybuilds.stend.i-retail.com/static_files/static/images/icons/polo-shirt.png" caption="Лимонадные станции"/>
+    <shop category="22433;" color="#5bc0de" caption="Кассы самообслуживания"/>
+    <shop category="22435;" color="#f0ad4e" caption="Кофейни"/>
+    <shop category="22436;" color="#777777" caption="Дижон"/>
+    <shop category="22437;" color="#777777" caption="Программное обеспечение"/>
+    <shop category="22443;" color="#777777" caption="Компоненты"/>
+    <shop category="22444;" color="#f0ad4e" caption="Продукты"/>
+    <shop category="22445;" color="#d9534f" caption="Кофе"/>
+    <shop category="22448;" color="#777777" caption="Лимонады"/>
+    <offer price="18990.00" offerId="3751901" currency="RUB" caption="i-Retail ECO Lite Свой планшет скидка 5%"/>
+    <offer price="149.00" offerId="3752778" currency="RUB" caption="Американо 200мл"/>
+    <offer price="149.00" offerId="3752777" currency="RUB" caption="Американо 200мл"/>
+    <offer price="179.00" offerId="3752779" currency="RUB" caption="Американо XL 300мл"/>
+    <offer price="179.00" offerId="3752780" currency="RUB" caption="Американо XL 300мл"/>
+    <offer price="24100.00" offerId="3751930" currency="RUB" caption="Атол 30Ф с ФН 36 мес"/>
+    <offer price="57.00" offerId="3752782" currency="RUB" caption="Какао 200мл"/>
+    <offer price="57.00" offerId="3752781" currency="RUB" caption="Какао 200мл"/>
+    <offer price="149.00" offerId="3752783" currency="RUB" caption="Капучино 200мл"/>
+    <offer price="149.00" offerId="3752784" currency="RUB" caption="Капучино 200мл"/>
+    <offer price="179.00" offerId="3752785" currency="RUB" caption="Капучино XL 300мл"/>
+    <offer price="179.00" offerId="3752786" currency="RUB" caption="Капучино XL 300мл"/>
+    <offer price="179.00" offerId="3752787" currency="RUB" caption="Латте 300мл"/>
+    <offer price="179.00" offerId="3752788" currency="RUB" caption="Латте 300мл"/>
+    <offer price="4888.00" offerId="3752367" currency="RUB" caption="Рама освещения СВ-РО.14"/>
+    <offer price="850000.00" offerId="3752729" currency="RUB" caption="Резервная Копия Кофейня i-Сoffee Дижон Оптима"/>
+    <offer price="1300.00" offerId="3752379" currency="RUB" caption="Реле промежуточное МРП-2 16А 2НО/НЗ  12В AC/DC на DIN-рейку"/>
+    <offer price="21370.00" offerId="3752510" currency="RUB" caption="Стол верстак ML 1400 с  экраном"/>
+    <offer price="10.00" offerId="3752547" currency="RUB" caption="Тестовый товар"/>
+    <offer price="32000.00" offerId="3752551" currency="RUB" caption="Товар 1"/>
+    <offer price="179.00" offerId="3752793" currency="RUB" caption="Флэт Уайт 200мл"/>
+    <offer price="179.00" offerId="3752792" currency="RUB" caption="Флэт Уайт 200мл"/>
+    <offer price="149.00" offerId="3752795" currency="RUB" caption="Эспрессо 100мл"/>
+    <offer price="149.00" offerId="3752794" currency="RUB" caption="Эспрессо 100мл"/>
+    <offer price="1.00" offerId="3752546" currency="RUB" caption="тест"/>
+</mainScreen>

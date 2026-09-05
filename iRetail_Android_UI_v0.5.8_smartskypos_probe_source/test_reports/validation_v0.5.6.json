@@ -1,0 +1,43 @@
+{
+  "ok": true,
+  "checks": [
+    {
+      "file": "app/src/main/java/com/coffeeonelove/iretail/ui/MainActivity.kt",
+      "brace_balance": 0,
+      "min_brace_balance": 0,
+      "lines": 2175,
+      "sha256": "c03869918e69c847"
+    },
+    {
+      "file": "app/src/main/java/com/coffeeonelove/iretail/ui/IntegrationGateways.kt",
+      "brace_balance": 0,
+      "min_brace_balance": 0,
+      "lines": 569,
+      "sha256": "cd1a684c1af5693a"
+    },
+    {
+      "file": "app/src/main/java/com/coffeeonelove/iretail/ui/Models.kt",
+      "brace_balance": 0,
+      "min_brace_balance": 0,
+      "lines": 118,
+      "sha256": "83bc43c6e57a8c54"
+    },
+    {
+      "file": "app/build.gradle",
+      "brace_balance": 0,
+      "min_brace_balance": 0,
+      "lines": 44,
+      "sha256": "9e984550baa4f8cd"
+    }
+  ],
+  "required": {
+    "version_name_0_5_6": true,
+    "custom_trash_icon_view": true,
+    "trash_icon_no_png_dependency": true,
+    "white_canvas_trash_icon": true,
+    "status_string_updated": true,
+    "loyalty_state_kept": true,
+    "real_channel_kept": true
+  },
+  "note": "Структурная проверка выполнена в контейнере. Полная APK-сборка здесь не запускалась: нет Android SDK/Gradle."
+}

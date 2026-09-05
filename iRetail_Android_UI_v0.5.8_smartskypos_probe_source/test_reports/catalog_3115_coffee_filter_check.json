@@ -1,0 +1,17 @@
+{
+  "source_zip": "iretail_exact_probe_20260616_202543_readonly/catalog_download_actual_zip.zip",
+  "available_offers": 104,
+  "coffee_detected": 0,
+  "market_or_noncoffee_detected": 90,
+  "other_detected": 14,
+  "first_noncoffee_examples": [
+    "MW 164 CENTRIC 001, 50мл",
+    "M 95 INVICT, 50 мл.",
+    "M17 HOM SPORT, 50 мл",
+    "W 66 IMPERATRICE, 50 мл.",
+    "W 138 APREGE Flor, 50мл",
+    "W 202 VTRY BOMS, 50 мл",
+    "W 22 CHOL EDP, 50 мл",
+    "M 57 CIYO, 50 мл."
+  ]
+}

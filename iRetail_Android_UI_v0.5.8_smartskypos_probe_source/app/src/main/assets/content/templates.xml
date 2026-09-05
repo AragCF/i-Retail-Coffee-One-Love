@@ -1,0 +1,389 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates>
+
+	<template id="fragment.header">
+		<div><fill>*</fill></div>
+		<div align="center"><field id="shop.name"/></div>
+		<div align="center">ИНН <field id="shop.inn"/></div>
+		<ifset field="shop.www">
+			<div align="center"><field id="shop.www"/></div>
+		</ifset>
+		<ifset field="shop.address">
+			<div align="center"><field id="shop.address"/></div>
+		</ifset>
+		<div><fill>*</fill></div>
+		<div align="right"><field id="date"/></div>
+		<div align="right">Терминал №<field id="point.id"/></div>
+		<div align="right">Кассир: <field id="cashier.name"/></div>
+	</template>
+	
+	<template id="fragment.header.receipt">
+		<div><fill>*</fill></div>
+		<div align="center"><field id="shop.name"/></div>
+		<div align="center">ИНН <field id="shop.inn"/></div>
+		<ifset field="shop.www">
+			<div align="center"><field id="shop.www"/></div>
+		</ifset>
+		<ifset field="shop.address">
+			<div align="center"><field id="shop.address"/></div>
+		</ifset>
+		<div align="right"><field id="date"/></div>
+		<div><fill>*</fill></div>
+	</template>
+
+	<template id="fragment.goods.list">
+		<foreach field="order.items" var="item">
+			<div><field id="item.n"/>. <field id="item.quantity"/> x <field id="item.name"/></div>
+			<div>  Сумма:<fill>.</fill><field id="item.amount"/></div>
+			<ifset field="item.code.1">
+				<div>  Код товара (hex) </div>
+				<div align="right"><field id="item.code.1"/></div>
+				<div align="right"><field id="item.code.2"/></div>
+			</ifset>
+			<ifset field="item.dmmark.1">
+				<div>  Код товара (hex) </div>
+				<div align="right"><field id="item.dmmark.1"/></div>
+				<div align="right"><field id="item.dmmark.2"/></div>
+			</ifset>
+			<div align="right">в т.ч. НДС (<field id="item.tax.rate"/>%)=<field id="item.tax.amount"/></div>
+			<div align="right">скидка =<field id="item.discount.amount"/></div>
+			<ifset field="item.agent">
+				<div>Признак агента<fill> </fill><field id="item.agent.type"></field></div>
+			</ifset>
+			<ifset field="item.supplier">
+				<div>Поставщик<fill> </fill><field id="item.supplier.name"></field></div>
+				<div>Тел.поставщика<fill> </fill><field id="item.supplier.phone"></field></div>
+				<div>ИНН поставщика<fill> </fill><field id="item.supplier.inn"></field></div>
+			</ifset>
+			<div></div>
+		</foreach>
+	</template>
+
+	<template id="fragment.goods">
+		<ifset field="order.items.size">
+			<div><fill>*</fill></div>
+			<div>*<fill> </fill> ОПЛАТА ТОВАРОВ <fill> </fill>*</div>
+			<div><fill>*</fill></div>
+			<include id="fragment.goods.list"/>
+			<div align="center">Стоимость товаров указана с учетом скидки</div>
+			<div><fill>-</fill></div>
+			<div/>
+		</ifset>
+	</template>
+	
+	<template id="fragment.pays.list">
+		<foreach field="order.pays" var="pay">
+			<div align="left"><field id="pay.n"/>. <field id="pay.provider.name"/></div>
+			<foreach field="pay.fields" var="field">
+				<div><field id="field.name"/>:</div>
+				<div align="right"><field id="field.value"/></div>
+			</foreach>
+			<!-- <barcode height="2"><field id="pay.id"/></barcode> -->
+			<div>Сумма платежа:<fill>.</fill><field id="pay.amount.gross"/></div>
+			<div>Комиссия:<fill>.</fill><field id="pay.amount.commission"/></div>
+			<div>ПОСТУПИТ НА СЧЕТ:<fill>.</fill><field id="pay.amount.net"/></div>
+			<div/>
+		</foreach>
+	</template>
+	
+	<template id="fragment.pays">
+		<ifset field="order.pays.size">
+			<div/>
+			<div><fill>*</fill></div>
+			<div>*<fill> </fill> ОПЛАТА УСЛУГ <fill> </fill>*</div>
+			<div><fill>*</fill></div>
+			<include id="fragment.pays.list"/>
+			<div><fill>-</fill></div>
+			<div/>
+		</ifset>
+	</template>
+	
+	<template id="fragment.footer">
+		<div></div>
+		<qrcode><field id="fns.url"/></qrcode>
+		<div align="center" big="true">Спасибо</div>
+		<div align="center" big="true">за покупку</div>
+		<!-- <image id="footer"/> -->
+		<!-- <div/>
+		<div align="center">Скачайте наше приложение, считав код ниже</div>
+		<image id="qr"/> -->
+	</template>
+
+	<template id="fragment.totals">
+		<div>Сумма скидки<fill> </fill><field id="order.discount"/></div>
+		<div>ИТОГО<fill> </fill><field id="order.amount"/></div>
+		<foreach field="order.taxes" var="tax">
+			<div>в т.ч. НДС (<field id="tax.rate"/>%)<fill> </fill><field id="tax.amount"/></div>
+		</foreach>
+		<div>СНО<fill> </fill><field id="shop.sno"/></div>
+		<div>Наличными<fill> </fill><field id="order.paid.cash"/></div>
+		<div>Сдача<fill> </fill><field id="order.paid.change"/></div>
+		<div>Электронными<fill> </fill><field id="order.paid.electronic"/></div>	
+	</template>
+	
+	<template id="fragment.e-receipt">
+		<ifset field="e-receipt">
+			<div> </div>
+			<ifset field="e-receipt.email">
+				<div align="left">E-mail покупателя:</div>
+				<div align="right"><field id="e-receipt.email"/></div>
+				<div align="left">E-mail отправителя:</div>
+				<div align="right"><field id="e-receipt.sender"/></div>
+			</ifset>
+			<ifset field="e-receipt.phone">
+				<div align="left">Телефон покупателя:</div>
+				<div align="right"><field id="e-receipt.phone"/></div>
+			</ifset>
+		</ifset>
+		<div> </div>
+	</template>
+	
+	<template id="fragment.shift">
+		<div><fill>*</fill></div>
+		<div>Смена №<field id="shift.id"/></div>
+	</template>
+	
+	<template id="fragment.fiscal_data">
+		<ifset field="kkm">
+			<div><fill>*</fill></div>
+			<div>ФН №<field id="kkm.fn"/><fill> </fill>РН ККТ <field id="kkm.rn_kkt"/></div>
+			<div>ФД №<field id="kkm.fd"/><fill> </fill>ФПД <field id="kkm.fpd"/></div>
+		</ifset>
+	</template>
+	
+	<template id="order.issued">
+		<include id="fragment.header"/>
+		
+		<div align="center">ЗАКАЗ №<u><field id="order.id"/></u></div>
+		<barcode height="3"><field id="order.number_encoded"/></barcode>
+		<div>ПРИХОД</div>
+		<include id="fragment.goods"/>
+		
+		<include id="fragment.pays"/>
+		
+		<include id="fragment.totals"/>
+				
+		<ifset field="order.paytype.account">
+			<div>Счет выставлен на:</div>
+			<div><fill> </fill><field id="order.paytype.account"/></div>
+		</ifset>
+		<ifset field="order.paid">
+			<div>СЧЕТ<fill> </fill>Оплачен</div>
+		</ifset>
+
+		<include id="fragment.e-receipt"/>
+
+		<include id="fragment.shift"/>
+		
+		<include id="fragment.fiscal_data"/>
+
+		<ifset field="agent">
+			<div>Тел.оператора по переводу ден.средств<fill> </fill><field id="agent.phone"></field></div>
+			<div>Оператор перевода<fill> </fill><field id="agent.name"></field></div>
+			<div>Адр.оператора перевода<fill> </fill><field id="agent.address"></field></div>
+			<div>Признак агента<fill> </fill><field id="agent.type"></field></div>
+		</ifset>
+		
+		<ifset field="agent">
+			<div>Тел.оператора по переводу ден.средств<fill> </fill><field id="agent.phone"></field></div>
+			<div>Оператор перевода<fill> </fill><field id="agent.name"></field></div>
+			<div>Адр.оператора перевода<fill> </fill><field id="agent.address"></field></div>
+			<div>Признак агента<fill> </fill><field id="agent.type"></field></div>
+		</ifset>
+		
+		<ifset field="order.paytype.account">
+			<div><fill>*</fill></div>
+			<div big="true" align="center">ИНСТРУКЦИЯ</div>
+			<div big="true" align="center">ПО ОПЛАТЕ</div>
+			<div/>
+			<div>1. Зайдите в личный кабинет</div>
+			<div>   &quot;<field id="order.paytype"/>&quot;</div>
+			<div>2. Оплатите счёт</div>
+			<div><fill>*</fill></div>
+			<div/>
+		</ifset>	
+		
+		<ifset field="alco">
+			<include id="fragment.alco"/>
+		</ifset>
+		<ifset field="acquire.slip">
+			<pre field="acquire.slip"/>
+		</ifset>
+		<include id="fragment.footer"/>
+	</template>
+	
+	<template id="order.refund">
+		<include id="fragment.header"/>
+		
+		<div align="center">ВОЗВРАТ №<u><field id="order.id"/></u></div>
+		<barcode height="3"><field id="order.number_encoded"/></barcode>
+		<div>ВОЗВРАТ ПРИХОДА</div>
+		<div><fill>*</fill></div>
+		<div>*<fill> </fill> ВОЗВРАТ ТОВАРОВ <fill> </fill>*</div>
+		<div><fill>*</fill></div>
+		<include id="fragment.goods.list"/>
+		<div><fill>-</fill></div>
+		<div big="true">ИТОГО</div>
+		<div big="true"><fill> </fill><field id="order.amount"/></div>
+		<div/>
+		
+		<div><fill>*</fill></div>
+		<div>Способ возврата: <fill> </fill><field id="order.paytype"/></div>
+		
+		<include id="fragment.shift"/>
+		<include id="fragment.fiscal_data"/>
+		<include id="fragment.footer"/>
+	</template>
+	
+	<template id="order.refund.fiscal">
+		<include id="fragment.header.receipt"/>
+		<div/>
+		<div align="center">№ <field id="order.id"/></div>
+		<barcode height="3"><field id="order.number_encoded"/></barcode>
+		<div/>
+		<fiscal>
+			<div><fill>*</fill></div>
+			<div>*<fill> </fill> ВОЗВРАТ ТОВАРОВ <fill> </fill>*</div>
+			<div><fill>*</fill></div>
+			<goods/>
+		</fiscal>
+	</template>
+	
+	<template id="order.contents">
+		<include id="fragment.header"/>
+		<div align="center">ЗАКАЗ №<u><field id="order.id"/></u></div>
+		<barcode height="3"><field id="order.number_encoded"/></barcode>		
+		<include id="fragment.goods"/>
+		<include id="fragment.pays"/>
+		<include id="fragment.totals"/>
+		<div big="true">СЧЕТ<fill> </fill><field id="order.payStatus"/></div>
+	</template>
+	
+	<template id="fragment.fiscal">
+		<ifset field="mode.fiscal">
+			<div/>
+			<include id="cash.paid.fiscal"/>
+			<div big="true">ИТОГ<fill> </fill>=<field id="fiscal.total"/></div>
+			<div>НАЛИЧНЫМИ<fill> </fill>=<field id="fiscal.accepted"/></div>
+			<div>СДАЧА<fill> </fill>=<field id="fiscal.change"/></div>
+			<div/>
+			<cashbox/>
+		</ifset>
+	</template>
+	
+	<template id="cash.paid.fiscal">
+		<include id="fragment.header.receipt"/>
+		<div/>
+		<div align="center">№ <field id="order.id"/></div>
+		<barcode height="3"><field id="order.number_encoded"/></barcode>
+		<div/>
+		<fiscal>
+			<div><fill>*</fill></div>
+			<div>*<fill> </fill> ОПЛАТА ТОВАРОВ <fill> </fill>*</div>
+			<div><fill>*</fill></div>
+			<goods/>
+			<include id="fragment.e-receipt"/>
+		</fiscal>
+	</template>
+	
+	<template id="vending.fail">
+		<include id="fragment.header"/>
+		<div big="true" align="center">СБОЙНЫЙ ЧЕК</div>
+		<div/>
+		<div align="center">НЕ ВЫДАННЫЕ ТОВАРЫ</div>
+		<div/>
+		<foreach field="order.items" var="item">
+			<div><field id="item.n"/>. <field id="item.name"/></div>
+			<div>  <field id="item.quantity"/> x <field id="item.price"/><fill>.</fill><field id="item.amount"/></div>
+		</foreach>
+		<div/>
+		<div align="center">Обратитесь в службу</div>
+		<div align="center">поддержки</div>
+	</template>
+	
+	<template id="change.fail">
+		<include id="fragment.header"/>
+		<div big="true" align="center">СБОЙНЫЙ ЧЕК</div>
+		<div/>
+		<div align="center">ОШИБКА ВЫДАЧИ СДАЧИ</div>
+		<div/>
+		<div align="left">Всего сдачи:</div>
+		<div align="right"><field id="change.total"/></div>
+		<div align="left">Невыданная сдача:</div>
+		<div align="right"><field id="change.failed"/></div>
+		<div/>
+		<div align="center">Обратитесь в службу</div>
+		<div align="center">поддержки</div>
+	</template>
+	
+	<template id="fragment.alco">
+		<div><fill>*</fill></div>
+		<qrcode><field id="alco.url"/></qrcode>
+		<div fit="false"><field id="alco.sign"/></div>
+	</template>
+	
+	<template id="alco.slip">
+		<div><fill>*</fill></div>
+		<div align="center"><field id="shop.name"/></div>
+		<div>ИНН: <field id="shop.inn"/><fill> </fill>КПП: <field id="shop.kpp"/></div>
+		<div>КАССА: <field id="point.id"/><fill> </fill>СМЕНА: <field id="point.shift"/></div>
+		<div>ЧЕК: <field id="order.id"/><fill> </fill>ДАТА: <field id="date"/></div>
+	</template>
+	
+	<template id="acquiring.slip.fields">
+		<div>Сумма:<fill> </fill><field id="order.amount"/></div>
+		<div>AID: <field id="acquire.emvAID"/><fill> </fill><field id="acquire.emvApplication"/></div>
+		<div>TVR: <field id="acquire.emvTVR"/><fill> </fill>CVM: <field id="acquire.emvCVR"/></div>
+		<div>CID: <field id="acquire.emvCID"/><fill> </fill><field id="acquire.emvApplicationCryptogramm"/></div>
+		<div>Карта: <field id="acquire.cardType"/></div>
+		<div align="center">**** **** **** <field id="acquire.lastFourDigits"/> : <field id="acquire.emvPANSequence"/></div>
+		<div align="center"><field id="acquire.cardHolderName"/></div>
+		<div>RRN:<fill> </fill><field id="acquire.RRN"/></div>
+		<div>Код авторизации: <fill> </fill><field id="acquire.authCode"/></div>
+		<div>Код ответа: <fill> </fill><field id="acquire.responseCode"/></div>
+		<div>Время терминала: <fill> </fill><field id="acquire.readerProcessingDate"/></div>
+		<div>Время шлюза: <fill> </fill><field id="acquire.hostProcessingDate"/></div>
+		<div>Время экваера: <fill> </fill><field id="acquire.acquirerProcessingDate"/></div>
+		<div/>
+		<div align="center"><field id="acquire.receiptId"/></div>	
+	</template>
+	
+	<template id="acquiring.slip.approved">
+		<div align="center">Терминал: <field id="acquire.terminalId"/></div>
+		<div/>
+		<div align="center" big="true">ОДОБРЕНО</div>
+		<div/>
+		<include id="acquiring.slip.fields"/>
+	</template>
+	
+	<template id="acquiring.slip.declined">
+		<div align="center">Терминал: <field id="acquire.terminalId"/></div>
+		<div/>
+		<div align="center" big="true">ОТКЛОНЕНО</div>
+		<div/>
+		<include id="acquiring.slip.fields"/>
+	</template>
+	
+	<template id="service.inkasso">
+		<include id="fragment.header"/>
+		<div/>
+		<div><fill>*</fill></div>
+		<div>*<fill> </fill>ИНКАССАЦИЯ<fill> </fill>*</div>
+		<div><fill>*</fill></div>
+		<div/>
+		<div big="true">Купюры:</div>
+		<foreach field="bills" var="bill">
+			<div><field id="bill.value"/><fill>.</fill><field id="bill.count"/> шт.</div>
+		</foreach>
+		<div/>
+		<div big="true">Итого:</div>
+		<foreach field="totals" var="total">
+			<div><field id="total.currency"/>: <field id="total.value"/></div>
+		</foreach>
+	</template>
+	
+	<images>
+		<!-- <image id="footer" file="footer"/> -->
+		<!-- <image id="qr" file="qr.gif"/> -->
+	</images>
+</templates>

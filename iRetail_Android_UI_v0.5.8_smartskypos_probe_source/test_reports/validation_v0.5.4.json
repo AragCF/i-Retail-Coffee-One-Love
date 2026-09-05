@@ -1,0 +1,43 @@
+{
+  "ok": true,
+  "checks": [
+    {
+      "file": "app/src/main/java/com/coffeeonelove/iretail/ui/MainActivity.kt",
+      "brace_balance": 0,
+      "min_brace_balance": 0,
+      "lines": 2069,
+      "sha256": "f2c1308cb63c112c"
+    },
+    {
+      "file": "app/src/main/java/com/coffeeonelove/iretail/ui/IntegrationGateways.kt",
+      "brace_balance": 0,
+      "min_brace_balance": 0,
+      "lines": 562,
+      "sha256": "c0aac5cfbd415986"
+    },
+    {
+      "file": "app/src/main/java/com/coffeeonelove/iretail/ui/Models.kt",
+      "brace_balance": 0,
+      "min_brace_balance": 0,
+      "lines": 118,
+      "sha256": "83bc43c6e57a8c54"
+    }
+  ],
+  "required": {
+    "version_name_0_5_4": true,
+    "channel_5676": true,
+    "loyalty_profile_overlay": true,
+    "landscape_loyalty_profile": true,
+    "landscape_profile_hotspots": true,
+    "no_local_loyalty_success_fallback": true,
+    "apply_bonus_helper": true,
+    "discounted_cart_total": true,
+    "order_create_has_discount": true,
+    "code_field_first": true,
+    "parse_amount_array": true,
+    "no_default_50_bonus": true,
+    "regex_escaped": true,
+    "runtime_order_ib_bonus": true,
+    "loyalty_available_amount": true
+  }
+}

@@ -1,0 +1,183 @@
+app/src/main/java/com/coffeeonelove/iretail/ui/IntegrationGateways.kt:197:19: warning: 'constructor URL(String!)' is deprecated. Deprecated in Java
+        val url = URL(apiConfig.baseUrl.trimEnd('/') + "/" + path.trimStart('/'))
+                  ^
+app/src/main/java/com/coffeeonelove/iretail/ui/MainActivity.kt:155:27: warning: the corresponding parameter in the supertype 'Activity' is named 'b'. This may cause problems when calling this function with named arguments.
+    override fun onCreate(savedInstanceState: Bundle?) {
+                          ^
+app/src/main/java/com/coffeeonelove/iretail/ui/MainActivity.kt:471:29: warning: 'constructor URL(String!)' is deprecated. Deprecated in Java
+                val conn = (URL(url).openConnection() as HttpURLConnection).apply {
+                            ^
+/tmp/stubs/android/app/Activity.kt:2:249: warning: parameter 'v' is never used
+open class Activity: android.content.Context() { val window: android.view.Window = android.view.Window(); open fun onCreate(b: android.os.Bundle?){}; open fun onWindowFocusChanged(hasFocus:Boolean){}; open fun onBackPressed(){}; fun setContentView(v: android.view.View){} }
+                                                                                                                                                                                                                                                        ^
+/tmp/stubs/android/content/res/Res.kt:2:31: warning: parameter 'path' is never used
+class AssetManager { fun open(path:String): java.io.InputStream = java.io.ByteArrayInputStream(ByteArray(0)) }
+                              ^
+/tmp/stubs/android/content/res/Res.kt:3:89: warning: parameter 'name' is never used
+class Resources { val configuration: Configuration = Configuration(); fun getIdentifier(name:String, defType:String, defPackage:String): Int = 0 }
+                                                                                        ^
+/tmp/stubs/android/content/res/Res.kt:3:102: warning: parameter 'defType' is never used
+class Resources { val configuration: Configuration = Configuration(); fun getIdentifier(name:String, defType:String, defPackage:String): Int = 0 }
+                                                                                                     ^
+/tmp/stubs/android/content/res/Res.kt:3:118: warning: parameter 'defPackage' is never used
+class Resources { val configuration: Configuration = Configuration(); fun getIdentifier(name:String, defType:String, defPackage:String): Int = 0 }
+                                                                                                                     ^
+/tmp/stubs/android/graphics/Graphics.kt:4:59: warning: parameter 's' is never used
+class BitmapFactory { companion object { fun decodeStream(s: java.io.InputStream): Bitmap? = Bitmap() } }
+                                                          ^
+/tmp/stubs/android/graphics/drawable/Drawable.kt:2:39: warning: parameter 'c' is never used
+class GradientDrawable { fun setColor(c:Int){}; var cornerRadius:Float=0f }
+                                      ^
+/tmp/stubs/android/graphics/drawable/Drawable.kt:3:21: warning: parameter 'c' is never used
+class ColorDrawable(c:Int)
+                    ^
+/tmp/stubs/android/os/Os.kt:4:15: warning: parameter 'l' is never used
+class Handler(l:Looper) { fun post(r:()->Unit){r()}; fun postDelayed(r:()->Unit, delay:Long){r()}; fun removeCallbacksAndMessages(token:Any?){} }
+              ^
+/tmp/stubs/android/os/Os.kt:4:82: warning: parameter 'delay' is never used
+class Handler(l:Looper) { fun post(r:()->Unit){r()}; fun postDelayed(r:()->Unit, delay:Long){r()}; fun removeCallbacksAndMessages(token:Any?){} }
+                                                                                 ^
+/tmp/stubs/android/os/Os.kt:4:131: warning: parameter 'token' is never used
+class Handler(l:Looper) { fun post(r:()->Unit){r()}; fun postDelayed(r:()->Unit, delay:Long){r()}; fun removeCallbacksAndMessages(token:Any?){} }
+                                                                                                                                  ^
+/tmp/stubs/android/view/View.kt:2:325: warning: parameter 'c' is never used
+open class View(val ctx: android.content.Context? = null) { var layoutParams: Any? = null; var width:Int=1; var height:Int=1; var visibility:Int=0; var alpha:Float=1f; var isClickable:Boolean=false; var contentDescription: CharSequence? = null; var systemUiVisibility:Int=0; var overScrollMode:Int=0; fun setBackgroundColor(c:Int){}; fun setOnClickListener(l:(View)->Unit){}; fun setOnLongClickListener(l:(View)->Boolean){}; fun post(r:()->Unit){r()}; fun animate(): ViewPropertyAnimator = ViewPropertyAnimator(); var background: Any? = null; companion object { const val GONE=8; const val VISIBLE=0; const val SYSTEM_UI_FLAG_IMMERSIVE_STICKY=1; const val SYSTEM_UI_FLAG_LAYOUT_STABLE=2; const val SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION=4; const val SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN=8; const val SYSTEM_UI_FLAG_HIDE_NAVIGATION=16; const val SYSTEM_UI_FLAG_FULLSCREEN=32; const val SCROLLBARS_INSIDE_INSET=0; const val OVER_SCROLL_IF_CONTENT_SCROLLS=0 } }
+                                                                                                                                                                                                                                                                                                                                    ^
+/tmp/stubs/android/view/View.kt:2:358: warning: parameter 'l' is never used
+open class View(val ctx: android.content.Context? = null) { var layoutParams: Any? = null; var width:Int=1; var height:Int=1; var visibility:Int=0; var alpha:Float=1f; var isClickable:Boolean=false; var contentDescription: CharSequence? = null; var systemUiVisibility:Int=0; var overScrollMode:Int=0; fun setBackgroundColor(c:Int){}; fun setOnClickListener(l:(View)->Unit){}; fun setOnLongClickListener(l:(View)->Boolean){}; fun post(r:()->Unit){r()}; fun animate(): ViewPropertyAnimator = ViewPropertyAnimator(); var background: Any? = null; companion object { const val GONE=8; const val VISIBLE=0; const val SYSTEM_UI_FLAG_IMMERSIVE_STICKY=1; const val SYSTEM_UI_FLAG_LAYOUT_STABLE=2; const val SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION=4; const val SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN=8; const val SYSTEM_UI_FLAG_HIDE_NAVIGATION=16; const val SYSTEM_UI_FLAG_FULLSCREEN=32; const val SCROLLBARS_INSIDE_INSET=0; const val OVER_SCROLL_IF_CONTENT_SCROLLS=0 } }
+                                                                                                                                                                                                                                                                                                                                                                     ^
+/tmp/stubs/android/view/View.kt:2:404: warning: parameter 'l' is never used
+open class View(val ctx: android.content.Context? = null) { var layoutParams: Any? = null; var width:Int=1; var height:Int=1; var visibility:Int=0; var alpha:Float=1f; var isClickable:Boolean=false; var contentDescription: CharSequence? = null; var systemUiVisibility:Int=0; var overScrollMode:Int=0; fun setBackgroundColor(c:Int){}; fun setOnClickListener(l:(View)->Unit){}; fun setOnLongClickListener(l:(View)->Boolean){}; fun post(r:()->Unit){r()}; fun animate(): ViewPropertyAnimator = ViewPropertyAnimator(); var background: Any? = null; companion object { const val GONE=8; const val VISIBLE=0; const val SYSTEM_UI_FLAG_IMMERSIVE_STICKY=1; const val SYSTEM_UI_FLAG_LAYOUT_STABLE=2; const val SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION=4; const val SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN=8; const val SYSTEM_UI_FLAG_HIDE_NAVIGATION=16; const val SYSTEM_UI_FLAG_FULLSCREEN=32; const val SCROLLBARS_INSIDE_INSET=0; const val OVER_SCROLL_IF_CONTENT_SCROLLS=0 } }
+                                                                                                                                                                                                                                                                                                                                                                                                                   ^
+/tmp/stubs/android/view/View.kt:3:40: warning: parameter 'v' is never used
+class ViewPropertyAnimator { fun alpha(v:Float): ViewPropertyAnimator=this; fun setDuration(d:Long): ViewPropertyAnimator=this; fun start(){} }
+                                       ^
+/tmp/stubs/android/view/View.kt:3:93: warning: parameter 'd' is never used
+class ViewPropertyAnimator { fun alpha(v:Float): ViewPropertyAnimator=this; fun setDuration(d:Long): ViewPropertyAnimator=this; fun start(){} }
+                                                                                            ^
+/tmp/stubs/android/view/View.kt:4:59: warning: parameter 'a' is never used
+class Window { val decorView: View = View(); fun setFlags(a:Int,b:Int){} }
+                                                          ^
+/tmp/stubs/android/view/View.kt:4:65: warning: parameter 'b' is never used
+class Window { val decorView: View = View(); fun setFlags(a:Int,b:Int){} }
+                                                                ^
+/tmp/stubs/android/widget/Widgets.kt:2:92: warning: parameter 'v' is never used
+open class FrameLayout(ctx: android.content.Context): android.view.View(ctx) { fun addView(v: android.view.View, p: Any? = null){}; fun addView(v: android.view.View, w:Int, h:Int){}; fun removeAllViews(){}; class LayoutParams(var width:Int,var height:Int){ var gravity:Int=0; var leftMargin:Int=0; var topMargin:Int=0; companion object { const val MATCH_PARENT=-1; const val WRAP_CONTENT=-2 } } companion object { const val MATCH_PARENT=-1; const val WRAP_CONTENT=-2 } }
+                                                                                           ^
+/tmp/stubs/android/widget/Widgets.kt:2:114: warning: parameter 'p' is never used
+open class FrameLayout(ctx: android.content.Context): android.view.View(ctx) { fun addView(v: android.view.View, p: Any? = null){}; fun addView(v: android.view.View, w:Int, h:Int){}; fun removeAllViews(){}; class LayoutParams(var width:Int,var height:Int){ var gravity:Int=0; var leftMargin:Int=0; var topMargin:Int=0; companion object { const val MATCH_PARENT=-1; const val WRAP_CONTENT=-2 } } companion object { const val MATCH_PARENT=-1; const val WRAP_CONTENT=-2 } }
+                                                                                                                 ^
+/tmp/stubs/android/widget/Widgets.kt:2:145: warning: parameter 'v' is never used
+open class FrameLayout(ctx: android.content.Context): android.view.View(ctx) { fun addView(v: android.view.View, p: Any? = null){}; fun addView(v: android.view.View, w:Int, h:Int){}; fun removeAllViews(){}; class LayoutParams(var width:Int,var height:Int){ var gravity:Int=0; var leftMargin:Int=0; var topMargin:Int=0; companion object { const val MATCH_PARENT=-1; const val WRAP_CONTENT=-2 } } companion object { const val MATCH_PARENT=-1; const val WRAP_CONTENT=-2 } }
+                                                                                                                                                ^
+/tmp/stubs/android/widget/Widgets.kt:2:167: warning: parameter 'w' is never used
+open class FrameLayout(ctx: android.content.Context): android.view.View(ctx) { fun addView(v: android.view.View, p: Any? = null){}; fun addView(v: android.view.View, w:Int, h:Int){}; fun removeAllViews(){}; class LayoutParams(var width:Int,var height:Int){ var gravity:Int=0; var leftMargin:Int=0; var topMargin:Int=0; companion object { const val MATCH_PARENT=-1; const val WRAP_CONTENT=-2 } } companion object { const val MATCH_PARENT=-1; const val WRAP_CONTENT=-2 } }
+                                                                                                                                                                      ^
+/tmp/stubs/android/widget/Widgets.kt:2:174: warning: parameter 'h' is never used
+open class FrameLayout(ctx: android.content.Context): android.view.View(ctx) { fun addView(v: android.view.View, p: Any? = null){}; fun addView(v: android.view.View, w:Int, h:Int){}; fun removeAllViews(){}; class LayoutParams(var width:Int,var height:Int){ var gravity:Int=0; var leftMargin:Int=0; var topMargin:Int=0; companion object { const val MATCH_PARENT=-1; const val WRAP_CONTENT=-2 } } companion object { const val MATCH_PARENT=-1; const val WRAP_CONTENT=-2 } }
+                                                                                                                                                                             ^
+/tmp/stubs/android/widget/Widgets.kt:3:119: warning: parameter 'a' is never used
+open class LinearLayout(ctx: android.content.Context): android.view.View(ctx) { var orientation:Int=0; fun setPadding(a:Int,b:Int,c:Int,d:Int){}; fun addView(v: android.view.View){}; class LayoutParams(var width:Int,var height:Int){ var bottomMargin:Int=0; companion object { const val MATCH_PARENT=-1; const val WRAP_CONTENT=-2 } } companion object { const val VERTICAL=1 } }
+                                                                                                                      ^
+/tmp/stubs/android/widget/Widgets.kt:3:125: warning: parameter 'b' is never used
+open class LinearLayout(ctx: android.content.Context): android.view.View(ctx) { var orientation:Int=0; fun setPadding(a:Int,b:Int,c:Int,d:Int){}; fun addView(v: android.view.View){}; class LayoutParams(var width:Int,var height:Int){ var bottomMargin:Int=0; companion object { const val MATCH_PARENT=-1; const val WRAP_CONTENT=-2 } } companion object { const val VERTICAL=1 } }
+                                                                                                                            ^
+/tmp/stubs/android/widget/Widgets.kt:3:131: warning: parameter 'c' is never used
+open class LinearLayout(ctx: android.content.Context): android.view.View(ctx) { var orientation:Int=0; fun setPadding(a:Int,b:Int,c:Int,d:Int){}; fun addView(v: android.view.View){}; class LayoutParams(var width:Int,var height:Int){ var bottomMargin:Int=0; companion object { const val MATCH_PARENT=-1; const val WRAP_CONTENT=-2 } } companion object { const val VERTICAL=1 } }
+                                                                                                                                  ^
+/tmp/stubs/android/widget/Widgets.kt:3:137: warning: parameter 'd' is never used
+open class LinearLayout(ctx: android.content.Context): android.view.View(ctx) { var orientation:Int=0; fun setPadding(a:Int,b:Int,c:Int,d:Int){}; fun addView(v: android.view.View){}; class LayoutParams(var width:Int,var height:Int){ var bottomMargin:Int=0; companion object { const val MATCH_PARENT=-1; const val WRAP_CONTENT=-2 } } companion object { const val VERTICAL=1 } }
+                                                                                                                                        ^
+/tmp/stubs/android/widget/Widgets.kt:3:159: warning: parameter 'v' is never used
+open class LinearLayout(ctx: android.content.Context): android.view.View(ctx) { var orientation:Int=0; fun setPadding(a:Int,b:Int,c:Int,d:Int){}; fun addView(v: android.view.View){}; class LayoutParams(var width:Int,var height:Int){ var bottomMargin:Int=0; companion object { const val MATCH_PARENT=-1; const val WRAP_CONTENT=-2 } } companion object { const val VERTICAL=1 } }
+                                                                                                                                                              ^
+/tmp/stubs/android/widget/Widgets.kt:4:202: warning: parameter 'v' is never used
+class ScrollView(ctx: android.content.Context): android.view.View(ctx) { var isVerticalScrollBarEnabled:Boolean=false; var isScrollbarFadingEnabled:Boolean=false; var scrollBarStyle:Int=0; fun addView(v: android.view.View, p: Any? = null){} }
+                                                                                                                                                                                                         ^
+/tmp/stubs/android/widget/Widgets.kt:4:224: warning: parameter 'p' is never used
+class ScrollView(ctx: android.content.Context): android.view.View(ctx) { var isVerticalScrollBarEnabled:Boolean=false; var isScrollbarFadingEnabled:Boolean=false; var scrollBarStyle:Int=0; fun addView(v: android.view.View, p: Any? = null){} }
+                                                                                                                                                                                                                               ^
+/tmp/stubs/android/widget/Widgets.kt:5:185: warning: parameter 'id' is never used
+class ImageView(ctx: android.content.Context): android.view.View(ctx) { enum class ScaleType { FIT_XY, FIT_CENTER }; var scaleType:ScaleType=ScaleType.FIT_CENTER; fun setImageResource(id:Int){}; fun setImageDrawable(d: android.graphics.drawable.ColorDrawable){}; fun setImageBitmap(b: android.graphics.Bitmap){} }
+                                                                                                                                                                                        ^
+/tmp/stubs/android/widget/Widgets.kt:5:217: warning: parameter 'd' is never used
+class ImageView(ctx: android.content.Context): android.view.View(ctx) { enum class ScaleType { FIT_XY, FIT_CENTER }; var scaleType:ScaleType=ScaleType.FIT_CENTER; fun setImageResource(id:Int){}; fun setImageDrawable(d: android.graphics.drawable.ColorDrawable){}; fun setImageBitmap(b: android.graphics.Bitmap){} }
+                                                                                                                                                                                                                        ^
+/tmp/stubs/android/widget/Widgets.kt:5:283: warning: parameter 'b' is never used
+class ImageView(ctx: android.content.Context): android.view.View(ctx) { enum class ScaleType { FIT_XY, FIT_CENTER }; var scaleType:ScaleType=ScaleType.FIT_CENTER; fun setImageResource(id:Int){}; fun setImageDrawable(d: android.graphics.drawable.ColorDrawable){}; fun setImageBitmap(b: android.graphics.Bitmap){} }
+                                                                                                                                                                                                                                                                                          ^
+/tmp/stubs/android/widget/Widgets.kt:6:194: warning: parameter 'unit' is never used
+class TextView(ctx: android.content.Context): android.view.View(ctx) { var text:CharSequence=""; var textSize:Float=0f; var gravity:Int=0; var includeFontPadding:Boolean=false; fun setTextSize(unit:Int,size:Float){}; fun setTextColor(c:Int){}; fun setPadding(a:Int,b:Int,c:Int,d:Int){}; fun setTypeface(t: android.graphics.Typeface, style:Int){} }
+                                                                                                                                                                                                 ^
+/tmp/stubs/android/widget/Widgets.kt:6:203: warning: parameter 'size' is never used
+class TextView(ctx: android.content.Context): android.view.View(ctx) { var text:CharSequence=""; var textSize:Float=0f; var gravity:Int=0; var includeFontPadding:Boolean=false; fun setTextSize(unit:Int,size:Float){}; fun setTextColor(c:Int){}; fun setPadding(a:Int,b:Int,c:Int,d:Int){}; fun setTypeface(t: android.graphics.Typeface, style:Int){} }
+                                                                                                                                                                                                          ^
+/tmp/stubs/android/widget/Widgets.kt:6:235: warning: parameter 'c' is never used
+class TextView(ctx: android.content.Context): android.view.View(ctx) { var text:CharSequence=""; var textSize:Float=0f; var gravity:Int=0; var includeFontPadding:Boolean=false; fun setTextSize(unit:Int,size:Float){}; fun setTextColor(c:Int){}; fun setPadding(a:Int,b:Int,c:Int,d:Int){}; fun setTypeface(t: android.graphics.Typeface, style:Int){} }
+                                                                                                                                                                                                                                          ^
+/tmp/stubs/android/widget/Widgets.kt:6:260: warning: parameter 'a' is never used
+class TextView(ctx: android.content.Context): android.view.View(ctx) { var text:CharSequence=""; var textSize:Float=0f; var gravity:Int=0; var includeFontPadding:Boolean=false; fun setTextSize(unit:Int,size:Float){}; fun setTextColor(c:Int){}; fun setPadding(a:Int,b:Int,c:Int,d:Int){}; fun setTypeface(t: android.graphics.Typeface, style:Int){} }
+                                                                                                                                                                                                                                                                   ^
+/tmp/stubs/android/widget/Widgets.kt:6:266: warning: parameter 'b' is never used
+class TextView(ctx: android.content.Context): android.view.View(ctx) { var text:CharSequence=""; var textSize:Float=0f; var gravity:Int=0; var includeFontPadding:Boolean=false; fun setTextSize(unit:Int,size:Float){}; fun setTextColor(c:Int){}; fun setPadding(a:Int,b:Int,c:Int,d:Int){}; fun setTypeface(t: android.graphics.Typeface, style:Int){} }
+                                                                                                                                                                                                                                                                         ^
+/tmp/stubs/android/widget/Widgets.kt:6:272: warning: parameter 'c' is never used
+class TextView(ctx: android.content.Context): android.view.View(ctx) { var text:CharSequence=""; var textSize:Float=0f; var gravity:Int=0; var includeFontPadding:Boolean=false; fun setTextSize(unit:Int,size:Float){}; fun setTextColor(c:Int){}; fun setPadding(a:Int,b:Int,c:Int,d:Int){}; fun setTypeface(t: android.graphics.Typeface, style:Int){} }
+                                                                                                                                                                                                                                                                               ^
+/tmp/stubs/android/widget/Widgets.kt:6:278: warning: parameter 'd' is never used
+class TextView(ctx: android.content.Context): android.view.View(ctx) { var text:CharSequence=""; var textSize:Float=0f; var gravity:Int=0; var includeFontPadding:Boolean=false; fun setTextSize(unit:Int,size:Float){}; fun setTextColor(c:Int){}; fun setPadding(a:Int,b:Int,c:Int,d:Int){}; fun setTypeface(t: android.graphics.Typeface, style:Int){} }
+                                                                                                                                                                                                                                                                                     ^
+/tmp/stubs/android/widget/Widgets.kt:6:304: warning: parameter 't' is never used
+class TextView(ctx: android.content.Context): android.view.View(ctx) { var text:CharSequence=""; var textSize:Float=0f; var gravity:Int=0; var includeFontPadding:Boolean=false; fun setTextSize(unit:Int,size:Float){}; fun setTextColor(c:Int){}; fun setPadding(a:Int,b:Int,c:Int,d:Int){}; fun setTypeface(t: android.graphics.Typeface, style:Int){} }
+                                                                                                                                                                                                                                                                                                               ^
+/tmp/stubs/android/widget/Widgets.kt:6:334: warning: parameter 'style' is never used
+class TextView(ctx: android.content.Context): android.view.View(ctx) { var text:CharSequence=""; var textSize:Float=0f; var gravity:Int=0; var includeFontPadding:Boolean=false; fun setTextSize(unit:Int,size:Float){}; fun setTextColor(c:Int){}; fun setPadding(a:Int,b:Int,c:Int,d:Int){}; fun setTypeface(t: android.graphics.Typeface, style:Int){} }
+                                                                                                                                                                                                                                                                                                                                             ^
+/tmp/stubs/android/widget/Widgets.kt:7:73: warning: parameter 'ctx' is never used
+class Toast { companion object { const val LENGTH_SHORT=0; fun makeText(ctx: android.content.Context, msg:String, len:Int): Toast = Toast() }; fun show(){} }
+                                                                        ^
+/tmp/stubs/android/widget/Widgets.kt:7:103: warning: parameter 'msg' is never used
+class Toast { companion object { const val LENGTH_SHORT=0; fun makeText(ctx: android.content.Context, msg:String, len:Int): Toast = Toast() }; fun show(){} }
+                                                                                                      ^
+/tmp/stubs/android/widget/Widgets.kt:7:115: warning: parameter 'len' is never used
+class Toast { companion object { const val LENGTH_SHORT=0; fun makeText(ctx: android.content.Context, msg:String, len:Int): Toast = Toast() }; fun show(){} }
+                                                                                                                  ^
+/tmp/stubs/org/json/Json.kt:2:47: warning: parameter 's' is never used
+class JSONObject { constructor(); constructor(s:String); fun optBoolean(k:String, d:Boolean=false): Boolean=d; fun optInt(k:String, d:Int=0): Int=d; fun optLong(k:String,d:Long=0L): Long=d; fun optString(k:String, d:String=""): String=d; fun optJSONObject(k:String): JSONObject? = null; fun getJSONObject(k:String): JSONObject = JSONObject(); fun getString(k:String): String=""; fun opt(k:String): Any? = null; fun keys(): Iterator<String> = emptyList<String>().iterator(); fun optJSONArray(k:String): JSONArray? = null }
+                                              ^
+/tmp/stubs/org/json/Json.kt:2:73: warning: parameter 'k' is never used
+class JSONObject { constructor(); constructor(s:String); fun optBoolean(k:String, d:Boolean=false): Boolean=d; fun optInt(k:String, d:Int=0): Int=d; fun optLong(k:String,d:Long=0L): Long=d; fun optString(k:String, d:String=""): String=d; fun optJSONObject(k:String): JSONObject? = null; fun getJSONObject(k:String): JSONObject = JSONObject(); fun getString(k:String): String=""; fun opt(k:String): Any? = null; fun keys(): Iterator<String> = emptyList<String>().iterator(); fun optJSONArray(k:String): JSONArray? = null }
+                                                                        ^
+/tmp/stubs/org/json/Json.kt:2:123: warning: parameter 'k' is never used
+class JSONObject { constructor(); constructor(s:String); fun optBoolean(k:String, d:Boolean=false): Boolean=d; fun optInt(k:String, d:Int=0): Int=d; fun optLong(k:String,d:Long=0L): Long=d; fun optString(k:String, d:String=""): String=d; fun optJSONObject(k:String): JSONObject? = null; fun getJSONObject(k:String): JSONObject = JSONObject(); fun getString(k:String): String=""; fun opt(k:String): Any? = null; fun keys(): Iterator<String> = emptyList<String>().iterator(); fun optJSONArray(k:String): JSONArray? = null }
+                                                                                                                          ^
+/tmp/stubs/org/json/Json.kt:2:162: warning: parameter 'k' is never used
+class JSONObject { constructor(); constructor(s:String); fun optBoolean(k:String, d:Boolean=false): Boolean=d; fun optInt(k:String, d:Int=0): Int=d; fun optLong(k:String,d:Long=0L): Long=d; fun optString(k:String, d:String=""): String=d; fun optJSONObject(k:String): JSONObject? = null; fun getJSONObject(k:String): JSONObject = JSONObject(); fun getString(k:String): String=""; fun opt(k:String): Any? = null; fun keys(): Iterator<String> = emptyList<String>().iterator(); fun optJSONArray(k:String): JSONArray? = null }
+                                                                                                                                                                 ^
+/tmp/stubs/org/json/Json.kt:2:205: warning: parameter 'k' is never used
+class JSONObject { constructor(); constructor(s:String); fun optBoolean(k:String, d:Boolean=false): Boolean=d; fun optInt(k:String, d:Int=0): Int=d; fun optLong(k:String,d:Long=0L): Long=d; fun optString(k:String, d:String=""): String=d; fun optJSONObject(k:String): JSONObject? = null; fun getJSONObject(k:String): JSONObject = JSONObject(); fun getString(k:String): String=""; fun opt(k:String): Any? = null; fun keys(): Iterator<String> = emptyList<String>().iterator(); fun optJSONArray(k:String): JSONArray? = null }
+                                                                                                                                                                                                            ^
+/tmp/stubs/org/json/Json.kt:2:257: warning: parameter 'k' is never used
+class JSONObject { constructor(); constructor(s:String); fun optBoolean(k:String, d:Boolean=false): Boolean=d; fun optInt(k:String, d:Int=0): Int=d; fun optLong(k:String,d:Long=0L): Long=d; fun optString(k:String, d:String=""): String=d; fun optJSONObject(k:String): JSONObject? = null; fun getJSONObject(k:String): JSONObject = JSONObject(); fun getString(k:String): String=""; fun opt(k:String): Any? = null; fun keys(): Iterator<String> = emptyList<String>().iterator(); fun optJSONArray(k:String): JSONArray? = null }
+                                                                                                                                                                                                                                                                ^
+/tmp/stubs/org/json/Json.kt:2:306: warning: parameter 'k' is never used
+class JSONObject { constructor(); constructor(s:String); fun optBoolean(k:String, d:Boolean=false): Boolean=d; fun optInt(k:String, d:Int=0): Int=d; fun optLong(k:String,d:Long=0L): Long=d; fun optString(k:String, d:String=""): String=d; fun optJSONObject(k:String): JSONObject? = null; fun getJSONObject(k:String): JSONObject = JSONObject(); fun getString(k:String): String=""; fun opt(k:String): Any? = null; fun keys(): Iterator<String> = emptyList<String>().iterator(); fun optJSONArray(k:String): JSONArray? = null }
+                                                                                                                                                                                                                                                                                                                 ^
+/tmp/stubs/org/json/Json.kt:2:358: warning: parameter 'k' is never used
+class JSONObject { constructor(); constructor(s:String); fun optBoolean(k:String, d:Boolean=false): Boolean=d; fun optInt(k:String, d:Int=0): Int=d; fun optLong(k:String,d:Long=0L): Long=d; fun optString(k:String, d:String=""): String=d; fun optJSONObject(k:String): JSONObject? = null; fun getJSONObject(k:String): JSONObject = JSONObject(); fun getString(k:String): String=""; fun opt(k:String): Any? = null; fun keys(): Iterator<String> = emptyList<String>().iterator(); fun optJSONArray(k:String): JSONArray? = null }
+                                                                                                                                                                                                                                                                                                                                                                     ^
+/tmp/stubs/org/json/Json.kt:2:388: warning: parameter 'k' is never used
+class JSONObject { constructor(); constructor(s:String); fun optBoolean(k:String, d:Boolean=false): Boolean=d; fun optInt(k:String, d:Int=0): Int=d; fun optLong(k:String,d:Long=0L): Long=d; fun optString(k:String, d:String=""): String=d; fun optJSONObject(k:String): JSONObject? = null; fun getJSONObject(k:String): JSONObject = JSONObject(); fun getString(k:String): String=""; fun opt(k:String): Any? = null; fun keys(): Iterator<String> = emptyList<String>().iterator(); fun optJSONArray(k:String): JSONArray? = null }
+                                                                                                                                                                                                                                                                                                                                                                                                   ^
+/tmp/stubs/org/json/Json.kt:2:492: warning: parameter 'k' is never used
+class JSONObject { constructor(); constructor(s:String); fun optBoolean(k:String, d:Boolean=false): Boolean=d; fun optInt(k:String, d:Int=0): Int=d; fun optLong(k:String,d:Long=0L): Long=d; fun optString(k:String, d:String=""): String=d; fun optJSONObject(k:String): JSONObject? = null; fun getJSONObject(k:String): JSONObject = JSONObject(); fun getString(k:String): String=""; fun opt(k:String): Any? = null; fun keys(): Iterator<String> = emptyList<String>().iterator(); fun optJSONArray(k:String): JSONArray? = null }
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           ^
+/tmp/stubs/org/json/Json.kt:3:46: warning: parameter 's' is never used
+class JSONArray { constructor(); constructor(s:String); fun length(): Int=0; fun optJSONObject(i:Int): JSONObject? = null; fun opt(i:Int): Any? = null }
+                                             ^
+/tmp/stubs/org/json/Json.kt:3:96: warning: parameter 'i' is never used
+class JSONArray { constructor(); constructor(s:String); fun length(): Int=0; fun optJSONObject(i:Int): JSONObject? = null; fun opt(i:Int): Any? = null }
+                                                                                               ^
+/tmp/stubs/org/json/Json.kt:3:132: warning: parameter 'i' is never used
+class JSONArray { constructor(); constructor(s:String); fun length(): Int=0; fun optJSONObject(i:Int): JSONObject? = null; fun opt(i:Int): Any? = null }
+                                                                                                                                   ^

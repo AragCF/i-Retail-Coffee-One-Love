@@ -1,0 +1,14 @@
+{
+  "checks": {
+    "config_channel_id_is_5676": true,
+    "config_profile_id_is_2512": true,
+    "config_device_code_is_6287": true,
+    "kotlin_default_channel_is_5676": true,
+    "scroll_grid_has_needs_scroll_logic": true,
+    "scroll_grid_uses_direct_layout_when_no_scroll": true,
+    "visible_fallback_status_present": true,
+    "version_label_is_053": true
+  },
+  "all_passed": true,
+  "note": "Семантическая проверка ключевых изменений. Полная APK-сборка выполняется на Windows через BUILD_WINDOWS_CLI.bat."
+}
