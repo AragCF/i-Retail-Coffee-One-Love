@@ -11,8 +11,8 @@ android {
         applicationId 'com.coffeeonelove.iretail'
         minSdk 23
         targetSdk 35
-        versionCode 18
-        versionName '0.5.8-smartskypos-probe'
+        versionCode 20
+        versionName '0.5.10-smartskypos-transaction-lookup'
     }
 
     compileOptions {

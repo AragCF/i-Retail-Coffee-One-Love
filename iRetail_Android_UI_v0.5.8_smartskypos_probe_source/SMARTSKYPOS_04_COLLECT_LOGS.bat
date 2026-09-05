@@ -23,8 +23,8 @@ if not exist "smartskypos_logs" mkdir "smartskypos_logs"
 set "OUT=smartskypos_logs\SmartSkyPOS_KozenP12_%TS%"
 mkdir "%OUT%"
 
-echo [COLLECT] SmartSkyPOS/i-Retail diagnostic logcat...
-adb logcat -d -v threadtime SmartSkyPOSDiag:I AndroidRuntime:E *:S > "%OUT%\01_smartskypos_logcat.txt"
+echo [COLLECT] i-Retail SmartSkyPOS diagnostic logcat...
+adb logcat -d -v threadtime SmartSkyPOSDiag:I SmartSkyPOSLastTx:I SmartSkyPOSTxLookup:I AndroidRuntime:E ActivityManager:I *:S > "%OUT%\01_smartskypos_logcat.txt"
 
 echo [COLLECT] Device identity...
 (
@@ -41,11 +41,15 @@ adb shell dumpsys package com.coffeeonelove.iretail > "%OUT%\04_iretail_package.
 echo [COLLECT] Service state...
 adb shell dumpsys activity services com.skytech.smartskypos > "%OUT%\05_smartskypos_services.txt"
 
+echo [COLLECT] Process/activity state...
+adb shell dumpsys activity activities > "%OUT%\06_activities.txt"
+adb shell dumpsys activity processes > "%OUT%\07_processes.txt"
+
 echo.
 echo [SUCCESS] Files collected:
 echo %CD%\%OUT%
 echo.
-echo PAN/CVV/EMV data are not written by the i-Retail diagnostic logger.
-echo Send the whole folder (or ZIP it) for the next integration step.
+echo i-Retail diagnostic logs intentionally omit PAN/CVV/EMV data.
+echo Send the whole folder or ZIP it for the next integration step.
 pause
 exit /b 0
