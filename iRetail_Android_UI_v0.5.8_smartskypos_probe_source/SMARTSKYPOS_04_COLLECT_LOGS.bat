@@ -24,7 +24,7 @@ set "OUT=smartskypos_logs\SmartSkyPOS_KozenP12_%TS%"
 mkdir "%OUT%"
 
 echo [COLLECT] i-Retail SmartSkyPOS diagnostic logcat...
-adb logcat -d -v threadtime SmartSkyPOSDiag:I SmartSkyPOSLastTx:I AndroidRuntime:E ActivityManager:I *:S > "%OUT%\01_smartskypos_logcat.txt"
+adb logcat -d -v threadtime SmartSkyPOSDiag:I SmartSkyPOSLastTx:I SmartSkyPOSTxLookup:I AndroidRuntime:E ActivityManager:I *:S > "%OUT%\01_smartskypos_logcat.txt"
 
 echo [COLLECT] Device identity...
 (
