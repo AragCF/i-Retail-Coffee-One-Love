@@ -20,6 +20,11 @@
             android:excludeFromRecents="true"
             android:noHistory="true" />
         <activity
+            android:name=".pos.SmartSkyPosTransactionLookupActivity"
+            android:exported="true"
+            android:excludeFromRecents="true"
+            android:noHistory="true" />
+        <activity
             android:name=".ui.MainActivity"
             android:exported="true">
             <intent-filter>
