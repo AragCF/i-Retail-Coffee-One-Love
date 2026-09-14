@@ -239,8 +239,29 @@ public final class KozenAoaPaymentClient {
                 PaymentResult recovered = queryPaymentStatus(unresolved);
                 Log.w(TAG, "UNRESOLVED_STATUS_RECOVERY requestId=" + unresolved + " status=" + recovered.status +
                         " code=" + recovered.code + " noPaymentSent=true");
-                if (recovered.isFinal()) clearUnresolved();
-                deliverResult(listener, recovered.isFinal() ? recovered : PaymentResult.local(
+
+                // A recovered payment belongs to the PREVIOUS UI attempt. It must never be
+                // treated as approval for the order that happens to be on screen now.
+                if (recovered.isApproved()) {
+                    // Keep the recovery lock. The financial result is known, but the matching
+                    // application order must be recovered explicitly before a new charge is allowed.
+                    deliverResult(listener, PaymentResult.local(
+                            unresolved, "UNCERTAIN_RECOVERY_REQUIRED", "PREVIOUS_APPROVED_ORDER_RECOVERY",
+                            "Предыдущая оплата одобрена. Новый платёж заблокирован до восстановления предыдущего заказа."));
+                    return;
+                }
+
+                if (recovered.isDeclined() || "FAILED".equals(recovered.status) || "BLOCKED".equals(recovered.status)) {
+                    // Definite no-charge outcome: unlock future payments, but do not continue the
+                    // current click automatically. A second deliberate tap gets a new requestId.
+                    clearUnresolved();
+                    deliverResult(listener, PaymentResult.local(
+                            unresolved, "BLOCKED", "PREVIOUS_RESOLVED_NO_CHARGE",
+                            "Предыдущая операция завершена без списания. Текущий платёж не отправлялся; нажмите оплатить ещё раз."));
+                    return;
+                }
+
+                deliverResult(listener, PaymentResult.local(
                         unresolved, "UNCERTAIN_RECOVERY_REQUIRED", "PREVIOUS_UNRESOLVED",
                         "Предыдущая оплата остаётся неопределённой. Новый платёж заблокирован."));
             } catch (Exception e) {
