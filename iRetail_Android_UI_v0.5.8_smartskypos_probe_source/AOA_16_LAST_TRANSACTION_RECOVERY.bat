@@ -117,7 +117,7 @@ for /l %%S in (1,1,150) do (
   if not errorlevel 1 goto RECOVERY_OK
   findstr /C:"RECOVERY_OVER_AOA_FAILED" "%WAITLOG%" >nul 2>nul
   if not errorlevel 1 goto RECOVERY_FAILED
-  if "%%S"=="5" adb -s "%KOZEN%" shell am start -W -n com.coffeeonelove.iretail.kozenrecovery/.RecoveryBridgeActivity >nul 2>nul
+  rem v0.5.22: do not relaunch RecoveryBridgeActivity; duplicate starts can interrupt the live AOA reader.
   timeout /t 1 /nobreak >nul
 )
 set "OUTCOME=RECOVERY_TIMEOUT"
