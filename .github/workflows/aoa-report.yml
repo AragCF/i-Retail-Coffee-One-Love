@@ -1,0 +1,48 @@
+name: AOA diagnostic report
+
+on:
+  push:
+    branches:
+      - v0.5.13-aoa-bridge-probe
+    paths:
+      - 'iRetail_Android_UI_v0.5.8_smartskypos_probe_source/test_reports/aoa/**'
+      - '.github/workflows/aoa-report.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  report:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Extract latest AOA evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          ROOT='iRetail_Android_UI_v0.5.8_smartskypos_probe_source/test_reports/aoa'
+          if [ ! -d "$ROOT" ]; then
+            echo 'No AOA report directory yet.'
+            exit 0
+          fi
+          ZIP="$(find "$ROOT" -maxdepth 1 -type f -name 'AOA_JL22_KOZEN_*.zip' -printf '%T@ %p\n' | sort -nr | head -n1 | cut -d' ' -f2-)"
+          if [ -z "$ZIP" ]; then
+            echo 'No AOA diagnostic ZIP committed yet.'
+            exit 0
+          fi
+          echo "LATEST_ZIP=$ZIP"
+          echo '===== ARCHIVE CONTENTS ====='
+          unzip -l "$ZIP"
+          echo '===== SUMMARY.txt ====='
+          unzip -p "$ZIP" SUMMARY.txt || true
+          echo '===== JL22_02_aoa_logcat.txt ====='
+          unzip -p "$ZIP" JL22_02_aoa_logcat.txt || true
+          echo '===== KOZEN_02_bridge_logcat.txt ====='
+          unzip -p "$ZIP" KOZEN_02_bridge_logcat.txt || true
+          echo '===== JL22_04_usb_bus.txt ====='
+          unzip -p "$ZIP" JL22_04_usb_bus.txt || true
+          echo '===== KOZEN_03_dumpsys_usb.txt ====='
+          unzip -p "$ZIP" KOZEN_03_dumpsys_usb.txt || true
