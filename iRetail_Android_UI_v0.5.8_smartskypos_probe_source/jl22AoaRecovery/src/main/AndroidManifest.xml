@@ -7,6 +7,11 @@
         android:theme="@android:style/Theme.Material.Light.NoActionBar">
 
         <activity
+            android:name=".AoaProductionBridgeAuditActivity"
+            android:exported="true"
+            android:launchMode="singleTask" />
+
+        <activity
             android:name=".AoaRecoveryActivity"
             android:exported="true"
             android:launchMode="singleTask">
