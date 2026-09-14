@@ -31,7 +31,7 @@
         </activity>
 
         <service
-            android:name=".BridgeService"
+            android:name=".ProductionBridgeService"
             android:exported="false" />
     </application>
 </manifest>
