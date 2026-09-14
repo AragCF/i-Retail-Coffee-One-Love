@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <usb-accessory
+        manufacturer="Coffee One Love"
+        model="iRetail Kozen Payment Bridge" />
+    <usb-accessory
+        manufacturer="Coffee One Love"
+        model="iRetail Kozen Recovery Bridge" />
+</resources>
