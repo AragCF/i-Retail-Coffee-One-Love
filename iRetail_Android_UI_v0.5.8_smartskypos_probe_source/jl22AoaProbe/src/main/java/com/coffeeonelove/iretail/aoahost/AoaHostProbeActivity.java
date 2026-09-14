@@ -25,6 +25,13 @@ import java.util.Locale;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
+/**
+ * JL22-side USB host probe.
+ *
+ * v0.2 proves the complete read-only chain:
+ * JL22 -> AOA -> Kozen Bridge -> local SmartSkyPOS Binder getState().
+ * No payment/refund/cancel command exists in this probe.
+ */
 public class AoaHostProbeActivity extends Activity {
     private static final String TAG = "IretailAoaHost";
     private static final String ACTION_USB_PERMISSION = "com.coffeeonelove.iretail.aoahost.USB_PERMISSION";
@@ -40,7 +47,7 @@ public class AoaHostProbeActivity extends Activity {
     private static final String ACCESSORY_MANUFACTURER = "Coffee One Love";
     private static final String ACCESSORY_MODEL = "iRetail Kozen Payment Bridge";
     private static final String ACCESSORY_DESCRIPTION = "i-Retail USB payment bridge";
-    private static final String ACCESSORY_VERSION = "0.1";
+    private static final String ACCESSORY_VERSION = "0.2";
     private static final String ACCESSORY_URI = "https://thesystem.pro/";
     private static final String ACCESSORY_SERIAL = "iretail-kozen-p12";
 
@@ -50,10 +57,10 @@ public class AoaHostProbeActivity extends Activity {
     private final Handler main = new Handler(Looper.getMainLooper());
     private final ExecutorService executor = Executors.newSingleThreadExecutor();
 
-    private volatile boolean rawPermissionRequested = false;
-    private volatile boolean aoaPermissionRequested = false;
-    private volatile boolean handshakeStarted = false;
-    private volatile boolean linkStarted = false;
+    private volatile boolean rawPermissionRequested;
+    private volatile boolean aoaPermissionRequested;
+    private volatile boolean handshakeStarted;
+    private volatile boolean linkStarted;
 
     private UsbDeviceConnection linkConnection;
     private UsbInterface linkInterface;
@@ -93,9 +100,10 @@ public class AoaHostProbeActivity extends Activity {
         );
         registerReceiver(permissionReceiver, new IntentFilter(ACTION_USB_PERMISSION));
 
-        append("JL22 AOA host probe v0.1");
-        append("Ожидание Kozen VID=0e8d PID=201c…");
-        main.postDelayed(this::discoverAndStart, 600);
+        append("JL22 AOA + SmartSkyPOS state probe v0.2");
+        append("Финансовые операции отключены. Проверяется только getState().");
+        append("Ожидание Kozen…");
+        main.postDelayed(this::discoverAndStart, 500);
     }
 
     @Override
@@ -113,7 +121,7 @@ public class AoaHostProbeActivity extends Activity {
         root.setPadding(pad, pad, pad, pad);
 
         TextView title = new TextView(this);
-        title.setText("i-Retail JL22 → Kozen AOA probe");
+        title.setText("i-Retail JL22 → Kozen → SmartSkyPOS");
         title.setTextSize(22f);
         root.addView(title);
 
@@ -135,7 +143,7 @@ public class AoaHostProbeActivity extends Activity {
 
         UsbDevice raw = findRawKozen();
         if (raw == null) {
-            append("Kozen 0e8d:201c пока не найден. Повтор через 1 с…");
+            append("Kozen пока не найден. Повтор через 1 с…");
             main.postDelayed(this::discoverAndStart, 1000);
             return;
         }
@@ -144,7 +152,7 @@ public class AoaHostProbeActivity extends Activity {
         if (!usbManager.hasPermission(raw)) {
             if (!rawPermissionRequested) {
                 rawPermissionRequested = true;
-                append("Запрашиваю USB-разрешение для Kozen. Подтвердите его на JL22, если появится окно.");
+                append("Запрашиваю USB-разрешение для Kozen.");
                 log("REQUEST_RAW_USB_PERMISSION " + deviceSummary(raw));
                 usbManager.requestPermission(raw, permissionIntent);
             }
@@ -171,7 +179,7 @@ public class AoaHostProbeActivity extends Activity {
             byte[] protocol = new byte[2];
             int n = connection.controlTransfer(0xC0, AOA_GET_PROTOCOL, 0, 0, protocol, protocol.length, 1500);
             if (n != 2) {
-                append("AOA GET_PROTOCOL не поддержан или вернул " + n + ".");
+                append("AOA GET_PROTOCOL вернул " + n + ".");
                 log("AOA_GET_PROTOCOL_FAILED rc=" + n);
                 handshakeStarted = false;
                 return;
@@ -180,7 +188,6 @@ public class AoaHostProbeActivity extends Activity {
             append("AOA protocol version=" + version);
             log("AOA_PROTOCOL=" + version);
             if (version < 1) {
-                append("Некорректная версия AOA: " + version);
                 handshakeStarted = false;
                 return;
             }
@@ -198,10 +205,10 @@ public class AoaHostProbeActivity extends Activity {
 
             int start = connection.controlTransfer(0x40, AOA_START, 0, 0, null, 0, 1500);
             log("AOA_START rc=" + start);
-            append("AOA START отправлен. Жду переподключения Kozen в режиме accessory…");
+            append("AOA START отправлен. Жду 18d1:2d0x…");
         } catch (Exception e) {
             log("AOA_HANDSHAKE_EXCEPTION " + e.getClass().getSimpleName() + ": " + safe(e.getMessage()));
-            append("Ошибка AOA handshake: " + e.getClass().getSimpleName() + ": " + safe(e.getMessage()));
+            append("Ошибка AOA handshake: " + e.getClass().getSimpleName());
             handshakeStarted = false;
             return;
         } finally {
@@ -209,7 +216,7 @@ public class AoaHostProbeActivity extends Activity {
         }
 
         main.postDelayed(new Runnable() {
-            private int attempts = 0;
+            private int attempts;
             @Override
             public void run() {
                 UsbDevice aoa = findAoaDevice();
@@ -219,14 +226,14 @@ public class AoaHostProbeActivity extends Activity {
                     return;
                 }
                 attempts++;
-                if (attempts >= 30) {
-                    append("Тайм-аут: Kozen не появился как 18d1:2d0x за 15 секунд.");
+                if (attempts >= 60) {
+                    append("Тайм-аут повторного перечисления AOA.");
                     log("AOA_REENUMERATION_TIMEOUT");
                     return;
                 }
                 main.postDelayed(this, 500);
             }
-        }, 700);
+        }, 500);
     }
 
     private boolean sendString(UsbDeviceConnection connection, int index, String value) {
@@ -245,7 +252,7 @@ public class AoaHostProbeActivity extends Activity {
         }
         if (!aoaPermissionRequested) {
             aoaPermissionRequested = true;
-            append("Запрашиваю разрешение для AOA 18d1:2d0x. Подтвердите его на JL22, если появится окно.");
+            append("Запрашиваю разрешение для AOA устройства.");
             log("REQUEST_AOA_USB_PERMISSION " + deviceSummary(device));
             usbManager.requestPermission(device, permissionIntent);
         }
@@ -288,7 +295,7 @@ public class AoaHostProbeActivity extends Activity {
         }
 
         if (selectedInterface == null || in == null || out == null) {
-            append("У AOA устройства не найдены BULK IN/OUT endpoints.");
+            append("Не найдены AOA BULK IN/OUT endpoints.");
             log("AOA_ENDPOINTS_MISSING interfaces=" + device.getInterfaceCount());
             connection.close();
             linkStarted = false;
@@ -305,27 +312,25 @@ public class AoaHostProbeActivity extends Activity {
 
         linkConnection = connection;
         linkInterface = selectedInterface;
-        append("AOA BULK канал открыт. Проверяю PING/INFO…");
+        append("AOA BULK канал открыт.");
         log("AOA_BULK_READY device=" + deviceSummary(device) +
                 " interface=" + selectedInterface.getId() +
                 " in=0x" + Integer.toHexString(in.getAddress()) +
                 " out=0x" + Integer.toHexString(out.getAddress()));
 
         try {
-            String pong = null;
-            for (int attempt = 1; attempt <= 12 && pong == null; attempt++) {
-                int tx = bulkWrite(connection, out, "PING 1001\n");
-                log("PING_ATTEMPT=" + attempt + " tx=" + tx);
-                if (tx > 0) {
-                    String response = bulkRead(connection, in, 1800);
-                    pong = pickLineStartingWith(response, "PONG 1001");
-                    if (response != null && pong == null) log("PING_IGNORED_RX " + safe(response));
-                }
-                if (pong == null) Thread.sleep(700);
+            int pingTx = bulkWrite(connection, out, "PING 1001\n");
+            log("PING_TX=" + pingTx);
+            if (pingTx <= 0) {
+                append("Не удалось отправить PING. tx=" + pingTx);
+                log("AOA_PING_WRITE_FAILED tx=" + pingTx);
+                return;
             }
 
+            append("PING отправлен. Жду Kozen Bridge; первый запуск может потребовать подтверждения на терминале.");
+            String pong = waitForPrefix(connection, in, "PONG 1001", 480000L, "PING");
             if (pong == null) {
-                append("AOA transport открыт, но PONG от Kozen Bridge не получен.");
+                append("Тайм-аут ожидания PONG.");
                 log("AOA_PING_TIMEOUT");
                 return;
             }
@@ -333,30 +338,70 @@ public class AoaHostProbeActivity extends Activity {
             log("AOA_PING_OK " + safe(pong));
 
             int infoTx = bulkWrite(connection, out, "INFO 1002\n");
-            String info = null;
-            String lastResponse = null;
-            if (infoTx > 0) {
-                for (int attempt = 1; attempt <= 8 && info == null; attempt++) {
-                    lastResponse = bulkRead(connection, in, 900);
-                    info = pickLineStartingWith(lastResponse, "INFO 1002");
-                    if (lastResponse != null && info == null) {
-                        log("INFO_IGNORED_RX attempt=" + attempt + " " + safe(lastResponse));
+            log("INFO_TX=" + infoTx);
+            String info = infoTx > 0 ? waitForPrefix(connection, in, "INFO 1002", 20000L, "INFO") : null;
+            if (info == null) {
+                append("PONG получен, но INFO не получен.");
+                log("AOA_INFO_FAILED tx=" + infoTx);
+                return;
+            }
+            append("RX: " + info);
+            log("AOA_LINK_OK " + safe(info));
+
+            append("Запрашиваю только SmartSkyPOS getState()…");
+            String state = null;
+            for (int attempt = 1; attempt <= 20 && state == null; attempt++) {
+                int stateTx = bulkWrite(connection, out, "GET_STATE 1003\n");
+                log("GET_STATE_TX attempt=" + attempt + " tx=" + stateTx);
+                if (stateTx > 0) {
+                    String response = waitForPrefix(connection, in, "STATE 1003", 4000L, "GET_STATE");
+                    if (response != null) {
+                        log("GET_STATE_RX attempt=" + attempt + " " + safe(response));
+                        if (response.contains("code=0")) {
+                            state = response;
+                            break;
+                        }
+                        if (!response.contains("code=NOT_BOUND")) {
+                            append("SmartSkyPOS вернул: " + response);
+                            break;
+                        }
                     }
                 }
+                Thread.sleep(500L);
             }
 
-            if (info != null) {
-                append("RX: " + info);
-                append("ГОТОВО: JL22 ↔ AOA ↔ Kozen Bridge работает.");
-                log("AOA_LINK_OK " + safe(info));
+            if (state != null) {
+                append("RX: " + state);
+                append("ГОТОВО: JL22 → USB/AOA → Kozen Bridge → SmartSkyPOS getState() работает.");
+                log("SMARTSKY_STATE_OVER_AOA_OK " + safe(state));
             } else {
-                append("PONG получен, но INFO не получен. tx=" + infoTx + " response=" + safe(lastResponse));
-                log("AOA_INFO_FAILED tx=" + infoTx + " response=" + safe(lastResponse));
+                append("AOA работает, но getState() пока не подтверждён.");
+                log("SMARTSKY_STATE_OVER_AOA_FAILED");
             }
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            log("AOA_LINK_INTERRUPTED");
         } catch (Exception e) {
-            append("Ошибка обмена по AOA: " + e.getClass().getSimpleName() + ": " + safe(e.getMessage()));
+            append("Ошибка обмена AOA: " + e.getClass().getSimpleName() + ": " + safe(e.getMessage()));
             log("AOA_LINK_EXCEPTION " + e.getClass().getSimpleName() + ": " + safe(e.getMessage()));
         }
+    }
+
+    private String waitForPrefix(UsbDeviceConnection connection, UsbEndpoint in, String prefix, long totalMs, String phase) {
+        long deadline = System.currentTimeMillis() + totalMs;
+        int reads = 0;
+        while (!Thread.currentThread().isInterrupted() && System.currentTimeMillis() < deadline) {
+            String response = bulkRead(connection, in, 1000);
+            reads++;
+            if (response == null) continue;
+            String match = pickLineStartingWith(response, prefix);
+            if (match != null) {
+                log(phase + "_RX_MATCH reads=" + reads + " " + safe(match));
+                return match;
+            }
+            log(phase + "_RX_IGNORED reads=" + reads + " " + safe(response));
+        }
+        return null;
     }
 
     private int bulkWrite(UsbDeviceConnection connection, UsbEndpoint out, String text) {
@@ -405,20 +450,11 @@ public class AoaHostProbeActivity extends Activity {
         return pid >= 0x2d00 && pid <= 0x2d05;
     }
 
-    private void closeLink() {
-        UsbDeviceConnection c = linkConnection;
-        UsbInterface i = linkInterface;
-        linkConnection = null;
-        linkInterface = null;
-        if (c != null) {
-            try { if (i != null) c.releaseInterface(i); } catch (Exception ignored) {}
-            try { c.close(); } catch (Exception ignored) {}
-        }
-    }
-
     private void append(String text) {
-        log("UI " + safe(text));
-        main.post(() -> output.append(text + "\n"));
+        log("UI " + text);
+        main.post(() -> {
+            if (output != null) output.append((output.length() == 0 ? "" : "\n") + text);
+        });
     }
 
     private static void log(String text) {
@@ -430,9 +466,20 @@ public class AoaHostProbeActivity extends Activity {
         return String.format(Locale.US, "%04x:%04x name=%s", d.getVendorId(), d.getProductId(), d.getDeviceName());
     }
 
+    private void closeLink() {
+        UsbDeviceConnection connection = linkConnection;
+        UsbInterface intf = linkInterface;
+        linkConnection = null;
+        linkInterface = null;
+        if (connection != null) {
+            try { if (intf != null) connection.releaseInterface(intf); } catch (Exception ignored) {}
+            try { connection.close(); } catch (Exception ignored) {}
+        }
+    }
+
     private static String safe(String value) {
         if (value == null) return "-";
         value = value.replace('\n', ' ').replace('\r', ' ');
-        return value.length() <= 300 ? value : value.substring(0, 300);
+        return value.length() <= 400 ? value : value.substring(0, 400);
     }
 }
