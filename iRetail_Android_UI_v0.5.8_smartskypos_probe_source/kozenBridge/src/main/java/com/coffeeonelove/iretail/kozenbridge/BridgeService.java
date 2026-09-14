@@ -1,11 +1,15 @@
 package com.coffeeonelove.iretail.kozenbridge;
 
 import android.app.Service;
+import android.content.ComponentName;
+import android.content.Context;
 import android.content.Intent;
+import android.content.ServiceConnection;
 import android.hardware.usb.UsbAccessory;
 import android.hardware.usb.UsbManager;
 import android.os.Build;
 import android.os.IBinder;
+import android.os.Parcel;
 import android.os.ParcelFileDescriptor;
 import android.util.Log;
 
@@ -17,16 +21,74 @@ import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
 import java.nio.charset.StandardCharsets;
 
+/**
+ * USB/AOA bridge running locally on Kozen P12.
+ *
+ * Financial operations are intentionally NOT implemented here yet.
+ * SmartSkyPOS integration in this version is read-only and exposes only
+ * Binder transaction #1 (getState) over the USB bridge.
+ */
 public class BridgeService extends Service {
     private static final String TAG = "IretailKozenBridge";
-    private static final String BRIDGE_VERSION = "0.1.0";
+    private static final String BRIDGE_VERSION = "0.2.0";
+
+    private static final String SMARTSKY_ACTION = "com.skytech.smartskypos.ISmartSkyPos";
+    private static final String SMARTSKY_PACKAGE = "com.skytech.smartskypos";
+    private static final String SMARTSKY_SERVICE = "com.crestwavetech.smartskyposservice.SmartSkyPosService";
+    private static final String SMARTSKY_DESCRIPTOR = "com.skytech.smartskyposlib.ISmartSkyPos";
+    private static final int SMARTSKY_TX_GET_STATE = 1;
 
     private final Object lock = new Object();
     private Thread ioThread;
     private ParcelFileDescriptor parcelFd;
 
+    private volatile IBinder smartSkyBinder;
+    private volatile boolean smartSkyBound;
+
+    private final ServiceConnection smartSkyConnection = new ServiceConnection() {
+        @Override
+        public void onServiceConnected(ComponentName name, IBinder service) {
+            smartSkyBinder = service;
+            smartSkyBound = true;
+            String descriptor = "-";
+            try { descriptor = service == null ? "-" : service.getInterfaceDescriptor(); }
+            catch (Exception ignored) {}
+            Log.i(TAG, "SMARTSKY_BOUND component=" + name + " descriptor=" + descriptor);
+        }
+
+        @Override
+        public void onServiceDisconnected(ComponentName name) {
+            smartSkyBinder = null;
+            smartSkyBound = false;
+            Log.w(TAG, "SMARTSKY_DISCONNECTED component=" + name);
+        }
+
+        @Override
+        public void onBindingDied(ComponentName name) {
+            smartSkyBinder = null;
+            smartSkyBound = false;
+            Log.w(TAG, "SMARTSKY_BINDING_DIED component=" + name);
+            bindSmartSky();
+        }
+
+        @Override
+        public void onNullBinding(ComponentName name) {
+            smartSkyBinder = null;
+            smartSkyBound = false;
+            Log.e(TAG, "SMARTSKY_NULL_BINDING component=" + name);
+        }
+    };
+
+    @Override
+    public void onCreate() {
+        super.onCreate();
+        bindSmartSky();
+    }
+
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
+        bindSmartSky();
+
         UsbAccessory accessory = intent == null ? null : intent.getParcelableExtra(UsbManager.EXTRA_ACCESSORY);
         if (accessory == null) {
             UsbManager manager = (UsbManager) getSystemService(USB_SERVICE);
@@ -42,7 +104,7 @@ public class BridgeService extends Service {
 
         final UsbAccessory selected = accessory;
         synchronized (lock) {
-            closeLocked();
+            closeAccessoryLocked();
             ioThread = new Thread(() -> runBridge(selected), "iretail-kozen-aoa-bridge");
             ioThread.start();
         }
@@ -52,14 +114,37 @@ public class BridgeService extends Service {
     @Override
     public void onDestroy() {
         synchronized (lock) {
-            closeLocked();
+            closeAccessoryLocked();
         }
+        if (smartSkyBound) {
+            try { unbindService(smartSkyConnection); } catch (Exception ignored) {}
+        }
+        smartSkyBinder = null;
+        smartSkyBound = false;
         super.onDestroy();
     }
 
     @Override
     public IBinder onBind(Intent intent) {
         return null;
+    }
+
+    private void bindSmartSky() {
+        if (smartSkyBound && smartSkyBinder != null && smartSkyBinder.isBinderAlive()) return;
+        try {
+            Intent intent = new Intent(SMARTSKY_ACTION);
+            intent.setComponent(new ComponentName(SMARTSKY_PACKAGE, SMARTSKY_SERVICE));
+            boolean ok = bindService(intent, smartSkyConnection, Context.BIND_AUTO_CREATE);
+            Log.i(TAG, "SMARTSKY_BIND_REQUEST ok=" + ok);
+            if (!ok) {
+                smartSkyBound = false;
+                smartSkyBinder = null;
+            }
+        } catch (Exception e) {
+            smartSkyBound = false;
+            smartSkyBinder = null;
+            Log.e(TAG, "SMARTSKY_BIND_ERROR " + e.getClass().getSimpleName() + ": " + safe(e.getMessage()));
+        }
     }
 
     private void runBridge(UsbAccessory accessory) {
@@ -81,7 +166,8 @@ public class BridgeService extends Service {
             BufferedReader reader = new BufferedReader(new InputStreamReader(input, StandardCharsets.UTF_8));
             BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(output, StandardCharsets.UTF_8));
 
-            Log.i(TAG, "BRIDGE_READY transport=AOA bridge=" + BRIDGE_VERSION);
+            Log.i(TAG, "BRIDGE_READY transport=AOA bridge=" + BRIDGE_VERSION +
+                    " smartsky=" + (isSmartSkyReady() ? "bound" : "not_bound"));
             String line;
             while ((line = reader.readLine()) != null) {
                 String request = line.trim();
@@ -98,7 +184,7 @@ public class BridgeService extends Service {
             Log.e(TAG, "BRIDGE_IO_ERROR " + e.getClass().getSimpleName() + ": " + safe(e.getMessage()));
         } finally {
             synchronized (lock) {
-                closeLocked();
+                closeAccessoryLocked();
             }
         }
     }
@@ -122,12 +208,57 @@ public class BridgeService extends Service {
                     " transport=AOA" +
                     " role=kozen-payment-bridge" +
                     " bridge=" + BRIDGE_VERSION +
-                    " smartsky=not-yet-bound";
+                    " smartsky=" + (isSmartSkyReady() ? "bound" : "not_bound");
+        }
+        if ("GET_STATE".equals(command)) {
+            return getSmartSkyStateResponse(id);
         }
         return "ERROR " + id + " code=UNKNOWN_COMMAND command=" + token(command);
     }
 
-    private void closeLocked() {
+    private boolean isSmartSkyReady() {
+        IBinder binder = smartSkyBinder;
+        return smartSkyBound && binder != null && binder.isBinderAlive();
+    }
+
+    private String getSmartSkyStateResponse(String id) {
+        IBinder binder = smartSkyBinder;
+        if (!smartSkyBound || binder == null || !binder.isBinderAlive()) {
+            bindSmartSky();
+            return "STATE " + id + " code=NOT_BOUND bound=false";
+        }
+
+        Parcel data = Parcel.obtain();
+        Parcel reply = Parcel.obtain();
+        try {
+            data.writeInterfaceToken(SMARTSKY_DESCRIPTOR);
+            boolean transacted = binder.transact(SMARTSKY_TX_GET_STATE, data, reply, 0);
+            if (!transacted) {
+                Log.e(TAG, "SMARTSKY_GET_STATE transact=false");
+                return "STATE " + id + " code=TRANSACT_FALSE bound=true";
+            }
+            reply.readException();
+            int state = reply.readInt();
+            String descriptor = "-";
+            try { descriptor = binder.getInterfaceDescriptor(); } catch (Exception ignored) {}
+            Log.i(TAG, "SMARTSKY_GET_STATE_OK state=" + state + " descriptor=" + descriptor);
+            return "STATE " + id + " code=0 state=" + state + " bound=true descriptor=" + token(descriptor);
+        } catch (Exception e) {
+            Log.e(TAG, "SMARTSKY_GET_STATE_ERROR " + e.getClass().getSimpleName() + ": " + safe(e.getMessage()));
+            if (!binder.isBinderAlive()) {
+                smartSkyBinder = null;
+                smartSkyBound = false;
+                bindSmartSky();
+            }
+            return "STATE " + id + " code=EXCEPTION type=" + token(e.getClass().getSimpleName()) +
+                    " message=" + token(safe(e.getMessage()));
+        } finally {
+            data.recycle();
+            reply.recycle();
+        }
+    }
+
+    private void closeAccessoryLocked() {
         if (ioThread != null && ioThread != Thread.currentThread()) {
             ioThread.interrupt();
         }
