@@ -1,6 +1,7 @@
 package com.coffeeonelove.iretail.ui
 
 import android.app.Activity
+import com.coffeeonelove.iretail.pos.KozenAoaPaymentClient
 import android.graphics.Color
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
@@ -52,6 +53,10 @@ class MainActivity : Activity() {
     private val orderGateway = LocalRetailOrderGateway()
     private val machineGateway = LocalMachineGateway()
     private val loyaltyGateway = LocalLoyaltyGateway()
+    private lateinit var cardPaymentClient: KozenAoaPaymentClient
+    private var realPosEnabled = false
+    private var cardPaymentBusy = false
+    private var cardPaymentStatus = ""
     private val imageCache = mutableMapOf<String, Bitmap>()
 
     private lateinit var contentRepository: IretailContentRepository
@@ -165,6 +170,8 @@ class MainActivity : Activity() {
         window.setFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN, WindowManager.LayoutParams.FLAG_FULLSCREEN)
         hideSystemUi()
         contentRepository = IretailContentRepository(this)
+        realPosEnabled = intent?.getBooleanExtra("real_pos_enabled", false) == true
+        cardPaymentClient = KozenAoaPaymentClient(this)
         catalog = contentRepository.loadProducts()
         paymentMethods = contentRepository.loadPaymentMethods()
         buildRootView()
@@ -204,6 +211,11 @@ class MainActivity : Activity() {
     override fun onWindowFocusChanged(hasFocus: Boolean) {
         super.onWindowFocusChanged(hasFocus)
         if (hasFocus) hideSystemUi()
+    }
+
+    override fun onDestroy() {
+        if (::cardPaymentClient.isInitialized) cardPaymentClient.shutdown()
+        super.onDestroy()
     }
 
     @Deprecated("Deprecated in Android API, still valid for minSdk 23 without AndroidX dispatcher.")
@@ -1068,7 +1080,7 @@ class MainActivity : Activity() {
     private fun renderPaymentProgressOverlay() {
         val order = orderGateway.currentOrder()
         val statusText = when (currentScreen) {
-            "PAYMENT_POS" -> "Ожидание ответа POS-терминала"
+            "PAYMENT_POS" -> cardPaymentStatus.ifBlank { "Подключение к POS-терминалу…" }
             "PAYMENT_CASH" -> "Ожидание внесения наличных"
             "PAYMENT_ONLINE_QR" -> "Сканируйте QR-код для оплаты"
             else -> "Проверяем оплату и готовим чек"
@@ -1348,7 +1360,7 @@ class MainActivity : Activity() {
         renderLandscapeHeader()
         val order = orderGateway.currentOrder()
         val title = when (currentScreen) {
-            "PAYMENT_POS" -> "ПРИЛОЖИТЕ КАРТУ К ТЕРМИНАЛУ ОПЛАТЫ"
+            "PAYMENT_POS" -> cardPaymentStatus.ifBlank { "ПОДКЛЮЧЕНИЕ К POS-ТЕРМИНАЛУ…" }.uppercase(Locale.ROOT)
             "PAYMENT_CASH" -> "ВНЕСИТЕ НАЛИЧНЫЕ В КУПЮРОПРИЁМНИК"
             "PAYMENT_ONLINE_QR" -> "СКАНИРУЙТЕ QR-КОД ДЛЯ ОПЛАТЫ"
             else -> "ПРОВЕРЯЕМ ОПЛАТУ И ГОТОВИМ ЧЕК"
@@ -1446,7 +1458,12 @@ class MainActivity : Activity() {
             area("Онлайн / СберСпасибо", 1210, 390, 430, 150) { startPayment(PaymentMethod.ONLINE) },
             area("Назад к заказу", 700, 700, 520, 105) { openOrderOrCatalog() }
         )
-        screenId == "PAYMENT_POS" || screenId == "PAYMENT_CASH" || screenId == "PAYMENT_ONLINE_QR" || screenId == "PAYMENT_ONLINE_CONFIRM" -> listOf(
+        screenId == "PAYMENT_POS" -> listOf(
+            area("Назад к способам оплаты", 0, 940, 420, 140) {
+                if (cardPaymentBusy) toast("Дождитесь ответа терминала") else openScreen("PAYMENT_METHOD_ALL")
+            }
+        )
+        screenId == "PAYMENT_CASH" || screenId == "PAYMENT_ONLINE_QR" || screenId == "PAYMENT_ONLINE_CONFIRM" -> listOf(
             area("Подтвердить оплату", 0, 80, 1920, 860) { finishPayment() },
             area("Отмена оплаты", 0, 940, 420, 140) { openScreen("PAYMENT_METHOD_ALL") }
         )
@@ -1623,7 +1640,13 @@ class MainActivity : Activity() {
             area("Назад к заказу", 175, 1420, 710, 215) { openOrderOrCatalog() }
         )
 
-        "PAYMENT_POS", "PAYMENT_CASH", "PAYMENT_ONLINE_QR", "PAYMENT_ONLINE_CONFIRM" -> listOf(
+        "PAYMENT_POS" -> listOf(
+            area("Назад к способам оплаты", 0, 1700, 300, 220) {
+                if (cardPaymentBusy) toast("Дождитесь ответа терминала") else openScreen("PAYMENT_METHOD_ALL")
+            }
+        )
+
+        "PAYMENT_CASH", "PAYMENT_ONLINE_QR", "PAYMENT_ONLINE_CONFIRM" -> listOf(
             area("Подтвердить оплату", 0, 0, 1080, 1700) { finishPayment() },
             area("Отмена оплаты", 0, 1700, 300, 220) { openScreen("PAYMENT_METHOD_ALL") }
         )
@@ -1813,7 +1836,7 @@ class MainActivity : Activity() {
 
     private fun applyAutoTransitions(screenId: String) {
         when (screenId) {
-            "PAYMENT_POS", "PAYMENT_CASH", "PAYMENT_ONLINE_CONFIRM" -> handler.postDelayed({ finishPayment() }, 2600)
+            "PAYMENT_CASH", "PAYMENT_ONLINE_CONFIRM" -> handler.postDelayed({ finishPayment() }, 2600)
             "PAYMENT_ONLINE_QR" -> handler.postDelayed({ openScreen("PAYMENT_ONLINE_CONFIRM") }, 1800)
             "DISPENSE_ONE_PROGRESS", "DISPENSE_ONE_PROGRESS_ALT", "DISPENSE_TWO_PROGRESS", "DISPENSE_THREE_PROGRESS", "DISPENSE_THREE_PROGRESS_ALT" -> handler.postDelayed({ finishDispense() }, 4200)
         }
@@ -1834,6 +1857,8 @@ class MainActivity : Activity() {
         recommendationPopupTitle = null
         languagePopupVisible = false
         screenHistory.clear()
+        cardPaymentBusy = false
+        cardPaymentStatus = ""
         openScreen("CATALOG_DEFAULT", remember = false)
     }
 
@@ -1953,6 +1978,10 @@ class MainActivity : Activity() {
             toast("Нельзя оплатить пустой заказ")
             return
         }
+        if (method == PaymentMethod.CARD && !realPosEnabled) {
+            toast("Реальный Kozen POS отключён. Запустите тестовый режим явным параметром real_pos_enabled=true.")
+            return
+        }
         lastPaymentMethod = method
         val startResult = orderGateway.startPayment(method)
         if (startResult != OperationResult.SUCCESS) {
@@ -1960,13 +1989,77 @@ class MainActivity : Activity() {
             orderGateway.startPayment(method)
         }
         when (method) {
-            PaymentMethod.CARD -> openScreen("PAYMENT_POS")
+            PaymentMethod.CARD -> {
+                openScreen("PAYMENT_POS")
+                startRealCardPayment()
+            }
             PaymentMethod.CASH -> openScreen("PAYMENT_CASH")
             PaymentMethod.ONLINE, PaymentMethod.SBER_SPASIBO -> openScreen("PAYMENT_ONLINE_QR")
         }
     }
 
+    private fun startRealCardPayment() {
+        val order = orderGateway.currentOrder()
+        if (order == null || order.amount <= 0) {
+            toast("Не удалось определить сумму заказа")
+            openScreen("PAYMENT_METHOD_ALL")
+            return
+        }
+        if (cardPaymentBusy) {
+            toast("Предыдущая операция оплаты ещё не завершена")
+            return
+        }
+
+        val amount = String.format(Locale.US, "%d.00", order.amount)
+        cardPaymentBusy = true
+        cardPaymentStatus = if (cardPaymentClient.hasUnresolvedPayment()) {
+            "Проверяем предыдущую незавершённую оплату…"
+        } else {
+            "Подключаемся к Kozen…"
+        }
+        rerenderCurrentScreen()
+
+        cardPaymentClient.startPayment(amount, object : KozenAoaPaymentClient.Listener {
+            override fun onStatus(message: String) {
+                cardPaymentStatus = message
+                if (currentScreen == "PAYMENT_POS") rerenderCurrentScreen()
+            }
+
+            override fun onResult(result: KozenAoaPaymentClient.PaymentResult) {
+                cardPaymentBusy = false
+                cardPaymentStatus = result.userMessage()
+                when {
+                    result.isApproved() -> {
+                        val completed = orderGateway.completePayment()
+                        if (completed == OperationResult.SUCCESS) {
+                            toast("Оплата подтверждена Kozen / SmartSkyPOS. RRN ${result.rrn}")
+                            openScreen("PAYMENT_COMPLETED")
+                        } else {
+                            openScreen("ERROR_406")
+                        }
+                    }
+                    result.isDeclined() -> {
+                        toast("Оплата отклонена: ${result.userMessage()} (rc=${result.rc})")
+                        openScreen("PAYMENT_METHOD_ALL")
+                    }
+                    result.isUncertain() -> {
+                        toast("Результат оплаты не определён. Повтор запрещён до проверки статуса.")
+                        if (currentScreen == "PAYMENT_POS") rerenderCurrentScreen() else openScreen("PAYMENT_POS")
+                    }
+                    else -> {
+                        toast(result.userMessage())
+                        openScreen("PAYMENT_METHOD_ALL")
+                    }
+                }
+            }
+        })
+    }
+
     private fun finishPayment() {
+        if (lastPaymentMethod == PaymentMethod.CARD) {
+            toast("Оплата картой завершается только по достоверному ответу Kozen")
+            return
+        }
         if (cart.isEmpty()) {
             openScreen("PAYMENT_METHOD_ALL")
             toast("Пустой заказ не может быть оплачен")
@@ -1974,7 +2067,7 @@ class MainActivity : Activity() {
         }
         val result = orderGateway.completePayment()
         if (result == OperationResult.SUCCESS) {
-            toast("Оплата принята локальным контуром. Проверьте внешний POS при боевом запуске.")
+            toast("Оплата принята локальным контуром.")
             openScreen("PAYMENT_COMPLETED")
         } else {
             openScreen("ERROR_406")

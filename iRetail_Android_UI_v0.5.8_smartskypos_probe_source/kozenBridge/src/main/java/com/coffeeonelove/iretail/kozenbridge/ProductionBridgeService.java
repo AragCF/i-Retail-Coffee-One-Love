@@ -47,7 +47,7 @@ import java.util.Set;
  */
 public class ProductionBridgeService extends Service {
     private static final String TAG = "IretailKozenBridge";
-    private static final String BRIDGE_VERSION = "0.5.0";
+    private static final String BRIDGE_VERSION = "0.5.2";
 
     private static final String SMARTSKY_ACTION = "com.skytech.smartskypos.ISmartSkyPos";
     private static final String SMARTSKY_PACKAGE = "com.skytech.smartskypos";
@@ -74,11 +74,13 @@ public class ProductionBridgeService extends Service {
 
     private volatile IBinder smartSkyBinder;
     private volatile boolean smartSkyBound;
+    private volatile boolean smartSkyBindingRequested;
 
     private final ServiceConnection smartSkyConnection = new ServiceConnection() {
         @Override public void onServiceConnected(ComponentName name, IBinder service) {
             smartSkyBinder = service;
             smartSkyBound = true;
+            smartSkyBindingRequested = false;
             String descriptor = "-";
             try { descriptor = service == null ? "-" : service.getInterfaceDescriptor(); } catch (Exception ignored) {}
             Log.i(TAG, "SMARTSKY_BOUND component=" + name + " descriptor=" + descriptor);
@@ -87,12 +89,14 @@ public class ProductionBridgeService extends Service {
         @Override public void onServiceDisconnected(ComponentName name) {
             smartSkyBinder = null;
             smartSkyBound = false;
+            smartSkyBindingRequested = false;
             Log.w(TAG, "SMARTSKY_DISCONNECTED component=" + name);
         }
 
         @Override public void onBindingDied(ComponentName name) {
             smartSkyBinder = null;
             smartSkyBound = false;
+            smartSkyBindingRequested = false;
             Log.w(TAG, "SMARTSKY_BINDING_DIED component=" + name);
             bindSmartSky();
         }
@@ -100,6 +104,7 @@ public class ProductionBridgeService extends Service {
         @Override public void onNullBinding(ComponentName name) {
             smartSkyBinder = null;
             smartSkyBound = false;
+            smartSkyBindingRequested = false;
             Log.e(TAG, "SMARTSKY_NULL_BINDING component=" + name);
         }
     };
@@ -125,6 +130,10 @@ public class ProductionBridgeService extends Service {
 
         final UsbAccessory selected = accessory;
         synchronized (accessoryLock) {
+            if (ioThread != null && ioThread.isAlive()) {
+                Log.i(TAG, "SERVICE_START_DUPLICATE_IGNORED activeThread=true bridge=" + BRIDGE_VERSION);
+                return START_NOT_STICKY;
+            }
             closeAccessoryLocked();
             ioThread = new Thread(() -> runBridge(selected), "iretail-kozen-production-bridge");
             ioThread.start();
@@ -139,6 +148,7 @@ public class ProductionBridgeService extends Service {
         }
         smartSkyBinder = null;
         smartSkyBound = false;
+        smartSkyBindingRequested = false;
         super.onDestroy();
     }
 
@@ -146,16 +156,20 @@ public class ProductionBridgeService extends Service {
 
     private void bindSmartSky() {
         if (smartSkyBound && smartSkyBinder != null && smartSkyBinder.isBinderAlive()) return;
+        if (smartSkyBindingRequested) return;
+        smartSkyBindingRequested = true;
         try {
             Intent intent = new Intent(SMARTSKY_ACTION);
             intent.setComponent(new ComponentName(SMARTSKY_PACKAGE, SMARTSKY_SERVICE));
             boolean ok = bindService(intent, smartSkyConnection, Context.BIND_AUTO_CREATE);
             Log.i(TAG, "SMARTSKY_BIND_REQUEST ok=" + ok);
             if (!ok) {
+                smartSkyBindingRequested = false;
                 smartSkyBound = false;
                 smartSkyBinder = null;
             }
         } catch (Exception e) {
+            smartSkyBindingRequested = false;
             smartSkyBound = false;
             smartSkyBinder = null;
             Log.e(TAG, "SMARTSKY_BIND_ERROR " + e.getClass().getSimpleName() + ": " + safe(e.getMessage()));
