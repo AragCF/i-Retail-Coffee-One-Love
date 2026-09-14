@@ -14,7 +14,7 @@ echo JL22 : %JL22%
 echo Kozen: %KOZEN%
 echo.
 echo This test performs only:
-echo   JL22 USB host -> AOA -> Kozen Bridge -> SmartSkyPOS getState()
+echo   JL22 USB host to AOA to Kozen Bridge to SmartSkyPOS getState()
 echo.
 echo NO payment, refund, cancel or reconciliation is called.
 echo Keep Kozen connected to JL22 with the short stable USB cable.
