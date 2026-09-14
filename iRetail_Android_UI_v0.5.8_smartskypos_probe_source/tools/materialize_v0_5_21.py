@@ -43,19 +43,8 @@ main = replace_once(
     'card disabled message'
 )
 
-main = replace_once(
-    main,
-    '''            "PAYMENT_POS" -> "Ожидание ответа POS-терминала"\n''',
-    '''            "PAYMENT_POS" -> cardPaymentStatus.ifBlank { "Ожидание ответа POS-терминала" }\n''',
-    'portrait payment status'
-)
-
-main = replace_once(
-    main,
-    '''            "PAYMENT_POS" -> "ПРИЛОЖИТЕ КАРТУ К ТЕРМИНАЛУ ОПЛАТЫ"\n''',
-    '''            "PAYMENT_POS" -> cardPaymentStatus.ifBlank { "ПРИЛОЖИТЕ КАРТУ К ТЕРМИНАЛУ ОПЛАТЫ" }.uppercase(Locale.ROOT)\n''',
-    'landscape payment status'
-)
+# v0.5.20 already renders live cardPaymentStatus in portrait and landscape.
+# Do not touch those blocks here; machine modes only change lifecycle/configuration policy.
 
 MAIN.write_text(main, encoding='utf-8')
 
