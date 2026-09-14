@@ -24,17 +24,17 @@ if not defined REPO_ROOT (
     exit /b 3
 )
 
-set "LATEST_ZIP="
-for /f "delims=" %%F in ('powershell -NoProfile -Command "$f=Get-ChildItem -LiteralPath '.\usb_link_logs' -File -Filter 'USB_LINK_JL22_KOZEN_*.zip' -ErrorAction SilentlyContinue ^| Sort-Object LastWriteTime -Descending ^| Select-Object -First 1; if($f){$f.FullName}"') do if not defined LATEST_ZIP set "LATEST_ZIP=%%F"
+set "ZIP_NAME="
+for /f "delims=" %%F in ('dir /b /a-d /o-d "usb_link_logs\USB_LINK_JL22_KOZEN_*.zip" 2^>nul') do if not defined ZIP_NAME set "ZIP_NAME=%%F"
 
-if not defined LATEST_ZIP (
+if not defined ZIP_NAME (
     echo [ERROR] No USB_LINK_JL22_KOZEN_*.zip found in:
     echo %CD%\usb_link_logs
     pause
     exit /b 4
 )
 
-for %%F in ("%LATEST_ZIP%") do set "ZIP_NAME=%%~nxF"
+set "LATEST_ZIP=%CD%\usb_link_logs\%ZIP_NAME%"
 set "DEST_DIR=%CD%\test_reports\usb_link"
 if not exist "%DEST_DIR%" mkdir "%DEST_DIR%"
 
