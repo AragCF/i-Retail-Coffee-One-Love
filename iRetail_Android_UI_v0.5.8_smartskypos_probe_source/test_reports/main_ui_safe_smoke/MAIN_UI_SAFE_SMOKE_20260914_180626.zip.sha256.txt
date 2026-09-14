@@ -1,0 +1,3 @@
+SHA256 hash of test_reports\main_ui_safe_smoke\MAIN_UI_SAFE_SMOKE_20260914_180626.zip:
+a9381ebd4b35cbbeb7c37b5deb7d6a2d74c3c882b92730d8ddebe93cf82a5ed6
+CertUtil: -hashfile command completed successfully.
