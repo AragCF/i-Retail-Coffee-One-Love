@@ -39,7 +39,7 @@ import java.util.Set;
  */
 public class BridgeService extends Service {
     private static final String TAG = "IretailKozenBridge";
-    private static final String BRIDGE_VERSION = "0.3.0";
+    private static final String BRIDGE_VERSION = "0.3.1";
 
     private static final String SMARTSKY_ACTION = "com.skytech.smartskypos.ISmartSkyPos";
     private static final String SMARTSKY_PACKAGE = "com.skytech.smartskypos";
@@ -308,25 +308,45 @@ public class BridgeService extends Service {
                 for (Terminal terminal : terminals) {
                     if (terminal == null) continue;
                     ArrayList<Operation> operations = terminal.getOperations();
-                    if (operations == null) continue;
+                    if (operations == null) {
+                        Log.i(TAG, "SMARTSKY_TERMINAL tid=" + token(terminal.getTerminalId()) + " operations=null");
+                        continue;
+                    }
                     for (Operation operation : operations) {
                         if (operation == null) continue;
                         String type = operation.getType();
                         String txType = operation.getTransactionType();
-                        boolean isPayment = "payment".equalsIgnoreCase(type) || "00".equals(txType);
+                        String name = operation.getName();
+
+                        ArrayList<Currency> currencies = operation.getCurrencies();
+                        Set<String> operationCurrencyCodes = new LinkedHashSet<>();
+                        if (currencies != null) {
+                            for (Currency currency : currencies) {
+                                if (currency == null) continue;
+                                String code = currency.getCurrencyCode();
+                                if (code != null && !code.trim().isEmpty()) operationCurrencyCodes.add(code.trim());
+                            }
+                        }
+                        Log.i(TAG, "SMARTSKY_OPERATION tid=" + token(terminal.getTerminalId()) +
+                                " name=" + token(name) +
+                                " type=" + token(type) +
+                                " transactionType=" + token(txType) +
+                                " currencies=" + (operationCurrencyCodes.isEmpty() ? "-" : join(operationCurrencyCodes, ",")));
+
+                        // Recovered SmartSkyPOS 1.9.19 layout observed on the real P12:
+                        //   name=Оплата, type=00, transactionType=payment.
+                        // Accept both semantic layouts defensively, but never infer a payment route
+                        // from TID/currency alone.
+                        boolean isPayment = "00".equalsIgnoreCase(type) ||
+                                "payment".equalsIgnoreCase(txType) ||
+                                "payment".equalsIgnoreCase(type) ||
+                                "00".equalsIgnoreCase(txType);
                         if (!isPayment) continue;
 
                         paymentTid = token(terminal.getTerminalId());
                         paymentType = token(type);
                         transactionType = token(txType);
-                        ArrayList<Currency> currencies = operation.getCurrencies();
-                        if (currencies != null) {
-                            for (Currency currency : currencies) {
-                                if (currency == null) continue;
-                                String code = currency.getCurrencyCode();
-                                if (code != null && !code.trim().isEmpty()) currencyCodes.add(code.trim());
-                            }
-                        }
+                        currencyCodes.addAll(operationCurrencyCodes);
                         break;
                     }
                     if (!"-".equals(paymentTid)) break;
@@ -341,6 +361,8 @@ public class BridgeService extends Service {
                     " terminals=" + terminalCount +
                     " payment=" + paymentSupported +
                     " paymentTid=" + paymentTid +
+                    " paymentType=" + paymentType +
+                    " transactionType=" + transactionType +
                     " currencies=" + currencies);
 
             return "TERMINAL_DATA " + id +
