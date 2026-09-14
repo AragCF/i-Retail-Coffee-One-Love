@@ -127,9 +127,13 @@ public class RecoveryBridgeActivity extends Activity {
 
     private void setStatus(String text) { if (status != null) status.setText(text); }
 
+    /**
+     * Do not call UsbAccessory.getSerial() here before USB permission is granted.
+     * Android 11 protects the serial reader and throws SecurityException otherwise.
+     */
     private static String safeAccessory(UsbAccessory a) {
         if (a == null) return "null";
         return "manufacturer=" + a.getManufacturer() + ", model=" + a.getModel() +
-                ", version=" + a.getVersion() + ", serial=" + a.getSerial();
+                ", version=" + a.getVersion();
     }
 }
