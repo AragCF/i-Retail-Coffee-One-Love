@@ -54,6 +54,7 @@ class MainActivity : Activity() {
     private val machineGateway = LocalMachineGateway()
     private val loyaltyGateway = LocalLoyaltyGateway()
     private lateinit var cardPaymentClient: KozenAoaPaymentClient
+    private var machineModeConfig = MachineModeConfig(MachineModeStore.MODE_KIOSK, false)
     private var realPosEnabled = false
     private var cardPaymentBusy = false
     private var cardPaymentStatus = ""
@@ -167,16 +168,46 @@ class MainActivity : Activity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        machineModeConfig = MachineModeStore.resolve(this, intent)
+        realPosEnabled = machineModeConfig.realPosEnabled
+        applyMachineModeRuntime(machineModeConfig)
+
+        if (intent?.getBooleanExtra("configure_only", false) == true) {
+            android.util.Log.i("IretailMachineMode", "CONFIGURE_ONLY mode=${machineModeConfig.mode} realPos=$realPosEnabled")
+            finishAndRemoveTask()
+            return
+        }
+
         window.setFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN, WindowManager.LayoutParams.FLAG_FULLSCREEN)
         hideSystemUi()
         contentRepository = IretailContentRepository(this)
-        realPosEnabled = intent?.getBooleanExtra("real_pos_enabled", false) == true
         cardPaymentClient = KozenAoaPaymentClient(this)
         catalog = contentRepository.loadProducts()
         paymentMethods = contentRepository.loadPaymentMethods()
         buildRootView()
         openScreen("SCREEN_SAVER_COFFEE", remember = false)
         refreshCatalogFromIretail()
+    }
+
+    override fun onNewIntent(intent: android.content.Intent?) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        machineModeConfig = MachineModeStore.resolve(this, intent)
+        realPosEnabled = machineModeConfig.realPosEnabled
+        applyMachineModeRuntime(machineModeConfig)
+        android.util.Log.i("IretailMachineMode", "NEW_INTENT mode=${machineModeConfig.mode} realPos=$realPosEnabled")
+        if (intent?.getBooleanExtra("configure_only", false) == true) finishAndRemoveTask()
+    }
+
+    override fun onStart() {
+        super.onStart()
+        MainUiVisibility.started = true
+        if (machineModeConfig.standalone) ForegroundKeeperService.ensureRunning(this)
+    }
+
+    override fun onStop() {
+        MainUiVisibility.started = false
+        super.onStop()
     }
 
     private fun refreshCatalogFromIretail() {
@@ -214,6 +245,7 @@ class MainActivity : Activity() {
     }
 
     override fun onDestroy() {
+        MainUiVisibility.started = false
         if (::cardPaymentClient.isInitialized) cardPaymentClient.shutdown()
         super.onDestroy()
     }
@@ -1979,7 +2011,8 @@ class MainActivity : Activity() {
             return
         }
         if (method == PaymentMethod.CARD && !realPosEnabled) {
-            toast("Реальный Kozen POS отключён. Запустите тестовый режим явным параметром real_pos_enabled=true.")
+            val modeTitle = if (machineModeConfig.standalone) "автономный" else "кофейный киоск"
+            toast("Оплата картой отключена в режиме «$modeTitle». Включите POS один раз скриптом настройки режима.")
             return
         }
         lastPaymentMethod = method
