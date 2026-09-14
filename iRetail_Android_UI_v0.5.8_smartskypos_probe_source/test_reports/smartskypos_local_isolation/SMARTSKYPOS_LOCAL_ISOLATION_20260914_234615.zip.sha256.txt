@@ -1,0 +1,3 @@
+SHA256 hash of test_reports\smartskypos_local_isolation\SMARTSKYPOS_LOCAL_ISOLATION_20260914_234615.zip:
+4169b7f57e664d9c618482811e13dc8dc327ee2ecb47e6255bf1a4cadaf3faaf
+CertUtil: -hashfile command completed successfully.
