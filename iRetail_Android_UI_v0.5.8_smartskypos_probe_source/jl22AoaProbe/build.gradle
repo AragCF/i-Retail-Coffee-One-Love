@@ -10,8 +10,8 @@ android {
         applicationId 'com.coffeeonelove.iretail.aoahost'
         minSdk 23
         targetSdk 35
-        versionCode 2
-        versionName '0.2.0-smartsky-state'
+        versionCode 3
+        versionName '0.3.0-terminal-data'
     }
 
     compileOptions {
