@@ -1,0 +1,37 @@
+name: v0.5.20 Main UI safe smoke report
+
+on:
+  push:
+    branches:
+      - v0.5.20-main-ui-kozen-payment
+    paths:
+      - 'iRetail_Android_UI_v0.5.8_smartskypos_probe_source/test_reports/main_ui_safe_smoke/**'
+
+permissions:
+  contents: read
+
+jobs:
+  report:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Extract latest main UI safe smoke
+        shell: bash
+        run: |
+          set -euo pipefail
+          ROOT='iRetail_Android_UI_v0.5.8_smartskypos_probe_source/test_reports/main_ui_safe_smoke'
+          ZIP="$(find "$ROOT" -maxdepth 1 -type f -name 'MAIN_UI_SAFE_SMOKE_*.zip' -printf '%T@ %p\n' | sort -nr | head -n1 | cut -d' ' -f2-)"
+          echo "LATEST_ZIP=$ZIP"
+          echo '===== SUMMARY.txt ====='
+          unzip -p "$ZIP" SUMMARY.txt || true
+          echo '===== 00_info.txt ====='
+          unzip -p "$ZIP" 00_info.txt || true
+          echo '===== JL22_03_payment_client_logcat.txt ====='
+          unzip -p "$ZIP" JL22_03_payment_client_logcat.txt || true
+          echo '===== KOZEN_03_bridge_logcat.txt ====='
+          unzip -p "$ZIP" KOZEN_03_bridge_logcat.txt || true
+          echo '===== JL22 package version ====='
+          unzip -p "$ZIP" JL22_02_app_package.txt | grep -E 'versionCode|versionName' || true
+          echo '===== Kozen bridge version ====='
+          unzip -p "$ZIP" KOZEN_02_bridge_package.txt | grep -E 'versionCode|versionName' || true
