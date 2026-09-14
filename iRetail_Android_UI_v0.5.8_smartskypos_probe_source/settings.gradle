@@ -8,3 +8,5 @@ pluginManagement {
 dependencyResolutionManagement { repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS); repositories { google(); mavenCentral() } }
 rootProject.name = 'iRetailAndroidUiMvp'
 include ':app'
+include ':kozenBridge'
+include ':jl22AoaProbe'
