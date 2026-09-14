@@ -1,6 +1,13 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <uses-feature android:name="android.hardware.usb.accessory" android:required="true" />
 
+    <queries>
+        <package android:name="com.skytech.smartskypos" />
+        <intent>
+            <action android:name="com.skytech.smartskypos.ISmartSkyPos" />
+        </intent>
+    </queries>
+
     <application
         android:allowBackup="false"
         android:label="i-Retail Kozen Bridge"
