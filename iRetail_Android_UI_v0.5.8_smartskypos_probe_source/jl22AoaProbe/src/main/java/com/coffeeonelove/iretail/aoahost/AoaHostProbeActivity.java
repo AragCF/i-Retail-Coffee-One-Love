@@ -28,9 +28,9 @@ import java.util.concurrent.Executors;
 /**
  * JL22-side USB host probe.
  *
- * v0.2 proves the complete read-only chain:
- * JL22 -> AOA -> Kozen Bridge -> local SmartSkyPOS Binder getState().
- * No payment/refund/cancel command exists in this probe.
+ * v0.3 proves the complete READ-ONLY chain:
+ * JL22 -> AOA -> Kozen Bridge -> SmartSkyPOS getState()/getTerminalData().
+ * No payment/refund/cancel/reconciliation command exists in this probe.
  */
 public class AoaHostProbeActivity extends Activity {
     private static final String TAG = "IretailAoaHost";
@@ -47,7 +47,7 @@ public class AoaHostProbeActivity extends Activity {
     private static final String ACCESSORY_MANUFACTURER = "Coffee One Love";
     private static final String ACCESSORY_MODEL = "iRetail Kozen Payment Bridge";
     private static final String ACCESSORY_DESCRIPTION = "i-Retail USB payment bridge";
-    private static final String ACCESSORY_VERSION = "0.2";
+    private static final String ACCESSORY_VERSION = "0.3";
     private static final String ACCESSORY_URI = "https://thesystem.pro/";
     private static final String ACCESSORY_SERIAL = "iretail-kozen-p12";
 
@@ -76,11 +76,8 @@ public class AoaHostProbeActivity extends Activity {
                 append("USB-разрешение не выдано для " + deviceSummary(device));
                 return;
             }
-            if (isRawKozen(device)) {
-                startHandshake(device);
-            } else if (isAoaDevice(device)) {
-                openAoaLink(device);
-            }
+            if (isRawKozen(device)) startHandshake(device);
+            else if (isAoaDevice(device)) openAoaLink(device);
         }
     };
 
@@ -100,8 +97,8 @@ public class AoaHostProbeActivity extends Activity {
         );
         registerReceiver(permissionReceiver, new IntentFilter(ACTION_USB_PERMISSION));
 
-        append("JL22 AOA + SmartSkyPOS state probe v0.2");
-        append("Финансовые операции отключены. Проверяется только getState().");
+        append("JL22 AOA + SmartSkyPOS terminal-data probe v0.3");
+        append("Только чтение: getState() + getTerminalData(). Финансовые операции отсутствуют.");
         append("Ожидание Kozen…");
         main.postDelayed(this::discoverAndStart, 500);
     }
@@ -217,8 +214,7 @@ public class AoaHostProbeActivity extends Activity {
 
         main.postDelayed(new Runnable() {
             private int attempts;
-            @Override
-            public void run() {
+            @Override public void run() {
                 UsbDevice aoa = findAoaDevice();
                 if (aoa != null) {
                     append("AOA устройство найдено: " + deviceSummary(aoa));
@@ -327,7 +323,7 @@ public class AoaHostProbeActivity extends Activity {
                 return;
             }
 
-            append("PING отправлен. Жду Kozen Bridge; первый запуск может потребовать подтверждения на терминале.");
+            append("PING отправлен. Жду Kozen Bridge…");
             String pong = waitForPrefix(connection, in, "PONG 1001", 480000L, "PING");
             if (pong == null) {
                 append("Тайм-аут ожидания PONG.");
@@ -348,35 +344,43 @@ public class AoaHostProbeActivity extends Activity {
             append("RX: " + info);
             log("AOA_LINK_OK " + safe(info));
 
-            append("Запрашиваю только SmartSkyPOS getState()…");
-            String state = null;
-            for (int attempt = 1; attempt <= 20 && state == null; attempt++) {
-                int stateTx = bulkWrite(connection, out, "GET_STATE 1003\n");
-                log("GET_STATE_TX attempt=" + attempt + " tx=" + stateTx);
-                if (stateTx > 0) {
-                    String response = waitForPrefix(connection, in, "STATE 1003", 4000L, "GET_STATE");
-                    if (response != null) {
-                        log("GET_STATE_RX attempt=" + attempt + " " + safe(response));
-                        if (response.contains("code=0")) {
-                            state = response;
-                            break;
-                        }
-                        if (!response.contains("code=NOT_BOUND")) {
-                            append("SmartSkyPOS вернул: " + response);
-                            break;
-                        }
-                    }
-                }
-                Thread.sleep(500L);
+            append("Читаю SmartSkyPOS getState()…");
+            String state = requestUntilCodeZero(connection, in, out, "GET_STATE 1003\n", "STATE 1003", "GET_STATE", 20);
+            if (state == null) {
+                append("AOA работает, но getState() не подтверждён.");
+                log("SMARTSKY_STATE_OVER_AOA_FAILED");
+                return;
+            }
+            append("RX: " + state);
+            log("SMARTSKY_STATE_OVER_AOA_OK " + safe(state));
+
+            append("Читаю конфигурацию терминала SmartSkyPOS…");
+            String terminalData = requestUntilCodeZero(
+                    connection, in, out,
+                    "GET_TERMINAL_DATA 1004\n",
+                    "TERMINAL_DATA 1004",
+                    "GET_TERMINAL_DATA",
+                    8
+            );
+            if (terminalData == null) {
+                append("getState() работает, но getTerminalData() не подтверждён.");
+                log("SMARTSKY_TERMINAL_DATA_OVER_AOA_FAILED");
+                return;
             }
 
-            if (state != null) {
-                append("RX: " + state);
-                append("ГОТОВО: JL22 → USB/AOA → Kozen Bridge → SmartSkyPOS getState() работает.");
-                log("SMARTSKY_STATE_OVER_AOA_OK " + safe(state));
+            append("RX: " + terminalData);
+            log("SMARTSKY_TERMINAL_DATA_OVER_AOA_OK " + safe(terminalData));
+
+            boolean paymentReady = terminalData.contains("payment=true") &&
+                    terminalData.contains("currencies=643") &&
+                    !terminalData.contains("paymentTid=-");
+            if (paymentReady) {
+                append("ГОТОВО: чтение терминала подтверждено; операция оплаты и RUB/643 объявлены SmartSkyPOS.");
+                append("Платёж этим тестом НЕ выполнялся.");
+                log("TERMINAL_DATA_READY_FOR_PAYMENT_TEST " + safe(terminalData));
             } else {
-                append("AOA работает, но getState() пока не подтверждён.");
-                log("SMARTSKY_STATE_OVER_AOA_FAILED");
+                append("Терминальные данные прочитаны, но готовность payment/RUB не подтверждена.");
+                log("TERMINAL_DATA_NOT_PAYMENT_READY " + safe(terminalData));
             }
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
@@ -385,6 +389,31 @@ public class AoaHostProbeActivity extends Activity {
             append("Ошибка обмена AOA: " + e.getClass().getSimpleName() + ": " + safe(e.getMessage()));
             log("AOA_LINK_EXCEPTION " + e.getClass().getSimpleName() + ": " + safe(e.getMessage()));
         }
+    }
+
+    private String requestUntilCodeZero(
+            UsbDeviceConnection connection,
+            UsbEndpoint in,
+            UsbEndpoint out,
+            String request,
+            String responsePrefix,
+            String phase,
+            int attempts
+    ) throws InterruptedException {
+        for (int attempt = 1; attempt <= attempts; attempt++) {
+            int tx = bulkWrite(connection, out, request);
+            log(phase + "_TX attempt=" + attempt + " tx=" + tx);
+            if (tx > 0) {
+                String response = waitForPrefix(connection, in, responsePrefix, 5000L, phase);
+                if (response != null) {
+                    log(phase + "_RX attempt=" + attempt + " " + safe(response));
+                    if (response.contains("code=0")) return response;
+                    if (!response.contains("code=NOT_BOUND")) return null;
+                }
+            }
+            Thread.sleep(500L);
+        }
+        return null;
     }
 
     private String waitForPrefix(UsbDeviceConnection connection, UsbEndpoint in, String prefix, long totalMs, String phase) {
@@ -427,16 +456,12 @@ public class AoaHostProbeActivity extends Activity {
     }
 
     private UsbDevice findRawKozen() {
-        for (UsbDevice d : usbManager.getDeviceList().values()) {
-            if (isRawKozen(d)) return d;
-        }
+        for (UsbDevice d : usbManager.getDeviceList().values()) if (isRawKozen(d)) return d;
         return null;
     }
 
     private UsbDevice findAoaDevice() {
-        for (UsbDevice d : usbManager.getDeviceList().values()) {
-            if (isAoaDevice(d)) return d;
-        }
+        for (UsbDevice d : usbManager.getDeviceList().values()) if (isAoaDevice(d)) return d;
         return null;
     }
 
@@ -457,9 +482,7 @@ public class AoaHostProbeActivity extends Activity {
         });
     }
 
-    private static void log(String text) {
-        Log.i(TAG, text);
-    }
+    private static void log(String text) { Log.i(TAG, text); }
 
     private static String deviceSummary(UsbDevice d) {
         if (d == null) return "null";
@@ -480,6 +503,6 @@ public class AoaHostProbeActivity extends Activity {
     private static String safe(String value) {
         if (value == null) return "-";
         value = value.replace('\n', ' ').replace('\r', ' ');
-        return value.length() <= 400 ? value : value.substring(0, 400);
+        return value.length() <= 600 ? value : value.substring(0, 600);
     }
 }
