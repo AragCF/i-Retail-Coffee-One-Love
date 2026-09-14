@@ -26,11 +26,13 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 /**
- * JL22 USB host probe / controlled payment bench client.
+ * JL22 USB host probe / controlled staged payment bench client.
  *
- * Default launch remains read-only. A payment is possible only when the Windows harness
- * explicitly starts this Activity with allow_payment=true and a fresh request id.
- * Even then exactly one PAYMENT command is sent; there is no automatic financial retry.
+ * Safety model:
+ *  1. AOA link + PING/INFO + READY(0) + fresh TerminalData are proven first.
+ *  2. Only then can a SECOND explicit intent authorize exactly one 1.00 RUB payment.
+ *  3. A cold-start authorization is rejected.
+ *  4. There is no automatic retry of PAYMENT.
  */
 public class AoaHostProbeActivity extends Activity {
     private static final String TAG = "IretailAoaHost";
@@ -47,7 +49,7 @@ public class AoaHostProbeActivity extends Activity {
     private static final String ACCESSORY_MANUFACTURER = "Coffee One Love";
     private static final String ACCESSORY_MODEL = "iRetail Kozen Payment Bridge";
     private static final String ACCESSORY_DESCRIPTION = "i-Retail USB payment bridge";
-    private static final String ACCESSORY_VERSION = "0.3";
+    private static final String ACCESSORY_VERSION = "0.5";
     private static final String ACCESSORY_URI = "https://thesystem.pro/";
     private static final String ACCESSORY_SERIAL = "iretail-kozen-p12";
 
@@ -62,9 +64,13 @@ public class AoaHostProbeActivity extends Activity {
     private volatile boolean handshakeStarted;
     private volatile boolean linkStarted;
 
-    private boolean paymentMode;
-    private String paymentRequestId;
-    private String paymentAmount;
+    private volatile boolean stagedPaymentMode;
+    private volatile boolean paymentReadyForAuthorization;
+    private volatile boolean paymentAuthorizationReceived;
+    private volatile boolean paymentAuthorizationConsumed;
+    private volatile String paymentRequestId;
+    private volatile String paymentAmount = "1.00";
+    private volatile String paymentReadyTid;
 
     private UsbDeviceConnection linkConnection;
     private UsbInterface linkInterface;
@@ -89,10 +95,7 @@ public class AoaHostProbeActivity extends Activity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         usbManager = (UsbManager) getSystemService(Context.USB_SERVICE);
-        paymentMode = getIntent().getBooleanExtra("allow_payment", false);
-        paymentRequestId = getIntent().getStringExtra("payment_request_id");
-        paymentAmount = getIntent().getStringExtra("payment_amount");
-        if (paymentAmount == null) paymentAmount = "1.00";
+        stagedPaymentMode = getIntent() != null && getIntent().getBooleanExtra("staged_payment", false);
         buildUi();
 
         int flags = 0;
@@ -105,23 +108,73 @@ public class AoaHostProbeActivity extends Activity {
         );
         registerReceiver(permissionReceiver, new IntentFilter(ACTION_USB_PERMISSION));
 
-        append("JL22 AOA + SmartSkyPOS probe v0.4");
-        if (paymentMode) {
-            append("РЕЖИМ РЕАЛЬНОЙ ОПЛАТЫ: разрешён один запрос 1.00 RUB.");
-            append("requestId=" + safe(paymentRequestId) + ". Автоматического повтора НЕТ.");
+        append("JL22 AOA + SmartSkyPOS probe v0.5");
+        if (stagedPaymentMode) {
+            append("СТУПЕНЧАТЫЙ РЕЖИМ: сначала безопасная проверка канала и терминала.");
+            append("До отдельного второго разрешения команда PAYMENT физически не отправляется.");
         } else {
             append("Только чтение: getState() + getTerminalData(). Финансовые операции отключены.");
         }
+
+        if (getIntent() != null && getIntent().getBooleanExtra("authorize_payment", false)) {
+            append("Разрешение оплаты при холодном запуске отклонено: сначала требуется готовый AOA-сеанс.");
+            log("PAYMENT_AUTH_REJECTED_COLD_START noPaymentSent=true");
+        }
+
         append("Ожидание Kozen…");
         main.postDelayed(this::discoverAndStart, 500);
     }
 
     @Override
+    protected void onNewIntent(Intent intent) {
+        super.onNewIntent(intent);
+        setIntent(intent);
+        handlePaymentAuthorization(intent);
+    }
+
+    @Override
     protected void onDestroy() {
+        paymentReadyForAuthorization = false;
         try { unregisterReceiver(permissionReceiver); } catch (Exception ignored) {}
         executor.shutdownNow();
         closeLink();
         super.onDestroy();
+    }
+
+    private void handlePaymentAuthorization(Intent intent) {
+        if (intent == null || !intent.getBooleanExtra("authorize_payment", false)) return;
+
+        String requestId = intent.getStringExtra("payment_request_id");
+        String amount = intent.getStringExtra("payment_amount");
+        if (amount == null) amount = "1.00";
+
+        if (!stagedPaymentMode) {
+            append("Разрешение оплаты отклонено: приложение не запущено в staged_payment режиме.");
+            log("PAYMENT_AUTH_REJECTED_NOT_STAGED requestId=" + safe(requestId) + " noPaymentSent=true");
+            return;
+        }
+        if (!paymentReadyForAuthorization || paymentReadyTid == null || paymentReadyTid.isEmpty()) {
+            append("Разрешение оплаты отклонено: безопасная проверка ещё не завершена.");
+            log("PAYMENT_AUTH_REJECTED_NOT_READY requestId=" + safe(requestId) + " noPaymentSent=true");
+            return;
+        }
+        if (paymentAuthorizationReceived || paymentAuthorizationConsumed) {
+            append("Повторное разрешение оплаты отклонено.");
+            log("PAYMENT_AUTH_REJECTED_DUPLICATE requestId=" + safe(requestId) + " noAutoRetry=true");
+            return;
+        }
+        if (!validRequestId(requestId) || !"1.00".equals(amount)) {
+            append("Разрешение оплаты отклонено: неверный requestId или сумма.");
+            log("PAYMENT_AUTH_REJECTED_BAD_PARAMS requestId=" + safe(requestId) + " amount=" + safe(amount) + " noPaymentSent=true");
+            return;
+        }
+
+        paymentRequestId = requestId;
+        paymentAmount = amount;
+        paymentAuthorizationReceived = true;
+        append("Получено отдельное явное разрешение на ОДИН payment() 1.00 RUB.");
+        append("requestId=" + requestId + ". Автоматический повтор запрещён.");
+        log("PAYMENT_AUTHORIZATION_ACCEPTED requestId=" + requestId + " amount=1.00 tid=" + paymentReadyTid + " noAutoRetry=true");
     }
 
     private void buildUi() {
@@ -235,9 +288,9 @@ public class AoaHostProbeActivity extends Activity {
                     return;
                 }
                 attempts++;
-                if (attempts >= 60) {
+                if (attempts >= 120) {
                     append("Тайм-аут повторного перечисления AOA.");
-                    log("AOA_REENUMERATION_TIMEOUT");
+                    log("AOA_REENUMERATION_TIMEOUT noPaymentSent=true");
                     return;
                 }
                 main.postDelayed(this, 500);
@@ -277,7 +330,7 @@ public class AoaHostProbeActivity extends Activity {
         UsbDeviceConnection connection = usbManager.openDevice(device);
         if (connection == null) {
             append("Не удалось открыть AOA устройство.");
-            log("AOA_OPEN_FAILED");
+            log("AOA_OPEN_FAILED noPaymentSent=true");
             linkStarted = false;
             return;
         }
@@ -305,7 +358,7 @@ public class AoaHostProbeActivity extends Activity {
 
         if (selectedInterface == null || in == null || out == null) {
             append("Не найдены AOA BULK IN/OUT endpoints.");
-            log("AOA_ENDPOINTS_MISSING interfaces=" + device.getInterfaceCount());
+            log("AOA_ENDPOINTS_MISSING interfaces=" + device.getInterfaceCount() + " noPaymentSent=true");
             connection.close();
             linkStarted = false;
             return;
@@ -313,7 +366,7 @@ public class AoaHostProbeActivity extends Activity {
 
         if (!connection.claimInterface(selectedInterface, true)) {
             append("Не удалось захватить AOA интерфейс.");
-            log("AOA_CLAIM_INTERFACE_FAILED id=" + selectedInterface.getId());
+            log("AOA_CLAIM_INTERFACE_FAILED id=" + selectedInterface.getId() + " noPaymentSent=true");
             connection.close();
             linkStarted = false;
             return;
@@ -331,16 +384,16 @@ public class AoaHostProbeActivity extends Activity {
             int pingTx = bulkWrite(connection, out, "PING 1001\n");
             log("PING_TX=" + pingTx);
             if (pingTx <= 0) {
-                append("Не удалось отправить PING. tx=" + pingTx);
-                log("AOA_PING_WRITE_FAILED tx=" + pingTx);
+                append("Не удалось отправить PING.");
+                log("AOA_PING_WRITE_FAILED tx=" + pingTx + " noPaymentSent=true");
                 return;
             }
 
             append("PING отправлен. Жду Kozen Bridge…");
-            String pong = waitForPrefix(connection, in, "PONG 1001", 480000L, "PING");
+            String pong = waitForPrefix(connection, in, "PONG 1001", 120000L, "PING");
             if (pong == null) {
-                append("Тайм-аут ожидания PONG.");
-                log("AOA_PING_TIMEOUT");
+                append("Тайм-аут ожидания PONG. Платёж не разрешался и не отправлялся.");
+                log("AOA_PING_TIMEOUT noPaymentSent=true");
                 return;
             }
             append("RX: " + pong);
@@ -350,8 +403,8 @@ public class AoaHostProbeActivity extends Activity {
             log("INFO_TX=" + infoTx);
             String info = infoTx > 0 ? waitForPrefix(connection, in, "INFO 1002", 20000L, "INFO") : null;
             if (info == null) {
-                append("PONG получен, но INFO не получен.");
-                log("AOA_INFO_FAILED tx=" + infoTx);
+                append("PONG получен, но INFO не получен. Платёж не разрешался.");
+                log("AOA_INFO_FAILED tx=" + infoTx + " noPaymentSent=true");
                 return;
             }
             append("RX: " + info);
@@ -361,7 +414,7 @@ public class AoaHostProbeActivity extends Activity {
             String state = requestUntilCodeZero(connection, in, out, "GET_STATE 1003\n", "STATE 1003", "GET_STATE", 20);
             if (state == null || !state.contains("state=0")) {
                 append("SmartSkyPOS не в READY(0). Платёж запрещён.");
-                log("SMARTSKY_STATE_OVER_AOA_FAILED " + safe(state));
+                log("SMARTSKY_STATE_OVER_AOA_FAILED " + safe(state) + " noPaymentSent=true");
                 return;
             }
             append("RX: " + state);
@@ -377,7 +430,7 @@ public class AoaHostProbeActivity extends Activity {
             );
             if (terminalData == null) {
                 append("getTerminalData() не подтверждён. Платёж запрещён.");
-                log("SMARTSKY_TERMINAL_DATA_OVER_AOA_FAILED");
+                log("SMARTSKY_TERMINAL_DATA_OVER_AOA_FAILED noPaymentSent=true");
                 return;
             }
 
@@ -391,41 +444,75 @@ public class AoaHostProbeActivity extends Activity {
                     !terminalData.contains("paymentTid=-");
             if (!paymentReady) {
                 append("TerminalData не подтверждает exact payment/00/RUB. Платёж запрещён.");
-                log("TERMINAL_DATA_NOT_PAYMENT_READY " + safe(terminalData));
-                return;
-            }
-            log("TERMINAL_DATA_READY_FOR_PAYMENT_TEST " + safe(terminalData));
-
-            if (!paymentMode) {
-                append("ГОТОВО: операция payment/00 и RUB/643 подтверждены. Платёж этим запуском НЕ выполнялся.");
+                log("TERMINAL_DATA_NOT_PAYMENT_READY " + safe(terminalData) + " noPaymentSent=true");
                 return;
             }
 
             String tid = tokenValue(terminalData, "paymentTid");
-            if (!validRequestId(paymentRequestId) || !"1.00".equals(paymentAmount) || tid == null || tid.isEmpty()) {
-                append("Финансовый запрос заблокирован: неверные параметры управляющего запуска.");
-                log("PAYMENT_OVER_AOA_BLOCKED requestId=" + safe(paymentRequestId) + " amount=" + safe(paymentAmount) + " tid=" + safe(tid));
+            if (tid == null || tid.isEmpty()) {
+                append("Не удалось получить TID из свежего TerminalData. Платёж запрещён.");
+                log("TERMINAL_DATA_PAYMENT_TID_MISSING noPaymentSent=true");
                 return;
             }
 
-            append("ВНИМАНИЕ: сейчас отправляется ОДИН реальный payment() на 1.00 RUB.");
-            append("requestId=" + paymentRequestId + ", TID=" + tid + ". Автоповтор запрещён.");
-            String command = "PAYMENT " + paymentRequestId + " amount=1.00 terminalId=" + tid + " currency=643\n";
+            log("TERMINAL_DATA_READY_FOR_PAYMENT_TEST " + safe(terminalData));
+            if (!stagedPaymentMode) {
+                append("ГОТОВО: operation payment/00 и RUB/643 подтверждены. Платёж этим запуском НЕ выполнялся.");
+                return;
+            }
+
+            paymentReadyTid = tid;
+            paymentReadyForAuthorization = true;
+            append("ГОТОВО К ОПЛАТЕ: безопасные проверки завершены.");
+            append("Теперь Windows отдельно запросит явное разрешение на 1.00 RUB.");
+            log("PAYMENT_READY_FOR_EXPLICIT_AUTHORIZATION tid=" + tid + " amount=1.00 currency=643 noPaymentSent=true");
+
+            long authDeadline = System.currentTimeMillis() + 300000L;
+            while (!Thread.currentThread().isInterrupted() && !paymentAuthorizationReceived && System.currentTimeMillis() < authDeadline) {
+                Thread.sleep(100L);
+            }
+            paymentReadyForAuthorization = false;
+
+            if (!paymentAuthorizationReceived) {
+                append("Разрешение оплаты не получено за 5 минут. Платёж НЕ отправлен.");
+                log("PAYMENT_AUTHORIZATION_TIMEOUT noPaymentSent=true");
+                return;
+            }
+
+            synchronized (this) {
+                if (paymentAuthorizationConsumed) {
+                    log("PAYMENT_AUTHORIZATION_ALREADY_CONSUMED noAutoRetry=true");
+                    return;
+                }
+                paymentAuthorizationConsumed = true;
+            }
+
+            String requestId = paymentRequestId;
+            String amount = paymentAmount;
+            if (!validRequestId(requestId) || !"1.00".equals(amount)) {
+                append("Разрешение стало некорректным до вызова. Платёж заблокирован.");
+                log("PAYMENT_OVER_AOA_BLOCKED requestId=" + safe(requestId) + " amount=" + safe(amount) + " noPaymentSent=true");
+                return;
+            }
+
+            append("ВНИМАНИЕ: отправляется ОДНА реальная команда payment() на 1.00 RUB.");
+            append("requestId=" + requestId + ", TID=" + tid + ". Автоповтор запрещён.");
+            String command = "PAYMENT " + requestId + " amount=1.00 terminalId=" + tid + " currency=643\n";
             int paymentTx = bulkWrite(connection, out, command);
-            log("PAYMENT_TX_ONCE requestId=" + paymentRequestId + " tx=" + paymentTx + " amount=1.00 tid=" + tid + " currency=643 noAutoRetry=true");
+            log("PAYMENT_TX_ONCE requestId=" + requestId + " tx=" + paymentTx + " amount=1.00 tid=" + tid + " currency=643 noAutoRetry=true");
             if (paymentTx <= 0) {
-                append("Не удалось передать команду PAYMENT по USB. payment() на Kozen мог НЕ начаться.");
-                append("НЕ ПОВТОРЯТЬ автоматически; сначала проверить журналы.");
-                log("PAYMENT_OVER_AOA_WRITE_UNCERTAIN noAutoRetry=true");
+                append("Не удалось передать PAYMENT по USB. Финансовый результат неопределён.");
+                append("НЕ ПОВТОРЯТЬ автоматически; сначала разобрать журналы.");
+                log("PAYMENT_OVER_AOA_WRITE_UNCERTAIN requestId=" + requestId + " noAutoRetry=true");
                 return;
             }
 
             append("Команда передана. Следуйте указаниям Kozen и приложите карту, если терминал попросит.");
-            String result = waitForPrefix(connection, in, "PAYMENT_RESULT " + paymentRequestId, 300000L, "PAYMENT");
+            String result = waitForPrefix(connection, in, "PAYMENT_RESULT " + requestId, 300000L, "PAYMENT");
             if (result == null) {
                 append("НЕОПРЕДЕЛЁННЫЙ РЕЗУЛЬТАТ: ответа за 5 минут нет.");
                 append("НЕ ЗАПУСКАТЬ оплату повторно. Сначала разобрать состояние/транзакцию.");
-                log("PAYMENT_OVER_AOA_UNCERTAIN_TIMEOUT requestId=" + paymentRequestId + " noAutoRetry=true");
+                log("PAYMENT_OVER_AOA_UNCERTAIN_TIMEOUT requestId=" + requestId + " noAutoRetry=true");
                 return;
             }
 
@@ -433,13 +520,13 @@ public class AoaHostProbeActivity extends Activity {
             log("PAYMENT_OVER_AOA_RESULT " + safe(result));
             if (result.contains("status=COMPLETED") && result.contains("code=0") && result.contains("approved=true")) {
                 append("ОДОБРЕНО: реальная оплата 1.00 RUB прошла через JL22 → USB/AOA → Kozen → SmartSkyPOS.");
-                log("PAYMENT_OVER_AOA_APPROVED requestId=" + paymentRequestId);
+                log("PAYMENT_OVER_AOA_APPROVED requestId=" + requestId);
             } else if (result.contains("status=UNCERTAIN")) {
                 append("НЕОПРЕДЕЛЁННЫЙ финансовый результат. Автоматический повтор запрещён.");
-                log("PAYMENT_OVER_AOA_UNCERTAIN requestId=" + paymentRequestId + " noAutoRetry=true");
+                log("PAYMENT_OVER_AOA_UNCERTAIN requestId=" + requestId + " noAutoRetry=true");
             } else {
-                append("Платёж не одобрен. code=0 само по себе НЕ считается успехом; нужен approved=true.");
-                log("PAYMENT_OVER_AOA_NOT_APPROVED requestId=" + paymentRequestId);
+                append("Платёж не одобрен. code=0 сам по себе НЕ считается успехом; нужен approved=true.");
+                log("PAYMENT_OVER_AOA_NOT_APPROVED requestId=" + requestId);
             }
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
