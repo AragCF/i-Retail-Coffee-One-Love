@@ -68,3 +68,4 @@ gradle = replace_once(gradle, "        versionCode 21\n        versionName '0.5.
 GRADLE.write_text(gradle, encoding='utf-8')
 
 print('v0.5.21 source materialized successfully')
+# rerun marker: full machine-mode branch is now ready to materialize
