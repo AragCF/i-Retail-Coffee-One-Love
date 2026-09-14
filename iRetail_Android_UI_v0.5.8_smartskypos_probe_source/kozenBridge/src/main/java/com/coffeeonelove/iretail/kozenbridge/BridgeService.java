@@ -13,6 +13,11 @@ import android.os.Parcel;
 import android.os.ParcelFileDescriptor;
 import android.util.Log;
 
+import com.skytech.smartskyposlib.Currency;
+import com.skytech.smartskyposlib.Operation;
+import com.skytech.smartskyposlib.Terminal;
+import com.skytech.smartskyposlib.TerminalData;
+
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.FileInputStream;
@@ -20,23 +25,28 @@ import java.io.FileOutputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.LinkedHashSet;
+import java.util.Set;
 
 /**
  * USB/AOA bridge running locally on Kozen P12.
  *
  * Financial operations are intentionally NOT implemented here yet.
- * SmartSkyPOS integration in this version is read-only and exposes only
- * Binder transaction #1 (getState) over the USB bridge.
+ * SmartSkyPOS integration in this version is read-only and exposes only:
+ *   Binder transaction #1 (getState)
+ *   Binder transaction #4 (getTerminalData)
  */
 public class BridgeService extends Service {
     private static final String TAG = "IretailKozenBridge";
-    private static final String BRIDGE_VERSION = "0.2.0";
+    private static final String BRIDGE_VERSION = "0.3.0";
 
     private static final String SMARTSKY_ACTION = "com.skytech.smartskypos.ISmartSkyPos";
     private static final String SMARTSKY_PACKAGE = "com.skytech.smartskypos";
     private static final String SMARTSKY_SERVICE = "com.crestwavetech.smartskyposservice.SmartSkyPosService";
     private static final String SMARTSKY_DESCRIPTOR = "com.skytech.smartskyposlib.ISmartSkyPos";
     private static final int SMARTSKY_TX_GET_STATE = 1;
+    private static final int SMARTSKY_TX_GET_TERMINAL_DATA = 4;
 
     private final Object lock = new Object();
     private Thread ioThread;
@@ -204,14 +214,18 @@ public class BridgeService extends Service {
         }
         if ("INFO".equals(command)) {
             return "INFO " + id +
-                    " protocol=1" +
+                    " protocol=2" +
                     " transport=AOA" +
                     " role=kozen-payment-bridge" +
                     " bridge=" + BRIDGE_VERSION +
-                    " smartsky=" + (isSmartSkyReady() ? "bound" : "not_bound");
+                    " smartsky=" + (isSmartSkyReady() ? "bound" : "not_bound") +
+                    " commands=PING,INFO,GET_STATE,GET_TERMINAL_DATA";
         }
         if ("GET_STATE".equals(command)) {
             return getSmartSkyStateResponse(id);
+        }
+        if ("GET_TERMINAL_DATA".equals(command)) {
+            return getSmartSkyTerminalDataResponse(id);
         }
         return "ERROR " + id + " code=UNKNOWN_COMMAND command=" + token(command);
     }
@@ -258,6 +272,106 @@ public class BridgeService extends Service {
         }
     }
 
+    private String getSmartSkyTerminalDataResponse(String id) {
+        IBinder binder = smartSkyBinder;
+        if (!smartSkyBound || binder == null || !binder.isBinderAlive()) {
+            bindSmartSky();
+            return "TERMINAL_DATA " + id + " code=NOT_BOUND bound=false";
+        }
+
+        Parcel data = Parcel.obtain();
+        Parcel reply = Parcel.obtain();
+        try {
+            data.writeInterfaceToken(SMARTSKY_DESCRIPTOR);
+            boolean transacted = binder.transact(SMARTSKY_TX_GET_TERMINAL_DATA, data, reply, 0);
+            if (!transacted) {
+                Log.e(TAG, "SMARTSKY_GET_TERMINAL_DATA transact=false");
+                return "TERMINAL_DATA " + id + " code=TRANSACT_FALSE bound=true";
+            }
+            reply.readException();
+            int present = reply.readInt();
+            if (present == 0) {
+                Log.e(TAG, "SMARTSKY_GET_TERMINAL_DATA null result");
+                return "TERMINAL_DATA " + id + " code=NULL_RESULT bound=true";
+            }
+
+            TerminalData terminalData = TerminalData.CREATOR.createFromParcel(reply);
+            ArrayList<Terminal> terminals = terminalData.getTerminals();
+            int terminalCount = terminals == null ? 0 : terminals.size();
+
+            String paymentTid = "-";
+            String paymentType = "-";
+            String transactionType = "-";
+            Set<String> currencyCodes = new LinkedHashSet<>();
+
+            if (terminals != null) {
+                for (Terminal terminal : terminals) {
+                    if (terminal == null) continue;
+                    ArrayList<Operation> operations = terminal.getOperations();
+                    if (operations == null) continue;
+                    for (Operation operation : operations) {
+                        if (operation == null) continue;
+                        String type = operation.getType();
+                        String txType = operation.getTransactionType();
+                        boolean isPayment = "payment".equalsIgnoreCase(type) || "00".equals(txType);
+                        if (!isPayment) continue;
+
+                        paymentTid = token(terminal.getTerminalId());
+                        paymentType = token(type);
+                        transactionType = token(txType);
+                        ArrayList<Currency> currencies = operation.getCurrencies();
+                        if (currencies != null) {
+                            for (Currency currency : currencies) {
+                                if (currency == null) continue;
+                                String code = currency.getCurrencyCode();
+                                if (code != null && !code.trim().isEmpty()) currencyCodes.add(code.trim());
+                            }
+                        }
+                        break;
+                    }
+                    if (!"-".equals(paymentTid)) break;
+                }
+            }
+
+            String currencies = currencyCodes.isEmpty() ? "-" : join(currencyCodes, ",");
+            boolean paymentSupported = !"-".equals(paymentTid);
+
+            Log.i(TAG, "SMARTSKY_GET_TERMINAL_DATA_OK code=" + terminalData.getCode() +
+                    " defaultTid=" + token(terminalData.getTerminalId()) +
+                    " terminals=" + terminalCount +
+                    " payment=" + paymentSupported +
+                    " paymentTid=" + paymentTid +
+                    " currencies=" + currencies);
+
+            return "TERMINAL_DATA " + id +
+                    " code=" + terminalData.getCode() +
+                    " message=" + token(terminalData.getMessage()) +
+                    " terminalId=" + token(terminalData.getTerminalId()) +
+                    " merchantId=" + token(terminalData.getMerchantId()) +
+                    " serial=" + token(terminalData.getSerialNumber()) +
+                    " tmsId=" + token(terminalData.getTmsId()) +
+                    " terminals=" + terminalCount +
+                    " payment=" + paymentSupported +
+                    " paymentTid=" + paymentTid +
+                    " paymentType=" + paymentType +
+                    " transactionType=" + transactionType +
+                    " currencies=" + currencies +
+                    " bound=true";
+        } catch (Exception e) {
+            Log.e(TAG, "SMARTSKY_GET_TERMINAL_DATA_ERROR " + e.getClass().getSimpleName() + ": " + safe(e.getMessage()));
+            if (!binder.isBinderAlive()) {
+                smartSkyBinder = null;
+                smartSkyBound = false;
+                bindSmartSky();
+            }
+            return "TERMINAL_DATA " + id + " code=EXCEPTION type=" + token(e.getClass().getSimpleName()) +
+                    " message=" + token(safe(e.getMessage()));
+        } finally {
+            data.recycle();
+            reply.recycle();
+        }
+    }
+
     private void closeAccessoryLocked() {
         if (ioThread != null && ioThread != Thread.currentThread()) {
             ioThread.interrupt();
@@ -267,6 +381,15 @@ public class BridgeService extends Service {
             try { parcelFd.close(); } catch (Exception ignored) {}
             parcelFd = null;
         }
+    }
+
+    private static String join(Set<String> values, String separator) {
+        StringBuilder out = new StringBuilder();
+        for (String value : values) {
+            if (out.length() > 0) out.append(separator);
+            out.append(value);
+        }
+        return out.toString();
     }
 
     private static String token(String value) {
