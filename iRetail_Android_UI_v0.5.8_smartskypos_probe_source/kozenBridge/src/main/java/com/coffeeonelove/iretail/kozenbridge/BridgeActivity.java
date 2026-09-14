@@ -13,6 +13,7 @@ import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
+import android.os.SystemClock;
 import android.util.Log;
 import android.widget.LinearLayout;
 import android.widget.TextView;
@@ -23,12 +24,14 @@ public class BridgeActivity extends Activity {
     private static final String ACTION_USB_PERMISSION = "com.coffeeonelove.iretail.kozenbridge.USB_PERMISSION";
     private static final String PREFS = "iretail_payment_bridge_v1";
     private static final String PREF_ACTIVE_REQUEST = "active_request";
+    private static final long BRIDGE_START_DEBOUNCE_MS = 2000L;
 
     private UsbManager usbManager;
     private TextView status;
     private final Handler ui = new Handler(Looper.getMainLooper());
     private String lastSeenRequest = "";
     private String lastRendered = "";
+    private long lastBridgeStartAt = 0L;
 
     private final Runnable paymentUiPoll = new Runnable() {
         @Override public void run() {
@@ -97,7 +100,7 @@ public class BridgeActivity extends Activity {
         root.setPadding(pad, pad, pad, pad);
 
         TextView title = new TextView(this);
-        title.setText("i-Retail Kozen Payment Bridge 0.5\nUSB/AOA → SmartSkyPOS");
+        title.setText("i-Retail Kozen Payment Bridge 0.5.1\nUSB/AOA → SmartSkyPOS");
         title.setTextSize(22f);
         root.addView(title);
 
@@ -149,6 +152,14 @@ public class BridgeActivity extends Activity {
     }
 
     private void startBridgeService(UsbAccessory accessory) {
+        long now = SystemClock.elapsedRealtime();
+        long delta = now - lastBridgeStartAt;
+        if (lastBridgeStartAt > 0L && delta >= 0L && delta < BRIDGE_START_DEBOUNCE_MS) {
+            Log.i(TAG, "PRODUCTION_BRIDGE_SERVICE_START duplicate_ignored deltaMs=" + delta);
+            return;
+        }
+        lastBridgeStartAt = now;
+
         Intent service = new Intent(this, ProductionBridgeService.class);
         service.putExtra(UsbManager.EXTRA_ACCESSORY, accessory);
         startService(service);
