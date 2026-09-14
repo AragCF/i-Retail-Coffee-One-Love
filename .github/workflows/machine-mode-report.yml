@@ -1,0 +1,29 @@
+name: Machine mode report
+
+on:
+  push:
+    branches:
+      - v0.5.21-machine-modes
+    paths:
+      - 'iRetail_Android_UI_v0.5.8_smartskypos_probe_source/test_reports/machine_modes/**'
+
+jobs:
+  report:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Extract latest machine mode diagnostic
+        shell: bash
+        run: |
+          set -euo pipefail
+          ROOT='iRetail_Android_UI_v0.5.8_smartskypos_probe_source/test_reports/machine_modes'
+          ZIP="$(find "$ROOT" -maxdepth 1 -type f -name 'STANDALONE_MODE_SMOKE_*.zip' -printf '%T@ %p\n' | sort -nr | head -n1 | cut -d' ' -f2-)"
+          echo "LATEST_ZIP=$ZIP"
+          echo '===== SUMMARY.txt ====='
+          unzip -p "$ZIP" SUMMARY.txt || true
+          echo '===== 01_machine_mode_prefs.txt ====='
+          unzip -p "$ZIP" 01_machine_mode_prefs.txt || true
+          echo '===== 02_mode_logcat.txt ====='
+          unzip -p "$ZIP" 02_mode_logcat.txt || true
+          echo '===== 07_foreground.txt ====='
+          unzip -p "$ZIP" 07_foreground.txt || true
