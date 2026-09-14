@@ -1,0 +1,3 @@
+SHA256 hash of test_reports\main_ui_payment\MAIN_UI_REAL_PAYMENT_20260914_220329.zip:
+7f34f135c255315a245bf882169d593b0c34d12f3314418afdd9aba127ef0a78
+CertUtil: -hashfile command completed successfully.
