@@ -1,0 +1,66 @@
+name: Materialize v0.5.20 main UI Kozen payment
+
+on:
+  push:
+    branches:
+      - v0.5.20-main-ui-kozen-payment
+    paths:
+      - 'iRetail_Android_UI_v0.5.8_smartskypos_probe_source/tools/materialize_v0_5_20.py'
+      - '.github/workflows/materialize-v0.5.20.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  materialize-build-commit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@v4
+        with:
+          ref: v0.5.20-main-ui-kozen-payment
+          fetch-depth: 0
+
+      - name: Materialize guarded source changes
+        run: python3 iRetail_Android_UI_v0.5.8_smartskypos_probe_source/tools/materialize_v0_5_20.py
+
+      - name: Verify diff is cleanly applicable
+        run: git diff --check
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Gradle 8.7
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.7'
+
+      - name: Build main UI and Kozen bridge
+        working-directory: iRetail_Android_UI_v0.5.8_smartskypos_probe_source
+        run: gradle --no-daemon --stacktrace :app:assembleDebug :kozenBridge:assembleDebug
+
+      - name: Commit materialized source
+        shell: bash
+        run: |
+          set -euo pipefail
+          if git diff --quiet; then
+            echo 'No source changes to commit.'
+            exit 0
+          fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add \
+            iRetail_Android_UI_v0.5.8_smartskypos_probe_source/app/build.gradle \
+            iRetail_Android_UI_v0.5.8_smartskypos_probe_source/app/src/main/AndroidManifest.xml \
+            iRetail_Android_UI_v0.5.8_smartskypos_probe_source/app/src/main/java/com/coffeeonelove/iretail/ui/MainActivity.kt \
+            iRetail_Android_UI_v0.5.8_smartskypos_probe_source/kozenBridge/build.gradle \
+            iRetail_Android_UI_v0.5.8_smartskypos_probe_source/kozenBridge/src/main/java/com/coffeeonelove/iretail/kozenbridge/BridgeActivity.java \
+            iRetail_Android_UI_v0.5.8_smartskypos_probe_source/kozenBridge/src/main/java/com/coffeeonelove/iretail/kozenbridge/ProductionBridgeService.java
+          git commit -m 'v0.5.20: materialize main UI Kozen payment integration [skip ci]'
+          git push origin HEAD:v0.5.20-main-ui-kozen-payment
