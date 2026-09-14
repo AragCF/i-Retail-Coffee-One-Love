@@ -6,6 +6,7 @@ on:
       - v0.5.20-main-ui-kozen-payment
     paths:
       - 'iRetail_Android_UI_v0.5.8_smartskypos_probe_source/tools/materialize_v0_5_20.py'
+      - 'iRetail_Android_UI_v0.5.8_smartskypos_probe_source/tools/harden_v0_5_20_recovery.py'
       - '.github/workflows/materialize-v0.5.20.yml'
   workflow_dispatch:
 
@@ -25,7 +26,9 @@ jobs:
           fetch-depth: 0
 
       - name: Materialize guarded source changes
-        run: python3 iRetail_Android_UI_v0.5.8_smartskypos_probe_source/tools/materialize_v0_5_20.py
+        run: |
+          python3 iRetail_Android_UI_v0.5.8_smartskypos_probe_source/tools/materialize_v0_5_20.py
+          python3 iRetail_Android_UI_v0.5.8_smartskypos_probe_source/tools/harden_v0_5_20_recovery.py
 
       - name: Verify diff is cleanly applicable
         run: git diff --check
@@ -59,8 +62,9 @@ jobs:
             iRetail_Android_UI_v0.5.8_smartskypos_probe_source/app/build.gradle \
             iRetail_Android_UI_v0.5.8_smartskypos_probe_source/app/src/main/AndroidManifest.xml \
             iRetail_Android_UI_v0.5.8_smartskypos_probe_source/app/src/main/java/com/coffeeonelove/iretail/ui/MainActivity.kt \
+            iRetail_Android_UI_v0.5.8_smartskypos_probe_source/app/src/main/java/com/coffeeonelove/iretail/pos/KozenAoaPaymentClient.java \
             iRetail_Android_UI_v0.5.8_smartskypos_probe_source/kozenBridge/build.gradle \
             iRetail_Android_UI_v0.5.8_smartskypos_probe_source/kozenBridge/src/main/java/com/coffeeonelove/iretail/kozenbridge/BridgeActivity.java \
             iRetail_Android_UI_v0.5.8_smartskypos_probe_source/kozenBridge/src/main/java/com/coffeeonelove/iretail/kozenbridge/ProductionBridgeService.java
-          git commit -m 'v0.5.20: materialize main UI Kozen payment integration [skip ci]'
+          git commit -m 'v0.5.20: materialize payment recovery hardening [skip ci]'
           git push origin HEAD:v0.5.20-main-ui-kozen-payment
