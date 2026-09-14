@@ -2,6 +2,5 @@
 <resources>
     <usb-accessory
         manufacturer="Coffee One Love"
-        model="iRetail Kozen Payment Bridge"
-        version="0.1" />
+        model="iRetail Kozen Payment Bridge" />
 </resources>
