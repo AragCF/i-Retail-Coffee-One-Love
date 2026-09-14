@@ -1,0 +1,3 @@
+SHA256 hash of test_reports\machine_modes\STANDALONE_MODE_SMOKE_20260914_183132.zip:
+46fe1f1f733a49e027866256808e773bb4877278cc31d529c90d952742f7e36f
+CertUtil: -hashfile command completed successfully.
