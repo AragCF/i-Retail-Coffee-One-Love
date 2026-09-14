@@ -23,11 +23,16 @@ adb start-server >nul 2>nul
 set "JL22=%~1"
 set "KOZEN=%~2"
 
+rem Real JL22 identifies itself as model:UniWin_M190, not model:M190.
+rem First use the exact known model token, then a conservative M190 fallback.
 if not defined JL22 (
-    for /f "tokens=1" %%S in ('adb devices -l ^| findstr /I "model:M190"') do if not defined JL22 set "JL22=%%S"
+    for /f "tokens=1" %%S in ('adb devices -l ^| findstr /I /C:"model:UniWin_M190"') do if not defined JL22 set "JL22=%%S"
+)
+if not defined JL22 (
+    for /f "tokens=1" %%S in ('adb devices -l ^| findstr /I "M190"') do if not defined JL22 set "JL22=%%S"
 )
 if not defined KOZEN (
-    for /f "tokens=1" %%S in ('adb devices -l ^| findstr /I "model:P12"') do if not defined KOZEN set "KOZEN=%%S"
+    for /f "tokens=1" %%S in ('adb devices -l ^| findstr /I /C:"model:P12"') do if not defined KOZEN set "KOZEN=%%S"
 )
 
 echo ============================================================
@@ -40,7 +45,7 @@ adb devices -l
 echo.
 
 if not defined JL22 (
-    echo [ERROR] JL22 was not found automatically as model:M190.
+    echo [ERROR] JL22 was not found automatically as model:UniWin_M190/M190.
     echo Run: adb devices -l
     echo Then pass its serial as the first argument.
     pause
