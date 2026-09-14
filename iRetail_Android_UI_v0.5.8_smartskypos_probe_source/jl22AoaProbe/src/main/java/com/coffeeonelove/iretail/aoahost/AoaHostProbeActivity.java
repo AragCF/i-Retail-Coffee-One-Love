@@ -314,12 +314,12 @@ public class AoaHostProbeActivity extends Activity {
         try {
             String pong = null;
             for (int attempt = 1; attempt <= 12 && pong == null; attempt++) {
-                String request = "PING 1001\n";
-                int tx = bulkWrite(connection, out, request);
+                int tx = bulkWrite(connection, out, "PING 1001\n");
                 log("PING_ATTEMPT=" + attempt + " tx=" + tx);
                 if (tx > 0) {
                     String response = bulkRead(connection, in, 1800);
-                    if (response != null && response.startsWith("PONG 1001")) pong = response;
+                    pong = pickLineStartingWith(response, "PONG 1001");
+                    if (response != null && pong == null) log("PING_IGNORED_RX " + safe(response));
                 }
                 if (pong == null) Thread.sleep(700);
             }
@@ -333,14 +333,25 @@ public class AoaHostProbeActivity extends Activity {
             log("AOA_PING_OK " + safe(pong));
 
             int infoTx = bulkWrite(connection, out, "INFO 1002\n");
-            String info = infoTx > 0 ? bulkRead(connection, in, 2500) : null;
-            if (info != null && info.startsWith("INFO 1002")) {
+            String info = null;
+            String lastResponse = null;
+            if (infoTx > 0) {
+                for (int attempt = 1; attempt <= 8 && info == null; attempt++) {
+                    lastResponse = bulkRead(connection, in, 900);
+                    info = pickLineStartingWith(lastResponse, "INFO 1002");
+                    if (lastResponse != null && info == null) {
+                        log("INFO_IGNORED_RX attempt=" + attempt + " " + safe(lastResponse));
+                    }
+                }
+            }
+
+            if (info != null) {
                 append("RX: " + info);
                 append("ГОТОВО: JL22 ↔ AOA ↔ Kozen Bridge работает.");
                 log("AOA_LINK_OK " + safe(info));
             } else {
-                append("PONG получен, но INFO не получен. tx=" + infoTx + " response=" + safe(info));
-                log("AOA_INFO_FAILED tx=" + infoTx + " response=" + safe(info));
+                append("PONG получен, но INFO не получен. tx=" + infoTx + " response=" + safe(lastResponse));
+                log("AOA_INFO_FAILED tx=" + infoTx + " response=" + safe(lastResponse));
             }
         } catch (Exception e) {
             append("Ошибка обмена по AOA: " + e.getClass().getSimpleName() + ": " + safe(e.getMessage()));
@@ -358,6 +369,16 @@ public class AoaHostProbeActivity extends Activity {
         int count = connection.bulkTransfer(in, buffer, buffer.length, timeoutMs);
         if (count <= 0) return null;
         return new String(buffer, 0, count, StandardCharsets.UTF_8).trim();
+    }
+
+    private static String pickLineStartingWith(String text, String prefix) {
+        if (text == null) return null;
+        String[] lines = text.split("\\r?\\n");
+        for (String line : lines) {
+            String trimmed = line.trim();
+            if (trimmed.startsWith(prefix)) return trimmed;
+        }
+        return null;
     }
 
     private UsbDevice findRawKozen() {
