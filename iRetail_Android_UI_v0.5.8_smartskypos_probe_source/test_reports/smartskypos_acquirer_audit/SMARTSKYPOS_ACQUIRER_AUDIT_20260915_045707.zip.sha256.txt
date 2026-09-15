@@ -1,0 +1,3 @@
+SHA256 hash of test_reports\smartskypos_acquirer_audit\SMARTSKYPOS_ACQUIRER_AUDIT_20260915_045707.zip:
+1d25593b9704b279edf95be4be21a4de6c6efd1a52b4438a8f1f1a18f69ea259
+CertUtil: -hashfile command completed successfully.
