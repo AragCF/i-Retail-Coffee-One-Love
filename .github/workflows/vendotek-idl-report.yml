@@ -1,0 +1,34 @@
+name: Vendotek IDL smoke report
+
+on:
+  push:
+    branches:
+      - v0.5.23-vendotek-discovery
+    paths:
+      - 'iRetail_Android_UI_v0.5.8_smartskypos_probe_source/test_reports/vendotek_idl/**'
+
+permissions:
+  contents: read
+
+jobs:
+  report:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Extract latest Vendotek IDL result
+        shell: bash
+        run: |
+          set -euo pipefail
+          ROOT='iRetail_Android_UI_v0.5.8_smartskypos_probe_source/test_reports/vendotek_idl'
+          ZIP="$(find "$ROOT" -maxdepth 1 -type f -name 'VENDOTEK_IDL_*.zip' -printf '%T@ %p\n' | sort -nr | head -n1 | cut -d' ' -f2-)"
+          echo "LATEST_ZIP=$ZIP"
+          echo '===== SUMMARY.txt ====='
+          unzip -p "$ZIP" SUMMARY.txt || true
+          echo '===== 00_info.txt ====='
+          unzip -p "$ZIP" 00_info.txt || true
+          echo '===== 01_vendotek_idl_logcat.txt ====='
+          unzip -p "$ZIP" 01_vendotek_idl_logcat.txt || true
+          echo '===== 02_transport.txt ====='
+          unzip -p "$ZIP" 02_transport.txt || true
+          echo '===== 03_dmesg_ftdi.txt ====='
+          unzip -p "$ZIP" 03_dmesg_ftdi.txt || true
