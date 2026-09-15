@@ -6,9 +6,9 @@ $ts = Get-Date -Format 'yyyyMMdd_HHmmss'
 $out = Join-Path $root ("VENDOTEK_SERVICE_WIFI_{0}" -f $ts)
 New-Item -ItemType Directory -Path $out -Force | Out-Null
 
-function Save-Netsh([string[]]$Args, [string]$File) {
+function Save-Netsh([string[]]$NetshArgs, [string]$File) {
     try {
-        $text = & netsh @Args 2>&1 | Out-String
+        $text = & netsh @NetshArgs 2>&1 | Out-String
     } catch {
         $text = "ERROR: $($_.Exception.Message)"
     }
@@ -27,6 +27,16 @@ function Get-SsidsFromText([string]$Text) {
     return @($items | Sort-Object -Unique)
 }
 
+function Finish-Archive([string]$Outcome) {
+    $zip = "$out.zip"
+    if (-not (Test-Path (Join-Path $out 'OUTCOME.txt'))) {
+        $Outcome | Set-Content -LiteralPath (Join-Path $out 'OUTCOME.txt') -Encoding UTF8
+    }
+    Compress-Archive -Path (Join-Path $out '*') -DestinationPath $zip -Force
+    Write-Host "[SUCCESS] $zip"
+    return $zip
+}
+
 Write-Host '============================================================'
 Write-Host 'i-Retail v0.5.26 - VENDOTEK SERVICE WI-FI DISCOVERY'
 Write-Host '============================================================'
@@ -37,8 +47,8 @@ Write-Host 'No VTK message and no financial command is sent.'
 Write-Host '============================================================'
 Write-Host ''
 
-$interfaces = Save-Netsh @('wlan','show','interfaces') (Join-Path $out '01_wlan_interfaces.txt')
-$drivers = Save-Netsh @('wlan','show','drivers') (Join-Path $out '02_wlan_drivers.txt')
+$interfaces = Save-Netsh -NetshArgs @('wlan','show','interfaces') -File (Join-Path $out '01_wlan_interfaces.txt')
+$drivers = Save-Netsh -NetshArgs @('wlan','show','drivers') -File (Join-Path $out '02_wlan_drivers.txt')
 
 if ($interfaces -match '(?i)(There is no wireless interface|Беспроводн.*интерфейс.*отсутств|Wireless AutoConfig Service.*not running)') {
     'NO_WLAN_ADAPTER_OR_SERVICE' | Set-Content -LiteralPath (Join-Path $out 'OUTCOME.txt') -Encoding UTF8
@@ -48,7 +58,7 @@ if ($interfaces -match '(?i)(There is no wireless interface|Беспроводн
         'No terminal setting was changed.'
     ) | Set-Content -LiteralPath (Join-Path $out 'SUMMARY.txt') -Encoding UTF8
     Write-Host '[ERROR] Windows WLAN interface/service is unavailable.'
-    Write-Host "Evidence folder: $out"
+    [void](Finish-Archive 'NO_WLAN_ADAPTER_OR_SERVICE')
     exit 2
 }
 
@@ -57,7 +67,7 @@ Write-Host 'Turn OFF only the Vendotek terminal.'
 Write-Host 'Leave it without power for about 10 seconds.'
 [void](Read-Host 'Press Enter while Vendotek is still OFF')
 
-$baselineText = Save-Netsh @('wlan','show','networks','mode=bssid') (Join-Path $out '03_baseline_vendotek_off.txt')
+$baselineText = Save-Netsh -NetshArgs @('wlan','show','networks','mode=bssid') -File (Join-Path $out '03_baseline_vendotek_off.txt')
 $baselineSsids = Get-SsidsFromText $baselineText
 
 Write-Host ''
@@ -103,6 +113,7 @@ if ($afterSsids.Count -eq 0) { [void]$summary.Add('  <none parsed>') } else { fo
 [void]$summary.Add('NEW SSID CANDIDATES:')
 if ($candidates.Count -eq 0) { [void]$summary.Add('  <none>') } else { foreach ($s in $candidates) { [void]$summary.Add("  $s") } }
 [void]$summary.Add('')
+[void]$summary.Add('NOTE: a newly seen SSID is only a candidate until correlated with Vendotek power state/BSSID.')
 [void]$summary.Add('SAFETY: passive scan only; no Wi-Fi association; no VTK command; no payment.')
 $summary | Set-Content -LiteralPath (Join-Path $out 'SUMMARY.txt') -Encoding UTF8
 
@@ -116,7 +127,5 @@ if ($candidates.Count -gt 0) {
     Write-Host 'No SSID appeared that was absent from the OFF baseline.'
 }
 
-$zip = "$out.zip"
-Compress-Archive -Path (Join-Path $out '*') -DestinationPath $zip -Force
-Write-Host "[SUCCESS] $zip"
+[void](Finish-Archive $outcome)
 Write-Host 'No connection was made and no terminal setting was changed.'
