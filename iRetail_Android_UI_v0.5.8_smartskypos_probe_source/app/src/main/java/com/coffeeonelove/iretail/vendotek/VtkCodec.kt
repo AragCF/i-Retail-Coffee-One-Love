@@ -4,9 +4,9 @@ import java.io.ByteArrayOutputStream
 import java.nio.charset.Charset
 
 /**
- * Minimal VTK serial codec used by the first Vendotek probe.
+ * Minimal VTK serial codec used by Vendotek diagnostics.
  *
- * Source of truth: VTK-MAN-RU 1.0 (2026-01-19), sections 2.1-2.3.
+ * Source of truth: VTK-MAN-RU 1.0 (2026-01-19), sections 2.1-2.3 and 3.2.3.
  * Serial frame:
  *   1F | length BE (2) | discriminator BE (2) | BER-TLV application | CRC16-CCITT BE (2)
  * length counts discriminator + application and excludes CRC.
@@ -21,6 +21,7 @@ object VtkCodec {
     const val TAG_OPERATION_NUMBER = 0x03
     const val TAG_KEEPALIVE_SECONDS = 0x05
     const val TAG_LOCAL_TIME = 0x11
+    const val TAG_SYSTEM_INFO = 0x12
 
     private val ASCII: Charset = Charsets.US_ASCII
 
@@ -38,6 +39,20 @@ object VtkCodec {
         val app = ByteArrayOutputStream()
         writeTlv(app, TAG_MESSAGE_NAME, "IDL".toByteArray(ASCII))
         writeTlv(app, TAG_LOCAL_TIME, localTime.toByteArray(ASCII))
+        return buildSerialFrame(VMC_TO_POS, app.toByteArray())
+    }
+
+    /**
+     * System Information request from VTK-MAN-RU 1.0 section 3.2.3.
+     * The request itself is an IDL message with LocalTime (11h) and SystemInformation (12h).
+     */
+    fun buildSystemInfo(localTime: String, query: String): ByteArray {
+        require(localTime.length <= 20) { "VTK local time is longer than 20 bytes" }
+        require(query.isNotBlank()) { "VTK SystemInfo query is empty" }
+        val app = ByteArrayOutputStream()
+        writeTlv(app, TAG_MESSAGE_NAME, "IDL".toByteArray(ASCII))
+        writeTlv(app, TAG_LOCAL_TIME, localTime.toByteArray(ASCII))
+        writeTlv(app, TAG_SYSTEM_INFO, query.toByteArray(ASCII))
         return buildSerialFrame(VMC_TO_POS, app.toByteArray())
     }
 
@@ -108,11 +123,15 @@ object VtkCodec {
         return crc
     }
 
-    /** Known frame from VTK-MAN-RU 1.0 page 8; protects framing/CRC against regressions. */
+    /** Known frames from VTK-MAN-RU 1.0 pages 8 and 38. */
     fun selfTest(): Boolean {
-        val expected = hexToBytes("1f001d96fb010349444c11143230323630313237543038343035332b30333030977e")
-        val actual = buildIdl("20260127T084053+0300")
-        return expected.contentEquals(actual)
+        val expectedIdl = hexToBytes("1f001d96fb010349444c11143230323630313237543038343035332b30333030977e")
+        val actualIdl = buildIdl("20260127T084053+0300")
+        if (!expectedIdl.contentEquals(actualIdl)) return false
+
+        val expectedStatus = hexToBytes("1f002596fb010349444c11143230323630313232543132333930302b3033303012065354415455532349")
+        val actualStatus = buildSystemInfo("20260122T123900+0300", "STATUS")
+        return expectedStatus.contentEquals(actualStatus)
     }
 
     fun hex(bytes: ByteArray): String = bytes.joinToString("") { "%02x".format(it.toInt() and 0xFF) }
