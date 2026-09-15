@@ -11,8 +11,8 @@ android {
         applicationId 'com.coffeeonelove.iretail'
         minSdk 23
         targetSdk 35
-        versionCode 22
-        versionName '0.5.21-machine-modes'
+        versionCode 23
+        versionName '0.5.23-vendotek-idl-probe'
     }
 
     compileOptions {
