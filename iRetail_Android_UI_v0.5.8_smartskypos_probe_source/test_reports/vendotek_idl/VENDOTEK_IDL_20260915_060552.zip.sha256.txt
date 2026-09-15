@@ -1,0 +1,3 @@
+SHA256 hash of test_reports\vendotek_idl\VENDOTEK_IDL_20260915_060552.zip:
+b0bbece9f7b12a99f34803f081d4555a5280984bc4edd85aa1757d93cad7d241
+CertUtil: -hashfile command completed successfully.
