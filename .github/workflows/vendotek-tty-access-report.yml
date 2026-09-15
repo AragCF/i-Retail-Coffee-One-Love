@@ -1,0 +1,38 @@
+name: Vendotek TTY access report
+
+on:
+  push:
+    branches:
+      - v0.5.23-vendotek-discovery
+    paths:
+      - 'iRetail_Android_UI_v0.5.8_smartskypos_probe_source/test_reports/vendotek_tty_access/**'
+
+permissions:
+  contents: read
+
+jobs:
+  report:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Extract latest Vendotek TTY access probe
+        shell: bash
+        run: |
+          set -euo pipefail
+          ROOT='iRetail_Android_UI_v0.5.8_smartskypos_probe_source/test_reports/vendotek_tty_access'
+          ZIP="$(find "$ROOT" -maxdepth 1 -type f -name 'VENDOTEK_TTY_ACCESS_*.zip' -printf '%T@ %p\n' | sort -nr | head -n1 | cut -d' ' -f2-)"
+          echo "LATEST_ZIP=$ZIP"
+          echo '===== SUMMARY.txt ====='
+          unzip -p "$ZIP" SUMMARY.txt || true
+          echo '===== 01_identity_ftdi.txt ====='
+          unzip -p "$ZIP" 01_identity_ftdi.txt || true
+          echo '===== 02_shell_permissions.txt ====='
+          unzip -p "$ZIP" 02_shell_permissions.txt || true
+          echo '===== 03_security.txt ====='
+          unzip -p "$ZIP" 03_security.txt || true
+          echo '===== 04_app_permissions.txt ====='
+          unzip -p "$ZIP" 04_app_permissions.txt || true
+          echo '===== 05_serial_environment.txt ====='
+          unzip -p "$ZIP" 05_serial_environment.txt || true
+          echo '===== 07_usb_driver.txt ====='
+          unzip -p "$ZIP" 07_usb_driver.txt || true
