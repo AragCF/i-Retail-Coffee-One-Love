@@ -14,7 +14,7 @@ Vendotek физически подключён к USB Host кофе-машины
 VID:PID       0403:6001
 Manufacturer  FTDI
 Product       FT232R USB UART
-Serial        A10LV1PB
+Serial        A507YBKB
 USB speed     12 Mbit/s (full-speed)
 Device class  00/00/00
 Interface     ff/ff/ff
@@ -31,7 +31,7 @@ MaxPacket     0x0040 (64 bytes)
 usb 1-1.4: New USB device found, idVendor=0403, idProduct=6001
 usb 1-1.4: Product: FT232R USB UART
 usb 1-1.4: Manufacturer: FTDI
-usb 1-1.4: SerialNumber: A10LV1PB
+usb 1-1.4: SerialNumber: A507YBKB
 ftdi_sio 1-1.4:1.0: FTDI USB Serial Device converter detected
 usb 1-1.4: Detected FT232RL
 usb 1-1.4: FTDI USB Serial Device converter now attached to ttyUSB0
