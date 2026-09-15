@@ -3,7 +3,7 @@ setlocal EnableExtensions DisableDelayedExpansion
 cd /d "%~dp0"
 
 echo ============================================================
-echo i-Retail v0.5.26 - VENDOTEK SERVICE WI-FI DISCOVERY
+echo i-Retail v0.5.26.1 - VENDOTEK SERVICE WI-FI DISCOVERY
 echo ============================================================
 echo This is a passive Windows Wi-Fi scan only.
 echo It sends NO VTK message and NO financial command.
