@@ -1,0 +1,34 @@
+name: Vendotek service WiFi report
+
+on:
+  push:
+    branches:
+      - v0.5.26-vendotek-service-wifi
+    paths:
+      - 'iRetail_Android_UI_v0.5.8_smartskypos_probe_source/test_reports/vendotek_service_wifi/**'
+
+permissions:
+  contents: read
+
+jobs:
+  report:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Extract latest Vendotek service WiFi result
+        shell: bash
+        run: |
+          set -euo pipefail
+          ROOT='iRetail_Android_UI_v0.5.8_smartskypos_probe_source/test_reports/vendotek_service_wifi'
+          ZIP="$(find "$ROOT" -maxdepth 1 -type f -name 'VENDOTEK_SERVICE_WIFI_*.zip' -printf '%T@ %p\n' | sort -nr | head -n1 | cut -d' ' -f2-)"
+          echo "LATEST_ZIP=$ZIP"
+          echo '===== SUMMARY.txt ====='
+          unzip -p "$ZIP" SUMMARY.txt || true
+          echo '===== 01_wlan_interfaces.txt ====='
+          unzip -p "$ZIP" 01_wlan_interfaces.txt || true
+          echo '===== 05_baseline_ssids.txt ====='
+          unzip -p "$ZIP" 05_baseline_ssids.txt || true
+          echo '===== 06_after_power_on_ssids.txt ====='
+          unzip -p "$ZIP" 06_after_power_on_ssids.txt || true
+          echo '===== 07_candidate_new_ssids.txt ====='
+          unzip -p "$ZIP" 07_candidate_new_ssids.txt || true
