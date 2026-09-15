@@ -13,8 +13,9 @@ echo ============================================================
 echo JL22: %JL22%
 echo.
 echo SAFETY:
-echo   - This test sends exactly ONE VTK IDL message.
+echo   - This test allows AT MOST ONE VTK IDL message.
 echo   - IDL only establishes/refreshes the idle link.
+echo   - IDL is written only after serial setup succeeds.
 echo   - NO VRP payment request is sent.
 echo   - NO FIN, ABR or DIS is sent.
 echo   - NO financial command is sent.
@@ -66,7 +67,7 @@ if not exist "%APK%" (
   exit /b 7
 )
 
-echo [3/8] Installing v0.5.23 Vendotek IDL probe on JL22...
+echo [3/8] Installing Vendotek IDL probe on JL22...
 adb -s "%JL22%" install -r "%APK%"
 if errorlevel 1 (
   echo [ERROR] APK installation failed. No VTK message was sent.
@@ -85,7 +86,7 @@ if errorlevel 1 (
 )
 
 echo [5/8] Waiting for IDL result...
-for /l %%S in (1,1,30) do (
+for /l %%S in (1,1,45) do (
   adb -s "%JL22%" logcat -d -v brief IretailVendotek:I *:S > "%WAITLOG%" 2>&1
   findstr /C:"VTK_IDL_OK" "%WAITLOG%" >nul 2>nul
   if not errorlevel 1 (
@@ -125,7 +126,7 @@ mkdir "%OUT%"
   echo usb=0403:6001 FTDI FT232R
   echo tty=/dev/ttyUSB0
   echo serial=115200_8N1_NO_FLOW
-  echo protocol_write=IDL_ONLY
+  echo protocol_write=IDL_AT_MOST_ONCE_AFTER_SERIAL_CONFIG
   echo financial_commands=NONE
 ) > "%OUT%\00_info.txt"
 
@@ -134,6 +135,8 @@ adb -s "%JL22%" logcat -d -v threadtime IretailVendotek:V AndroidRuntime:E Activ
   adb -s "%JL22%" shell lsusb
   adb -s "%JL22%" shell ls -l /dev/ttyUSB0
   adb -s "%JL22%" shell ls -lZ /dev/ttyUSB0
+  adb -s "%JL22%" shell ls -l /sbin/busybox /system/bin/su 2>&1
+  adb -s "%JL22%" shell mount
   adb -s "%JL22%" shell cat /proc/tty/driver/usbserial
   adb -s "%JL22%" shell readlink -f /sys/class/tty/ttyUSB0/device/driver
 ) > "%OUT%\02_transport.txt" 2>&1
@@ -157,7 +160,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -Command "$p=Resolve-Path '%OUT%';
 echo.
 echo ============================================================
 echo VENDOTEK IDL SMOKE TEST COMPLETE. Outcome: %OUTCOME%
-echo Exactly one non-financial IDL was allowed by this test.
+echo At most one non-financial IDL was allowed by this test.
 echo No VRP/FIN/ABR/DIS was sent.
 echo.
 echo Publish with:
