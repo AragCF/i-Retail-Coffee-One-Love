@@ -35,7 +35,7 @@
             android:name=".vendotek.VendotekSystemInfoDiagnosticActivity"
             android:exported="true"
             android:excludeFromRecents="true"
-            android:noHistory="true" />
+            android:noHistory="false" />
         <service
             android:name=".ui.ForegroundKeeperService"
             android:exported="false"
