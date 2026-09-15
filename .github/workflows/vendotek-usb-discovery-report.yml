@@ -1,0 +1,36 @@
+name: Vendotek USB discovery report
+
+on:
+  push:
+    branches:
+      - v0.5.23-vendotek-discovery
+    paths:
+      - 'iRetail_Android_UI_v0.5.8_smartskypos_probe_source/test_reports/vendotek_usb_discovery/**'
+
+permissions:
+  contents: read
+
+jobs:
+  report:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Extract latest Vendotek USB discovery
+        shell: bash
+        run: |
+          set -euo pipefail
+          ROOT='iRetail_Android_UI_v0.5.8_smartskypos_probe_source/test_reports/vendotek_usb_discovery'
+          ZIP="$(find "$ROOT" -maxdepth 1 -type f -name 'VENDOTEK_USB_DISCOVERY_*.zip' -printf '%T@ %p\n' | sort -nr | head -n1 | cut -d' ' -f2-)"
+          echo "LATEST_ZIP=$ZIP"
+          echo '===== SUMMARY.txt ====='
+          unzip -p "$ZIP" SUMMARY.txt || true
+          echo '===== 03_lsusb.txt ====='
+          unzip -p "$ZIP" 03_lsusb.txt || true
+          echo '===== 06_usb_devices_sysfs.txt ====='
+          unzip -p "$ZIP" 06_usb_devices_sysfs.txt || true
+          echo '===== 07_usb_interfaces_endpoints.txt ====='
+          unzip -p "$ZIP" 07_usb_interfaces_endpoints.txt || true
+          echo '===== 08_tty_inventory.txt ====='
+          unzip -p "$ZIP" 08_tty_inventory.txt || true
+          echo '===== 11_logcat_usb_filtered.txt ====='
+          unzip -p "$ZIP" 11_logcat_usb_filtered.txt || true
