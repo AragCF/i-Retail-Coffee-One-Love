@@ -8,7 +8,6 @@ import android.util.Log
 import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
-import java.io.ByteArrayOutputStream
 import java.io.File
 import java.io.FileInputStream
 import java.io.FileOutputStream
@@ -21,8 +20,14 @@ import kotlin.math.min
 /**
  * Non-financial Vendotek serial smoke-test.
  *
- * This activity performs exactly one protocol write: VTK IDL.
+ * This activity performs at most one protocol write: VTK IDL.
  * It never sends VRP, FIN, ABR, DIS or any financial command.
+ *
+ * JL22 exposes /dev/ttyUSB0 through the kernel ftdi_sio driver. The device node
+ * is writable by the application, but the factory BusyBox binary may not be
+ * directly executable by the app uid. For this diagnostic stage only, serial
+ * configuration is attempted directly first and then through factory su.
+ * No IDL byte is written unless 115200 8N1 configuration succeeds.
  */
 class VendotekIdlDiagnosticActivity : Activity() {
     private val executor = Executors.newSingleThreadExecutor()
@@ -52,7 +57,7 @@ class VendotekIdlDiagnosticActivity : Activity() {
             setTextColor(Color.BLACK)
         })
         root.addView(TextView(this).apply {
-            this.text = "Без оплаты: отправляется только один IDL. VRP/FIN/ABR/DIS отключены."
+            this.text = "Без оплаты: максимум один IDL. VRP/FIN/ABR/DIS отключены."
             textSize = 13f
             setTextColor(0xFF256029.toInt())
             setPadding(0, dp(5), 0, dp(8))
@@ -63,17 +68,21 @@ class VendotekIdlDiagnosticActivity : Activity() {
             setTextIsSelectable(true)
         }
         val scroll = ScrollView(this).apply { addView(output) }
-        root.addView(scroll, LinearLayout.LayoutParams(
-            LinearLayout.LayoutParams.MATCH_PARENT,
-            0,
-            1f
-        ))
+        root.addView(
+            scroll,
+            LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                0,
+                1f
+            )
+        )
         setContentView(root)
     }
 
     private fun runProbe() {
         var input: FileInputStream? = null
         var outputStream: FileOutputStream? = null
+        var writeAttempted = false
         try {
             line("PROBE_BEGIN uid=${android.os.Process.myUid()} tty=$TTY_PATH")
 
@@ -118,6 +127,7 @@ class VendotekIdlDiagnosticActivity : Activity() {
             val localTime = SimpleDateFormat("yyyyMMdd'T'HHmmssZ", Locale.US).format(Date())
             val request = VtkCodec.buildIdl(localTime)
             line("IDL_TX localTime=$localTime bytes=${request.size} hex=${VtkCodec.hex(request)}")
+            writeAttempted = true
             outputStream.write(request)
             outputStream.flush()
             Log.i(TAG, "VTK_IDL_TX_ONLY")
@@ -158,38 +168,89 @@ class VendotekIdlDiagnosticActivity : Activity() {
             }
             errorMarker("VTK_IDL_TIMEOUT pending=${VtkCodec.hex(pending)}")
         } catch (e: Exception) {
-            errorMarker("VTK_IDL_ERROR ${e.javaClass.simpleName}:${safe(e.message)}")
+            errorMarker(
+                "VTK_IDL_ERROR ${e.javaClass.simpleName}:${safe(e.message)} cause=${e.cause?.javaClass?.simpleName ?: "-"}:${safe(e.cause?.message)}"
+            )
         } finally {
             try { outputStream?.close() } catch (_: Exception) {}
             try { input?.close() } catch (_: Exception) {}
-            line("PROBE_END onlyCommand=IDL")
+            line("PROBE_END onlyCommand=IDL writeAttempted=$writeAttempted")
         }
     }
 
     private fun configureSerial(): Pair<Int, String> {
-        val full = listOf(
-            BUSYBOX, "stty", "-F", TTY_PATH,
+        val fullArgs = listOf(
+            "stty", "-F", TTY_PATH,
             "115200", "raw", "-echo", "cs8", "-parenb", "-cstopb",
             "-ixon", "-ixoff", "-crtscts", "clocal", "cread"
         )
-        val first = exec(full)
-        if (first.first == 0) return first
-
-        line("SERIAL_CONFIG_FULL_FAILED rc=${first.first} detail=${safe(first.second)}")
-        // BusyBox variants differ in accepted flag aliases. raw already disables software flow;
-        // the fallback keeps the mandatory VTK settings and does not touch the terminal protocol.
-        val fallback = listOf(
-            BUSYBOX, "stty", "-F", TTY_PATH,
+        val fallbackArgs = listOf(
+            "stty", "-F", TTY_PATH,
             "115200", "raw", "-echo", "cs8", "-parenb", "-cstopb", "clocal", "cread"
         )
-        return exec(fallback)
+
+        val directFull = exec(listOf(BUSYBOX) + fullArgs)
+        line("SERIAL_CONFIG_DIRECT_FULL rc=${directFull.first} detail=${safe(directFull.second)}")
+        if (directFull.first == 0) return 0 to "direct-full"
+
+        val directFallback = exec(listOf(BUSYBOX) + fallbackArgs)
+        line("SERIAL_CONFIG_DIRECT_FALLBACK rc=${directFallback.first} detail=${safe(directFallback.second)}")
+        if (directFallback.first == 0) return 0 to "direct-fallback"
+
+        val rootFull = execRoot(listOf(BUSYBOX) + fullArgs)
+        line("SERIAL_CONFIG_ROOT_FULL rc=${rootFull.first} detail=${safe(rootFull.second)}")
+        if (rootFull.first == 0) return 0 to "root-full"
+
+        val rootFallback = execRoot(listOf(BUSYBOX) + fallbackArgs)
+        line("SERIAL_CONFIG_ROOT_FALLBACK rc=${rootFallback.first} detail=${safe(rootFallback.second)}")
+        if (rootFallback.first == 0) return 0 to "root-fallback"
+
+        return rootFallback.first to buildString {
+            append("directFull=").append(directFull.first)
+            append(" directFallback=").append(directFallback.first)
+            append(" rootFull=").append(rootFull.first)
+            append(" rootFallback=").append(rootFallback.first)
+            append(" last=").append(safe(rootFallback.second))
+        }
     }
 
-    private fun exec(command: List<String>): Pair<Int, String> {
-        val process = ProcessBuilder(command).redirectErrorStream(true).start()
-        val detail = process.inputStream.bufferedReader().use { it.readText() }
-        val rc = process.waitFor()
-        return rc to detail.trim()
+    private fun execRoot(command: List<String>): Pair<Int, String> {
+        val shell = command.joinToString(" ") { shellQuote(it) }
+        return exec(listOf(SU, "-c", shell))
+    }
+
+    private fun shellQuote(value: String): String {
+        if (value.matches(Regex("[A-Za-z0-9_./:=+,-]+"))) return value
+        return "'" + value.replace("'", "'\\''") + "'"
+    }
+
+    private fun exec(command: List<String>, timeoutMs: Long = 5_000): Pair<Int, String> {
+        return try {
+            val process = ProcessBuilder(command).redirectErrorStream(true).start()
+            val deadline = SystemClock.elapsedRealtime() + timeoutMs
+            var rc: Int? = null
+            while (SystemClock.elapsedRealtime() < deadline) {
+                try {
+                    rc = process.exitValue()
+                    break
+                } catch (_: IllegalThreadStateException) {
+                    Thread.sleep(25)
+                }
+            }
+            if (rc == null) {
+                try { process.destroy() } catch (_: Exception) {}
+                -124 to "timeout command=${command.joinToString(" ")}"
+            } else {
+                val detail = try {
+                    process.inputStream.bufferedReader().use { it.readText() }.trim()
+                } catch (e: Exception) {
+                    "output-read-error ${e.javaClass.simpleName}:${e.message}"
+                }
+                rc to detail
+            }
+        } catch (e: Exception) {
+            -126 to "exec-error ${e.javaClass.simpleName}:${e.message}; cause=${e.cause?.javaClass?.simpleName}:${e.cause?.message}"
+        }
     }
 
     private fun successMarker(message: String) {
@@ -215,7 +276,7 @@ class VendotekIdlDiagnosticActivity : Activity() {
 
     private fun safe(value: String?): String {
         if (value.isNullOrBlank()) return "-"
-        return value.replace('\n', ' ').replace('\r', ' ').take(400)
+        return value.replace('\n', ' ').replace('\r', ' ').take(700)
     }
 
     private fun dp(value: Int): Int = (value * resources.displayMetrics.density).toInt()
@@ -224,5 +285,6 @@ class VendotekIdlDiagnosticActivity : Activity() {
         const val TAG = "IretailVendotek"
         private const val TTY_PATH = "/dev/ttyUSB0"
         private const val BUSYBOX = "/sbin/busybox"
+        private const val SU = "/system/bin/su"
     }
 }
