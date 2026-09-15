@@ -1,0 +1,3 @@
+SHA256 hash of test_reports\vendotek_system_info\VENDOTEK_SYSTEM_INFO_20260915_070514.zip:
+b11f4e0adab231326260258d9457972b806da66030e0823270df0a422565e84c
+CertUtil: -hashfile command completed successfully.
