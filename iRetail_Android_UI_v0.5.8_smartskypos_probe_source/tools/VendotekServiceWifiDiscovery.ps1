@@ -38,7 +38,7 @@ function Finish-Archive([string]$Outcome) {
 }
 
 Write-Host '============================================================'
-Write-Host 'i-Retail v0.5.26 - VENDOTEK SERVICE WI-FI DISCOVERY'
+Write-Host 'i-Retail v0.5.26.1 - VENDOTEK SERVICE WI-FI DISCOVERY'
 Write-Host '============================================================'
 Write-Host 'READ-ONLY Windows Wi-Fi scan.'
 Write-Host 'No connection is made to any network.'
@@ -47,20 +47,10 @@ Write-Host 'No VTK message and no financial command is sent.'
 Write-Host '============================================================'
 Write-Host ''
 
+# Keep this script ASCII-only. Windows PowerShell 5.1 on older localized
+# Windows systems may misread UTF-8 source files without BOM before parsing.
 $interfaces = Save-Netsh -NetshArgs @('wlan','show','interfaces') -File (Join-Path $out '01_wlan_interfaces.txt')
 $drivers = Save-Netsh -NetshArgs @('wlan','show','drivers') -File (Join-Path $out '02_wlan_drivers.txt')
-
-if ($interfaces -match '(?i)(There is no wireless interface|Беспроводн.*интерфейс.*отсутств|Wireless AutoConfig Service.*not running)') {
-    'NO_WLAN_ADAPTER_OR_SERVICE' | Set-Content -LiteralPath (Join-Path $out 'OUTCOME.txt') -Encoding UTF8
-    @(
-        'OUTCOME=NO_WLAN_ADAPTER_OR_SERVICE',
-        'Windows did not expose an active WLAN interface to netsh.',
-        'No terminal setting was changed.'
-    ) | Set-Content -LiteralPath (Join-Path $out 'SUMMARY.txt') -Encoding UTF8
-    Write-Host '[ERROR] Windows WLAN interface/service is unavailable.'
-    [void](Finish-Archive 'NO_WLAN_ADAPTER_OR_SERVICE')
-    exit 2
-}
 
 Write-Host 'STEP 1/3'
 Write-Host 'Turn OFF only the Vendotek terminal.'
@@ -68,7 +58,7 @@ Write-Host 'Leave it without power for about 10 seconds.'
 [void](Read-Host 'Press Enter while Vendotek is still OFF')
 
 $baselineText = Save-Netsh -NetshArgs @('wlan','show','networks','mode=bssid') -File (Join-Path $out '03_baseline_vendotek_off.txt')
-$baselineSsids = Get-SsidsFromText $baselineText
+$baselineSsids = @(Get-SsidsFromText $baselineText)
 
 Write-Host ''
 Write-Host 'STEP 2/3'
@@ -82,11 +72,17 @@ if (Test-Path $scanLog) { Remove-Item $scanLog -Force }
 
 for ($i = 1; $i -le 24; $i++) {
     $stamp = Get-Date -Format 'yyyy-MM-dd HH:mm:ss'
-    $text = (& netsh wlan show networks mode=bssid 2>&1 | Out-String)
+    try {
+        $text = (& netsh wlan show networks mode=bssid 2>&1 | Out-String)
+    } catch {
+        $text = "ERROR: $($_.Exception.Message)"
+    }
     Add-Content -LiteralPath $scanLog -Encoding UTF8 -Value "===== SCAN $i @ $stamp ====="
     Add-Content -LiteralPath $scanLog -Encoding UTF8 -Value $text
-    foreach ($ssid in (Get-SsidsFromText $text)) { [void]$allAfter.Add($ssid) }
-    Write-Progress -Activity 'Scanning Wi-Fi after Vendotek power-on' -Status "Scan $i / 24" -PercentComplete ([int](100*$i/24))
+    foreach ($ssid in (Get-SsidsFromText $text)) {
+        [void]$allAfter.Add($ssid)
+    }
+    Write-Progress -Activity 'Scanning Wi-Fi after Vendotek power-on' -Status "Scan $i / 24" -PercentComplete ([int](100 * $i / 24))
     Start-Sleep -Seconds 3
 }
 Write-Progress -Activity 'Scanning Wi-Fi after Vendotek power-on' -Completed
@@ -98,20 +94,38 @@ $baselineSsids | Set-Content -LiteralPath (Join-Path $out '05_baseline_ssids.txt
 $afterSsids | Set-Content -LiteralPath (Join-Path $out '06_after_power_on_ssids.txt') -Encoding UTF8
 $candidates | Set-Content -LiteralPath (Join-Path $out '07_candidate_new_ssids.txt') -Encoding UTF8
 
-$outcome = if ($candidates.Count -gt 0) { 'CANDIDATE_SSID_FOUND' } else { 'NO_NEW_SSID_SEEN' }
+if ($baselineSsids.Count -eq 0 -and $afterSsids.Count -eq 0) {
+    $outcome = 'NO_SSIDS_PARSED'
+} elseif ($candidates.Count -gt 0) {
+    $outcome = 'CANDIDATE_SSID_FOUND'
+} else {
+    $outcome = 'NO_NEW_SSID_SEEN'
+}
 $outcome | Set-Content -LiteralPath (Join-Path $out 'OUTCOME.txt') -Encoding UTF8
 
 $summary = New-Object System.Collections.Generic.List[string]
 [void]$summary.Add("OUTCOME=$outcome")
 [void]$summary.Add('')
 [void]$summary.Add('BASELINE SSIDs (Vendotek OFF):')
-if ($baselineSsids.Count -eq 0) { [void]$summary.Add('  <none parsed>') } else { foreach ($s in $baselineSsids) { [void]$summary.Add("  $s") } }
+if ($baselineSsids.Count -eq 0) {
+    [void]$summary.Add('  NONE_PARSED')
+} else {
+    foreach ($s in $baselineSsids) { [void]$summary.Add("  $s") }
+}
 [void]$summary.Add('')
 [void]$summary.Add('ALL SSIDs SEEN AFTER VENDOTEK POWER-ON:')
-if ($afterSsids.Count -eq 0) { [void]$summary.Add('  <none parsed>') } else { foreach ($s in $afterSsids) { [void]$summary.Add("  $s") } }
+if ($afterSsids.Count -eq 0) {
+    [void]$summary.Add('  NONE_PARSED')
+} else {
+    foreach ($s in $afterSsids) { [void]$summary.Add("  $s") }
+}
 [void]$summary.Add('')
 [void]$summary.Add('NEW SSID CANDIDATES:')
-if ($candidates.Count -eq 0) { [void]$summary.Add('  <none>') } else { foreach ($s in $candidates) { [void]$summary.Add("  $s") } }
+if ($candidates.Count -eq 0) {
+    [void]$summary.Add('  NONE')
+} else {
+    foreach ($s in $candidates) { [void]$summary.Add("  $s") }
+}
 [void]$summary.Add('')
 [void]$summary.Add('NOTE: a newly seen SSID is only a candidate until correlated with Vendotek power state/BSSID.')
 [void]$summary.Add('SAFETY: passive scan only; no Wi-Fi association; no VTK command; no payment.')
@@ -123,6 +137,8 @@ Write-Host "Result: $outcome"
 if ($candidates.Count -gt 0) {
     Write-Host 'New SSID candidate(s):'
     $candidates | ForEach-Object { Write-Host "  $_" }
+} elseif ($outcome -eq 'NO_SSIDS_PARSED') {
+    Write-Host 'No SSID lines were parsed. Review the captured netsh output in the ZIP.'
 } else {
     Write-Host 'No SSID appeared that was absent from the OFF baseline.'
 }
