@@ -1,0 +1,3 @@
+SHA256 hash of test_reports\vendotek_tty_access\VENDOTEK_TTY_ACCESS_20260915_054938.zip:
+604abc4b943d1a08d6f458dfd2a20c7e04944bbb48f0331c93dc45146a19a7c8
+CertUtil: -hashfile command completed successfully.
