@@ -6,7 +6,7 @@ import java.nio.charset.Charset
 /**
  * Minimal VTK serial codec used by Vendotek diagnostics.
  *
- * Source of truth: VTK-MAN-RU 1.0 (2026-01-19), sections 2.1-2.3 and 3.2.3.
+ * Source of truth: VTK-MAN-RU 1.0 (2026-01-19), sections 2.1-2.3, 3.2.2 and 3.2.3.
  * Serial frame:
  *   1F | length BE (2) | discriminator BE (2) | BER-TLV application | CRC16-CCITT BE (2)
  * length counts discriminator + application and excludes CRC.
@@ -20,8 +20,10 @@ object VtkCodec {
     const val TAG_MESSAGE_NAME = 0x01
     const val TAG_OPERATION_NUMBER = 0x03
     const val TAG_KEEPALIVE_SECONDS = 0x05
+    const val TAG_POS_MANAGEMENT_DATA = 0x10
     const val TAG_LOCAL_TIME = 0x11
     const val TAG_SYSTEM_INFO = 0x12
+    const val TAG_STAGE_ID = 0x1C
 
     private val ASCII: Charset = Charsets.US_ASCII
 
@@ -32,6 +34,7 @@ object VtkCodec {
         val crcOk: Boolean
     ) {
         fun ascii(tag: Int): String? = tlv[tag]?.firstOrNull()?.toString(ASCII)
+        fun asciiAll(tag: Int): List<String> = tlv[tag]?.map { it.toString(ASCII) } ?: emptyList()
     }
 
     fun buildIdl(localTime: String): ByteArray {
@@ -42,10 +45,7 @@ object VtkCodec {
         return buildSerialFrame(VMC_TO_POS, app.toByteArray())
     }
 
-    /**
-     * System Information request from VTK-MAN-RU 1.0 section 3.2.3.
-     * The request itself is an IDL message with LocalTime (11h) and SystemInformation (12h).
-     */
+    /** System Information request: IDL + LocalTime + tag 12. */
     fun buildSystemInfo(localTime: String, query: String): ByteArray {
         require(localTime.length <= 20) { "VTK local time is longer than 20 bytes" }
         require(query.isNotBlank()) { "VTK SystemInfo query is empty" }
@@ -53,6 +53,20 @@ object VtkCodec {
         writeTlv(app, TAG_MESSAGE_NAME, "IDL".toByteArray(ASCII))
         writeTlv(app, TAG_LOCAL_TIME, localTime.toByteArray(ASCII))
         writeTlv(app, TAG_SYSTEM_INFO, query.toByteArray(ASCII))
+        return buildSerialFrame(VMC_TO_POS, app.toByteArray())
+    }
+
+    /**
+     * POS Management data 'A' from VTK-MAN-RU 1.0 section 3.2.2.
+     * This asks the terminal to perform a TMS keepalive/synchronisation cycle.
+     * It is non-financial but may cause the terminal to contact TMS.
+     */
+    fun buildTmsKeepalive(localTime: String): ByteArray {
+        require(localTime.length <= 20) { "VTK local time is longer than 20 bytes" }
+        val app = ByteArrayOutputStream()
+        writeTlv(app, TAG_MESSAGE_NAME, "IDL".toByteArray(ASCII))
+        writeTlv(app, TAG_LOCAL_TIME, localTime.toByteArray(ASCII))
+        writeTlv(app, TAG_POS_MANAGEMENT_DATA, "A".toByteArray(ASCII))
         return buildSerialFrame(VMC_TO_POS, app.toByteArray())
     }
 
@@ -123,15 +137,16 @@ object VtkCodec {
         return crc
     }
 
-    /** Known frames from VTK-MAN-RU 1.0 pages 8 and 38. */
+    /** Known frames from VTK-MAN-RU 1.0 pages 8, 32 and 38. */
     fun selfTest(): Boolean {
         val expectedIdl = hexToBytes("1f001d96fb010349444c11143230323630313237543038343035332b30333030977e")
-        val actualIdl = buildIdl("20260127T084053+0300")
-        if (!expectedIdl.contentEquals(actualIdl)) return false
+        if (!expectedIdl.contentEquals(buildIdl("20260127T084053+0300"))) return false
 
         val expectedStatus = hexToBytes("1f002596fb010349444c11143230323630313232543132333930302b3033303012065354415455532349")
-        val actualStatus = buildSystemInfo("20260122T123900+0300", "STATUS")
-        return expectedStatus.contentEquals(actualStatus)
+        if (!expectedStatus.contentEquals(buildSystemInfo("20260122T123900+0300", "STATUS"))) return false
+
+        val expectedTmsKeepalive = hexToBytes("1f002096fb010349444c11143230323630313237543134313034352b30333030100141e160")
+        return expectedTmsKeepalive.contentEquals(buildTmsKeepalive("20260127T141045+0300"))
     }
 
     fun hex(bytes: ByteArray): String = bytes.joinToString("") { "%02x".format(it.toInt() and 0xFF) }
