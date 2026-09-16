@@ -41,6 +41,11 @@
             android:exported="true"
             android:excludeFromRecents="true"
             android:noHistory="false" />
+        <activity
+            android:name=".vendotek.VendotekTmsKeepaliveDiagnosticActivity"
+            android:exported="true"
+            android:excludeFromRecents="true"
+            android:noHistory="false" />
         <service
             android:name=".ui.ForegroundKeeperService"
             android:exported="false"
