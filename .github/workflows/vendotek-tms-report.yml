@@ -1,0 +1,32 @@
+name: Vendotek TMS keepalive report
+
+on:
+  push:
+    branches:
+      - v0.5.27-vendotek-tms-probe
+    paths:
+      - 'iRetail_Android_UI_v0.5.8_smartskypos_probe_source/test_reports/vendotek_tms/**'
+
+permissions:
+  contents: read
+
+jobs:
+  report:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Extract latest Vendotek TMS keepalive result
+        shell: bash
+        run: |
+          set -euo pipefail
+          ROOT='iRetail_Android_UI_v0.5.8_smartskypos_probe_source/test_reports/vendotek_tms'
+          ZIP="$(find "$ROOT" -maxdepth 1 -type f -name 'VENDOTEK_TMS_*.zip' -printf '%T@ %p\n' | sort -nr | head -n1 | cut -d' ' -f2-)"
+          echo "LATEST_ZIP=$ZIP"
+          echo '===== SUMMARY.txt ====='
+          unzip -p "$ZIP" SUMMARY.txt || true
+          echo '===== 00_info.txt ====='
+          unzip -p "$ZIP" 00_info.txt || true
+          echo '===== 01_vendotek_tms_logcat.txt ====='
+          unzip -p "$ZIP" 01_vendotek_tms_logcat.txt || true
+          echo '===== 03_jl22_network.txt ====='
+          unzip -p "$ZIP" 03_jl22_network.txt || true
