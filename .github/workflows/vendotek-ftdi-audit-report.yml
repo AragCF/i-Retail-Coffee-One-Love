@@ -1,0 +1,28 @@
+name: Vendotek Windows FTDI audit report
+
+on:
+  push:
+    branches:
+      - v0.5.30-vendotek-windows-ftdi-audit
+    paths:
+      - 'iRetail_Android_UI_v0.5.8_smartskypos_probe_source/test_reports/vendotek_ftdi_audit/**'
+
+permissions:
+  contents: read
+
+jobs:
+  report:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Extract latest Vendotek FTDI audit
+        shell: bash
+        run: |
+          set -euo pipefail
+          ROOT='iRetail_Android_UI_v0.5.8_smartskypos_probe_source/test_reports/vendotek_ftdi_audit'
+          ZIP="$(find "$ROOT" -maxdepth 1 -type f -name 'VENDOTEK_FTDI_AUDIT_*.zip' -printf '%T@ %p\n' | sort -nr | head -n1 | cut -d' ' -f2-)"
+          echo "LATEST_ZIP=$ZIP"
+          echo '===== SUMMARY.txt ====='
+          unzip -p "$ZIP" SUMMARY.txt || true
+          echo '===== 01_audit.txt ====='
+          unzip -p "$ZIP" 01_audit.txt || true
