@@ -1,0 +1,3 @@
+SHA256 hash of test_reports\vendotek_ftdi_audit\VENDOTEK_FTDI_AUDIT_20260916_191302.zip:
+e1c1633594e0892acb98aac1575e5828bb42c163a8468551083e44cfe315d668
+CertUtil: -hashfile command completed successfully.
