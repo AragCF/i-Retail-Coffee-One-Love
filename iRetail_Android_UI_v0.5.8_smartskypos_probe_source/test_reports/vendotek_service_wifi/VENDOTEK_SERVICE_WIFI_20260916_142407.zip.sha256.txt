@@ -1,0 +1,3 @@
+SHA256 hash of test_reports\vendotek_service_wifi\VENDOTEK_SERVICE_WIFI_20260916_142407.zip:
+6076e59f49bf70ebcb4cfac8f0fa1c03eb5fcdadbc15ba66c3d728d92a4a8c54
+CertUtil: -hashfile command completed successfully.
