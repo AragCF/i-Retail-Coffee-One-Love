@@ -10,7 +10,7 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
-      - name: Read public VT and network documentation
+      - name: Read public VT menu and connection procedure
         shell: bash
         run: |
           python3 - <<'PY'
@@ -28,7 +28,7 @@ jobs:
                   if tag in ('script','style') and self.skip: self.skip-=1
               def handle_data(self,data):
                   if not self.skip and data.strip(): self.text.append(data.strip())
-          for path in ('/ru/terminals/vt','/ru/setup/link','/ru/connection/protocols','/ru/setup/help_questions'):
+          for path in ('/ru/terminals/vt/menu','/ru/setup/link/vt','/ru/terminals/vt/leds','/ru/connection/custom/vtk'):
               url='https://wiki.vendotek.ru'+path
               print('\nURL',url)
               try:
