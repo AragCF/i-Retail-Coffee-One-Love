@@ -1,0 +1,27 @@
+name: Vendotek network helper checks
+on:
+  push:
+    branches: [v0.5.33-vendotek-network-access]
+    paths:
+      - 'iRetail_Android_UI_v0.5.8_smartskypos_probe_source/tools/VendotekNetworkAccessAudit.ps1'
+      - '.github/workflows/vendotek-network-checks.yml'
+permissions:
+  contents: read
+jobs:
+  powershell-51:
+    runs-on: windows-2022
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Parse and test without terminal hardware
+        shell: powershell
+        run: |
+          $ErrorActionPreference='Stop'
+          $p=Join-Path $env:GITHUB_WORKSPACE 'iRetail_Android_UI_v0.5.8_smartskypos_probe_source/tools/VendotekNetworkAccessAudit.ps1'
+          if ([IO.File]::ReadAllBytes($p) | Where-Object { $_ -gt 127 }) { throw 'Script is not ASCII-safe.' }
+          $tokens=$null; $errors=$null
+          [void][Management.Automation.Language.Parser]::ParseFile($p,[ref]$tokens,[ref]$errors)
+          if ($errors.Count) { $errors | Format-List; throw 'Parser errors.' }
+          Write-Host ('PowerShell=' + $PSVersionTable.PSVersion)
+          & $p -SelfTest
+          if ($LASTEXITCODE -ne 0) { throw 'Self-test failed.' }
