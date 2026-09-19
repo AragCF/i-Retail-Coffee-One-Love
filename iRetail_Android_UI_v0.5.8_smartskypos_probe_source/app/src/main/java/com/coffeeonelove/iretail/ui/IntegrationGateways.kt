@@ -466,11 +466,10 @@ class LocalRetailOrderGateway {
         return OperationResult.SUCCESS
     }
 
-    fun completePayment(): OperationResult {
+    fun markPaymentConfirmed(): OperationResult {
         val order = activeOrder ?: return OperationResult.ERROR
         order.status = OrderStatus.PAID
-        order.fiscalReceiptUrl = "local://receipt/" + order.externalNumber
-        order.status = OrderStatus.FISCALIZED
+        order.fiscalReceiptUrl = null
         return OperationResult.SUCCESS
     }
 
@@ -490,12 +489,16 @@ class LocalRetailOrderGateway {
 }
 
 class LocalMachineGateway {
-    fun confirmCupPlaced(): DeviceCommandResult = DeviceCommandResult(true, "Стакан подтверждён")
+    fun confirmCupPlaced(): DeviceCommandResult =
+        DeviceCommandResult(false, "Подтверждение стакана пока не подключено к реальному исполнителю", 0)
+
     fun dispenseCoffee(order: RuntimeOrder?): DeviceCommandResult {
         val count = order?.items?.sumOf { it.quantity } ?: 0
-        return DeviceCommandResult(true, "Выдано позиций: $count", 100)
+        return DeviceCommandResult(false, "Выдача $count поз. не запускалась: исполнитель оборудования не подключён", 0)
     }
-    fun heatFood(): DeviceCommandResult = DeviceCommandResult(true, "Разогрев завершён", 100)
+
+    fun heatFood(): DeviceCommandResult =
+        DeviceCommandResult(false, "Разогрев не запускался: исполнитель оборудования не подключён", 0)
 }
 
 class LocalLoyaltyGateway {
