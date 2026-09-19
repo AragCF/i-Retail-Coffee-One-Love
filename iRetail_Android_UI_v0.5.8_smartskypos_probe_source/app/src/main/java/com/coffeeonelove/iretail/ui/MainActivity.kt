@@ -1679,15 +1679,19 @@ class MainActivity : Activity() {
         )
 
         "PAYMENT_CASH", "PAYMENT_ONLINE_QR", "PAYMENT_ONLINE_CONFIRM" -> listOf(
-            area("Подтвердить оплату", 0, 0, 1080, 1700) { finishPayment() },
-            area("Отмена оплаты", 0, 1700, 300, 220) { openScreen("PAYMENT_METHOD_ALL") }
+            area("Способ оплаты недоступен", 0, 0, 1080, 1700) {
+                toast("Этот способ оплаты пока не подключён. Успех не подтверждён.")
+            },
+            area("Назад к способам оплаты", 0, 1700, 300, 220) { openScreen("PAYMENT_METHOD_ALL") }
         )
 
         "PAYMENT_COMPLETED" -> paymentCompletedHotspots()
 
         "RECEIPT_EMAIL_INPUT" -> listOf(
             area("Закрыть чек", 900, 0, 130, 130) { openScreen("PAYMENT_COMPLETED") },
-            area("Отправить чек", 120, 1480, 840, 160) { openScreen("RECEIPT_EMAIL_COMPLETE") }
+            area("Отправить чек", 120, 1480, 840, 160) {
+                toast("Отправка электронного чека пока не подключена к фискальному сервису")
+            }
         )
 
         "RECEIPT_EMAIL_COMPLETE" -> listOf(
@@ -1696,7 +1700,10 @@ class MainActivity : Activity() {
         )
 
         "CUP_REQUIRED" -> listOf(
-            area("Стаканчик поставлен", 120, 1470, 840, 170) { machineGateway.confirmCupPlaced(); openDispenseByCart() },
+            area("Стаканчик поставлен", 120, 1470, 840, 170) {
+                val result = machineGateway.confirmCupPlaced()
+                if (result.success) openDispenseByCart() else toast(result.message)
+            },
             area("Помощь", 760, 1720, 300, 120) { openScreen("SUPPORT_INFO") },
             area("Назад к завершению оплаты", 0, 0, 180, 150) { openScreen("PAYMENT_COMPLETED") }
         )
@@ -1715,7 +1722,10 @@ class MainActivity : Activity() {
             area("Назад", 0, 0, 180, 160) { openScreen("HEAT_FOOD_1") }
         )
         "HEAT_FOOD_3" -> listOf(
-            area("Запустить разогрев", 120, 1460, 840, 170) { machineGateway.heatFood(); openScreen("HEAT_FOOD_DONE") },
+            area("Запустить разогрев", 120, 1460, 840, 170) {
+                val result = machineGateway.heatFood()
+                if (result.success) openScreen("HEAT_FOOD_DONE") else toast(result.message)
+            },
             area("Назад", 0, 0, 180, 160) { openScreen("HEAT_FOOD_2") }
         )
         "HEAT_FOOD_DONE" -> listOf(
@@ -1868,9 +1878,7 @@ class MainActivity : Activity() {
 
     private fun applyAutoTransitions(screenId: String) {
         when (screenId) {
-            "PAYMENT_CASH", "PAYMENT_ONLINE_CONFIRM" -> handler.postDelayed({ finishPayment() }, 2600)
-            "PAYMENT_ONLINE_QR" -> handler.postDelayed({ openScreen("PAYMENT_ONLINE_CONFIRM") }, 1800)
-            "DISPENSE_ONE_PROGRESS", "DISPENSE_ONE_PROGRESS_ALT", "DISPENSE_TWO_PROGRESS", "DISPENSE_THREE_PROGRESS", "DISPENSE_THREE_PROGRESS_ALT" -> handler.postDelayed({ finishDispense() }, 4200)
+            else -> Unit
         }
     }
 
@@ -2015,20 +2023,24 @@ class MainActivity : Activity() {
             toast("Оплата картой отключена в режиме «$modeTitle». Включите POS один раз скриптом настройки режима.")
             return
         }
+        if (method != PaymentMethod.CARD) {
+            val title = when (method) {
+                PaymentMethod.CASH -> "Оплата наличными"
+                PaymentMethod.ONLINE, PaymentMethod.SBER_SPASIBO -> "Онлайн-оплата"
+                PaymentMethod.CARD -> "Оплата картой"
+            }
+            toast("$title пока не подключена к подтверждаемому платёжному контуру")
+            return
+        }
+
         lastPaymentMethod = method
         val startResult = orderGateway.startPayment(method)
         if (startResult != OperationResult.SUCCESS) {
             orderGateway.createOrder(cart, cartGrossTotal(), orderDiscount(), loyaltyGateway)
             orderGateway.startPayment(method)
         }
-        when (method) {
-            PaymentMethod.CARD -> {
-                openScreen("PAYMENT_POS")
-                startRealCardPayment()
-            }
-            PaymentMethod.CASH -> openScreen("PAYMENT_CASH")
-            PaymentMethod.ONLINE, PaymentMethod.SBER_SPASIBO -> openScreen("PAYMENT_ONLINE_QR")
-        }
+        openScreen("PAYMENT_POS")
+        startRealCardPayment()
     }
 
     private fun startRealCardPayment() {
@@ -2063,9 +2075,9 @@ class MainActivity : Activity() {
                 cardPaymentStatus = result.userMessage()
                 when {
                     result.isApproved() -> {
-                        val completed = orderGateway.completePayment()
+                        val completed = orderGateway.markPaymentConfirmed()
                         if (completed == OperationResult.SUCCESS) {
-                            toast("Оплата подтверждена Kozen / SmartSkyPOS. RRN ${result.rrn}")
+                            toast("Оплата подтверждена Kozen / SmartSkyPOS. Фискальный чек пока не сформирован.")
                             openScreen("PAYMENT_COMPLETED")
                         } else {
                             openScreen("ERROR_406")
@@ -2098,13 +2110,7 @@ class MainActivity : Activity() {
             toast("Пустой заказ не может быть оплачен")
             return
         }
-        val result = orderGateway.completePayment()
-        if (result == OperationResult.SUCCESS) {
-            toast("Оплата принята локальным контуром.")
-            openScreen("PAYMENT_COMPLETED")
-        } else {
-            openScreen("ERROR_406")
-        }
+        toast("Этот способ оплаты пока не подключён к подтверждаемому платёжному контуру")
     }
 
     private fun openDispenseByCart() {
@@ -2290,7 +2296,7 @@ class MainActivity : Activity() {
         statusLabel.visibility = if (demoStatusVisible) View.VISIBLE else View.GONE
         if (demoStatusVisible) {
             val total = cartTotal()
-            statusLabel.text = "UI v0.5.7 | $currentScreen | товаров: ${cart.sumOf { it.quantity }} | сумма: $total ₽ | данные: $catalogDataSource | $catalogMessage | оплата: локальный адаптер"
+            statusLabel.text = "UI v0.5.34 | $currentScreen | товаров: ${cart.sumOf { it.quantity }} | сумма: $total ₽ | данные: $catalogDataSource | $catalogMessage | карта: Kozen; прочие способы: отключены"
         }
     }
 
