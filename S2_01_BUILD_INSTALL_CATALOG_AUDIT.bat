@@ -13,25 +13,22 @@ if errorlevel 1 (
   exit /b 11
 )
 
-if not defined ADB_SERIAL (
-  set "FOUND_SERIAL="
-  set "FOUND_COUNT=0"
-  for /f "skip=1 tokens=1,2" %%A in ('adb devices') do (
-    if "%%B"=="device" (
-      set /a FOUND_COUNT+=1
-      set "FOUND_SERIAL=%%A"
-    )
-  )
-  if not "%FOUND_COUNT%"=="1" (
-    echo [ERROR] Expected exactly one adb device, found %FOUND_COUNT%.
-    echo Run: S2_01_BUILD_INSTALL_CATALOG_AUDIT.bat SERIAL
-    adb devices
-    pause
-    exit /b 12
-  )
-  set "ADB_SERIAL=%FOUND_SERIAL%"
-)
+if defined ADB_SERIAL goto DEVICE_READY
 
+set "FOUND_SERIAL="
+set "FOUND_COUNT=0"
+for /f "skip=1 tokens=1,2" %%A in ('adb devices') do if "%%B"=="device" call :FOUND_DEVICE "%%A"
+
+if not "%FOUND_COUNT%"=="1" (
+  echo [ERROR] Expected exactly one adb device, found %FOUND_COUNT%.
+  echo Run: S2_01_BUILD_INSTALL_CATALOG_AUDIT.bat SERIAL
+  adb devices
+  pause
+  exit /b 12
+)
+set "ADB_SERIAL=%FOUND_SERIAL%"
+
+:DEVICE_READY
 set "ADB_CMD=adb -s %ADB_SERIAL%"
 echo [INFO] Device: %ADB_SERIAL%
 
@@ -101,4 +98,9 @@ echo [SUCCESS] Report:
 echo %CD%\%ZIP%
 echo Send this ZIP back for analysis.
 pause
+exit /b 0
+
+:FOUND_DEVICE
+set /a FOUND_COUNT+=1
+set "FOUND_SERIAL=%~1"
 exit /b 0
