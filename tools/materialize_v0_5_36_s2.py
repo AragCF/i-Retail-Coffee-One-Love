@@ -181,12 +181,14 @@ for old, new, label in simple:
         print(f"[OK] {label}")
 
 replace_once(p,
-"""        val available = loyaltyGateway.availableBonusAmount.coerceAtMost(cartGrossTotalMinor())
-        addLabel(formatMoney(available),""",
+"""        val available = loyaltyGateway.availableBonusAmount.coerceAtMost(cartGrossTotalMinor())""",
 """        val available = loyaltyGateway.availableBonusAmount
-            .coerceAtMost((cartGrossTotalMinor() / 100L).coerceAtMost(Int.MAX_VALUE.toLong()).toInt())
-        addLabel(formatMoney(available.toLong() * 100L),""",
-"landscape loyalty available amount")
+            .coerceAtMost((cartGrossTotalMinor() / 100L).coerceAtMost(Int.MAX_VALUE.toLong()).toInt())""",
+"landscape loyalty available limit")
+replace_once(p,
+"""        addLabel(formatMoney(available), RectSpec(1060, 442, 190, 68), 30f, dark, Gravity.RIGHT or Gravity.CENTER_VERTICAL, true, Color.TRANSPARENT)""",
+"""        addLabel(formatMoney(available.toLong() * 100L), RectSpec(1060, 442, 190, 68), 30f, dark, Gravity.RIGHT or Gravity.CENTER_VERTICAL, true, Color.TRANSPARENT)""",
+"landscape loyalty money display")
 
 replace_once(p,
 """        addLabel(formatMoney(available.coerceAtMost(cartGrossTotalMinor())), RectSpec(600, 598, 300, 65), 27f, dark, Gravity.RIGHT or Gravity.CENTER_VERTICAL, true, Color.TRANSPARENT)""",
@@ -231,11 +233,11 @@ replace_once(p,
 replace_once(p,
 """        val bonus = loyaltyGateway.applyBonus(cartGrossTotalMinor())
         if (bonus > 0) {
-            toast("Бонусы применены: \${formatMoney(bonus)}")""",
+            toast("Бонусы применены: ${formatMoney(bonus)}")""",
 """        val maxBonusRub = (cartGrossTotalMinor() / 100L).coerceAtMost(Int.MAX_VALUE.toLong()).toInt()
         val bonus = loyaltyGateway.applyBonus(maxBonusRub)
         if (bonus > 0) {
-            toast("Бонусы применены: \${formatMoney(bonus.toLong() * 100L)}")""",
+            toast("Бонусы применены: ${formatMoney(bonus.toLong() * 100L)}")""",
 "loyalty compatibility conversion")
 
 p = "app/build.gradle"
