@@ -11,8 +11,8 @@ android {
         applicationId 'com.coffeeonelove.iretail'
         minSdk 23
         targetSdk 35
-        versionCode 43
-        versionName '0.5.43-s2-jl22-ssl-diagnostics'
+        versionCode 44
+        versionName '0.5.44-s2-tls-chain-probe'
     }
 
     compileOptions {
