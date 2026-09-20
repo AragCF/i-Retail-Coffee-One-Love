@@ -16,3 +16,4 @@ dist/
 test_reports/s23_acceptance/S23_ACCEPTANCE_*/
 test_reports/s2_catalog_diagnostics/S2_DIAGNOSTICS_*/
 test_reports/retail_api_curl/RAPI_CURL_*/
+test_reports/s2_tls_chain_capture/TLS_CHAIN_*/
