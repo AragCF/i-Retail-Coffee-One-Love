@@ -3,7 +3,7 @@ setlocal EnableExtensions DisableDelayedExpansion
 cd /d "%~dp0"
 if errorlevel 1 exit /b 10
 
-set "EXPECTED_BRANCH=v0.5.41-api-curl-audit-fix"
+set "EXPECTED_BRANCH=v0.5.42-s2-jl22-network-diagnostics"
 set "GIT_BRANCH="
 
 where git >nul 2>nul
@@ -45,7 +45,7 @@ if errorlevel 1 (
 )
 
 echo ============================================================
-echo i-Retail v0.5.41 - WINDOWS CURL API AUDIT
+echo i-Retail v0.5.42 - WINDOWS CURL API AUDIT
 echo ============================================================
 echo [1/3] Fetch current API documentation snapshot.
 echo [2/3] Run the same authentication and catalog calls as Android.
