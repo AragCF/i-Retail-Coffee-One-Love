@@ -45,3 +45,8 @@ tasks.matching { task ->
 }.configureEach {
     dependsOn tasks.named('removeObsoleteV03Sources')
 }
+
+
+dependencies {
+    testImplementation 'junit:junit:4.13.2'
+}
