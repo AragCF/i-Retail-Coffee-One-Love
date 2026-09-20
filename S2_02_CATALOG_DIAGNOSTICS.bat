@@ -3,7 +3,7 @@ setlocal EnableExtensions DisableDelayedExpansion
 cd /d "%~dp0"
 if errorlevel 1 exit /b 10
 
-set "EXPECTED_BRANCH=v0.5.42-s2-jl22-network-diagnostics"
+set "EXPECTED_BRANCH=v0.5.43-s2-jl22-ssl-diagnostics"
 set "GIT_BRANCH="
 set "GIT_SHA="
 
@@ -104,6 +104,12 @@ mkdir "%OUT%" >nul 2>nul
 %ADB_CMD% shell getprop ro.product.model > "%OUT%\02_model.txt" 2>&1
 %ADB_CMD% shell getprop ro.product.device > "%OUT%\03_device.txt" 2>&1
 %ADB_CMD% shell getprop ro.build.version.release > "%OUT%\04_android_version.txt" 2>&1
+%ADB_CMD% shell getprop ro.build.version.security_patch > "%OUT%\04b_security_patch.txt" 2>&1
+%ADB_CMD% shell date -u > "%OUT%\04c_date_utc.txt" 2>&1
+%ADB_CMD% shell getprop persist.sys.timezone > "%OUT%\04d_timezone.txt" 2>&1
+%ADB_CMD% shell settings get global auto_time > "%OUT%\04e_auto_time.txt" 2>&1
+%ADB_CMD% shell sh -c "ls -1 /system/etc/security/cacerts 2>/dev/null | wc -l" > "%OUT%\04f_system_ca_count.txt" 2>&1
+%ADB_CMD% shell sh -c "command -v curl; command -v wget; command -v openssl" > "%OUT%\04g_https_tools.txt" 2>&1
 
 %ADB_CMD% logcat -c
 %ADB_CMD% shell am force-stop com.coffeeonelove.iretail
@@ -128,7 +134,7 @@ findstr /C:"REFRESH success=true source=I-Retail ZIP " "%OUT%\06_catalog_logcat.
 if not errorlevel 1 set "LIVE=YES"
 
 (
-  echo i-Retail v0.5.42 S2 JL22 network diagnostics
+  echo i-Retail v0.5.43 S2 JL22 SSL diagnostics
   echo Timestamp=%STAMP%
   echo GitBranch=%GIT_BRANCH%
   echo GitSHA=%GIT_SHA%
@@ -137,7 +143,8 @@ if not errorlevel 1 set "LIVE=YES"
   echo.
   echo Expected diagnostic fields in 06_catalog_logcat.txt:
   echo failureStage=authentication^|download^|parse^|validate^|cache^|unknown
-  echo failureReason=REJECTED^|HTTP_NNN^|UNKNOWN_HOST^|TIMEOUT^|CONNECT^|SSL^|JSON^|...
+  echo failureReason=REJECTED^|HTTP_NNN^|UNKNOWN_HOST^|TIMEOUT^|CONNECT^|SSL_HANDSHAKE^|SSL_PEER_UNVERIFIED^|SSL_PROTOCOL^|SSL_KEY^|SSL^|JSON^|...
+  echo failureDetail=exception-class-chain without secrets
   echo.
   echo No password, access token or client secret should be present in this report.
 ) > "%OUT%\SUMMARY.txt"
