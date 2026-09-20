@@ -39,8 +39,8 @@ jobs:
       - name: Verify S3 dry-run order draft
         run: python3 tools/verify_s3_order_draft.py
 
-      - name: Verify v0.5.38 combined acceptance
-        run: python3 tools/verify_v0_5_38_acceptance.py
+      - name: Verify v0.5.39 S2 catalog diagnostics
+        run: python3 tools/verify_v0_5_39_s2_diagnostics.py
 
       - name: Assemble debug APK
         working-directory: .
@@ -50,6 +50,6 @@ jobs:
         if: success()
         uses: actions/upload-artifact@v4
         with:
-          name: iRetail-v0.5.38-debug-apk
+          name: iRetail-v0.5.39-debug-apk
           path: app/build/outputs/apk/debug/*.apk
           if-no-files-found: error
