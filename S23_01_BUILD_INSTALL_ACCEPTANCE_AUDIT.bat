@@ -36,28 +36,32 @@ if errorlevel 1 (
 for /f "delims=" %%H in ('git rev-parse HEAD') do if not defined GIT_SHA set "GIT_SHA=%%H"
 echo [INFO] Git: %GIT_BRANCH% @ %GIT_SHA%
 
-set "ADB_SERIAL=%~1"
-where adb >nul 2>nul
+set "ADB_SERIAL="
+set "DEVICE_PICK=%TEMP%\iretail_jl22_%RANDOM%_%RANDOM%.txt"
+if exist "%DEVICE_PICK%" del /F /Q "%DEVICE_PICK%" >nul 2>nul
+
+powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0tools\Select-JL22Device.ps1" -OutputFile "%DEVICE_PICK%" -PreferredSerial "%~1"
 if errorlevel 1 (
-  echo [ERROR] adb not found in PATH.
-  pause
-  exit /b 11
-)
-
-if defined ADB_SERIAL goto DEVICE_READY
-
-set "FOUND_SERIAL="
-set "FOUND_COUNT=0"
-for /f "skip=1 tokens=1,2" %%A in ('adb devices') do if "%%B"=="device" call :FOUND_DEVICE "%%A"
-
-if not "%FOUND_COUNT%"=="1" (
-  echo [ERROR] Expected exactly one adb device, found %FOUND_COUNT%.
-  echo Run: S23_01_BUILD_INSTALL_ACCEPTANCE_AUDIT.bat SERIAL
-  adb devices
+  echo [ERROR] Android device selection failed.
+  if exist "%DEVICE_PICK%" del /F /Q "%DEVICE_PICK%" >nul 2>nul
   pause
   exit /b 12
 )
-set "ADB_SERIAL=%FOUND_SERIAL%"
+
+if not exist "%DEVICE_PICK%" (
+  echo [ERROR] Device selector did not return a serial.
+  pause
+  exit /b 12
+)
+
+set /p ADB_SERIAL=<"%DEVICE_PICK%"
+del /F /Q "%DEVICE_PICK%" >nul 2>nul
+
+if not defined ADB_SERIAL (
+  echo [ERROR] Empty ADB serial returned by device selector.
+  pause
+  exit /b 12
+)
 
 :DEVICE_READY
 set "ADB_CMD=adb -s %ADB_SERIAL%"
@@ -196,7 +200,3 @@ echo Send this ZIP back for analysis.
 pause
 exit /b 0
 
-:FOUND_DEVICE
-set /a FOUND_COUNT+=1
-set "FOUND_SERIAL=%~1"
-exit /b 0
