@@ -33,8 +33,11 @@ jobs:
       - name: Verify S1 truthful states
         run: python3 tools/verify_s1_truthful_states.py
 
-      - name: Verify v0.5.36 S2 catalog and money
-        run: python3 tools/verify_v0_5_36_s2.py
+      - name: Verify S2 catalog and money
+        run: python3 tools/verify_s2_catalog_money.py
+
+      - name: Verify S3 dry-run order draft
+        run: python3 tools/verify_v0_5_37_s3_order_draft.py
 
       - name: Assemble debug APK
         working-directory: .
@@ -44,6 +47,6 @@ jobs:
         if: success()
         uses: actions/upload-artifact@v4
         with:
-          name: iRetail-v0.5.36-debug-apk
+          name: iRetail-v0.5.37-debug-apk
           path: app/build/outputs/apk/debug/*.apk
           if-no-files-found: error
