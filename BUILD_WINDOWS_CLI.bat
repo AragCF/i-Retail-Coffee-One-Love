@@ -1,7 +1,7 @@
 @echo off
 setlocal EnableExtensions DisableDelayedExpansion
 
-rem i-Retail Android UI v0.5.36 S2 catalog and money
+rem i-Retail Android UI v0.5.37 S3 order draft
 rem Windows CLI debug APK build script.
 rem
 rem Important:
