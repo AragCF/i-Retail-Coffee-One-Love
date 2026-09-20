@@ -49,6 +49,10 @@ jobs:
         shell: pwsh
         run: ./tools/Verify-RetailApiAuditPowerShell.ps1
 
+      - name: Verify Retail API runtime patterns
+        shell: pwsh
+        run: ./tools/Verify-RetailApiAuditRuntimePatterns.ps1
+
       - name: Assemble debug APK
         working-directory: .
         run: gradle --no-daemon --stacktrace assembleDebug
