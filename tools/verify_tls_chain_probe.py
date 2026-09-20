@@ -18,6 +18,10 @@ checks = {
     "probe only runs via explicit intent": 'getBooleanExtra("tls_chain_probe", false)' in main,
     "diagnostic intent enables probe": "--ez tls_chain_probe true" in diag,
     "diagnostic log captures TLS tag": "IretailTls:V" in diag,
+    "fast capture script exists": (ROOT / "S2_04_CAPTURE_TLS_CHAIN_ONLY.bat").exists(),
+    "fast capture uses verbose TLS filter": "IretailTls:V" in (ROOT / "S2_04_CAPTURE_TLS_CHAIN_ONLY.bat").read_text(encoding="utf-8"),
+    "fast capture checks CHAIN": "CHAIN " in (ROOT / "S2_04_CAPTURE_TLS_CHAIN_ONLY.bat").read_text(encoding="utf-8"),
+    "fast capture checks CERT": "CERT " in (ROOT / "S2_04_CAPTURE_TLS_CHAIN_ONLY.bat").read_text(encoding="utf-8"),
 }
 
 failed = [name for name, ok in checks.items() if not ok]
