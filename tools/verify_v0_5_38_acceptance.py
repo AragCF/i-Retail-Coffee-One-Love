@@ -4,6 +4,7 @@ ROOT = Path(__file__).resolve().parents[1]
 build = (ROOT / "app/build.gradle").read_text(encoding="utf-8")
 audit = (ROOT / "S23_01_BUILD_INSTALL_ACCEPTANCE_AUDIT.bat").read_text(encoding="utf-8")
 gitignore = (ROOT / ".gitignore").read_text(encoding="utf-8")
+selector = (ROOT / "tools/Select-JL22Device.ps1").read_text(encoding="utf-8")
 
 checks = {
     "versionCode 38": "versionCode 38" in build,
@@ -14,6 +15,11 @@ checks = {
     "audit pins expected Git branch": "EXPECTED_BRANCH=v0.5.38-s2-s3-acceptance" in audit,
     "audit rejects tracked local changes": "git diff --quiet" in audit and "git diff --cached --quiet" in audit,
     "audit records Git SHA": "git rev-parse HEAD" in audit and "GitSHA=%GIT_SHA%" in audit,
+    "JL22 selector checks product": "octopus_jetinno" in selector,
+    "JL22 selector checks model": "UniWin_M190" in selector,
+    "JL22 selector checks device": "octopus-jetinno" in selector,
+    "JL22 selector has interactive menu": "Select device number" in selector,
+    "acceptance audit uses JL22 selector": "Select-JL22Device.ps1" in audit,
     "audit extracts local draft": "order_sync_draft.json" in audit,
     "audit clears stale draft first": "rm -f files/order_sync_draft.json" in audit,
     "audit classifies live catalog separately from cache": 'source=I-Retail ZIP products=' in audit and 'S2_LIVE=YES' in audit,
