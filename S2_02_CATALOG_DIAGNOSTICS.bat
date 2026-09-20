@@ -3,7 +3,7 @@ setlocal EnableExtensions DisableDelayedExpansion
 cd /d "%~dp0"
 if errorlevel 1 exit /b 10
 
-set "EXPECTED_BRANCH=v0.5.39-s2-catalog-diagnostics"
+set "EXPECTED_BRANCH=v0.5.42-s2-jl22-network-diagnostics"
 set "GIT_BRANCH="
 set "GIT_SHA="
 
@@ -128,7 +128,7 @@ findstr /C:"REFRESH success=true source=I-Retail ZIP " "%OUT%\06_catalog_logcat.
 if not errorlevel 1 set "LIVE=YES"
 
 (
-  echo i-Retail v0.5.39 S2 catalog diagnostics
+  echo i-Retail v0.5.42 S2 JL22 network diagnostics
   echo Timestamp=%STAMP%
   echo GitBranch=%GIT_BRANCH%
   echo GitSHA=%GIT_SHA%
@@ -153,6 +153,13 @@ if errorlevel 1 (
 echo.
 echo [SUCCESS] S2 diagnostics report:
 echo %CD%\%ZIP%
-echo Run S2_03_PUBLISH_LATEST_DIAGNOSTICS.bat to publish it to Git.
+echo [INFO] Publishing report to Git...
+call "%~dp0S2_03_PUBLISH_LATEST_DIAGNOSTICS.bat"
+if errorlevel 1 (
+  echo [ERROR] Report was created but Git publication failed.
+  pause
+  exit /b 31
+)
+echo [SUCCESS] Diagnostic report created and published to Git.
 pause
 exit /b 0
