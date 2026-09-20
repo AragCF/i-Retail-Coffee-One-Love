@@ -57,6 +57,8 @@ set "ZIP=%OUT%.zip"
 if not exist "test_reports\s23_acceptance" mkdir "test_reports\s23_acceptance"
 mkdir "%OUT%" >nul 2>nul
 
+%ADB_CMD% shell run-as com.coffeeonelove.iretail rm -f files/order_sync_draft.json > "%OUT%\00_clear_old_draft.txt" 2>&1
+
 %ADB_CMD% logcat -c
 %ADB_CMD% shell am force-stop com.coffeeonelove.iretail
 %ADB_CMD% shell am start -n com.coffeeonelove.iretail/.ui.MainActivity --ez real_pos_enabled false > "%OUT%\01_start.txt" 2>&1
@@ -71,6 +73,9 @@ echo ============================================================
 timeout /t 25 /nobreak >nul
 
 %ADB_CMD% logcat -d -v threadtime IretailCatalog:I AndroidRuntime:E *:S > "%OUT%\02_catalog_logcat.txt" 2>&1
+set "S2_LIVE=NO"
+findstr /C:"source=I-Retail ZIP products=" "%OUT%\02_catalog_logcat.txt" >nul
+if not errorlevel 1 set "S2_LIVE=YES"
 %ADB_CMD% shell screencap -p /sdcard/iretail_s23_catalog.png >nul 2>&1
 %ADB_CMD% pull /sdcard/iretail_s23_catalog.png "%OUT%\03_catalog_screen.png" > "%OUT%\03_catalog_screen_pull.txt" 2>&1
 %ADB_CMD% shell rm /sdcard/iretail_s23_catalog.png >nul 2>&1
@@ -101,6 +106,7 @@ pause >nul
   echo No payment method should be selected during this test.
   echo No iretail/order/synchronize request is expected.
   echo.
+  echo S2 live refresh=%S2_LIVE%
   echo S2 expected:
   echo IretailCatalog REFRESH success=true source=I-Retail ZIP
   echo.
