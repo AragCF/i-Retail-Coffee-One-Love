@@ -3,6 +3,39 @@ setlocal EnableExtensions DisableDelayedExpansion
 cd /d "%~dp0"
 if errorlevel 1 exit /b 10
 
+set "EXPECTED_BRANCH=v0.5.38-s2-s3-acceptance"
+set "GIT_BRANCH="
+set "GIT_SHA="
+where git >nul 2>nul
+if errorlevel 1 (
+  echo [ERROR] git not found in PATH.
+  pause
+  exit /b 9
+)
+for /f "delims=" %%B in ('git branch --show-current') do if not defined GIT_BRANCH set "GIT_BRANCH=%%B"
+if /I not "%GIT_BRANCH%"=="%EXPECTED_BRANCH%" (
+  echo [ERROR] Wrong Git branch: %GIT_BRANCH%
+  echo [ERROR] Expected: %EXPECTED_BRANCH%
+  pause
+  exit /b 13
+)
+git diff --quiet
+if errorlevel 1 (
+  echo [ERROR] Tracked working tree contains local changes. Commit or revert them before acceptance.
+  git status --short
+  pause
+  exit /b 14
+)
+git diff --cached --quiet
+if errorlevel 1 (
+  echo [ERROR] Git index contains staged local changes. Commit or unstage them before acceptance.
+  git status --short
+  pause
+  exit /b 15
+)
+for /f "delims=" %%H in ('git rev-parse HEAD') do if not defined GIT_SHA set "GIT_SHA=%%H"
+echo [INFO] Git: %GIT_BRANCH% @ %GIT_SHA%
+
 set "ADB_SERIAL=%~1"
 where adb >nul 2>nul
 if errorlevel 1 (
@@ -93,6 +126,12 @@ pause >nul
 %ADB_CMD% shell run-as com.coffeeonelove.iretail cat files/order_sync_draft.json > "%OUT%\04_order_sync_draft.json" 2> "%OUT%\04_order_sync_draft_error.txt"
 %ADB_CMD% logcat -d -v threadtime IretailOrderDraft:I IretailCatalog:I IretailKozenClient:I AndroidRuntime:E *:S > "%OUT%\05_logcat_filtered.txt" 2>&1
 %ADB_CMD% shell dumpsys package com.coffeeonelove.iretail > "%OUT%\06_package.txt" 2>&1
+(
+  echo Branch=%GIT_BRANCH%
+  echo SHA=%GIT_SHA%
+  echo.
+  git status --short
+) > "%OUT%\06b_git_state.txt" 2>&1
 %ADB_CMD% shell screencap -p /sdcard/iretail_s23_order.png >nul 2>&1
 %ADB_CMD% pull /sdcard/iretail_s23_order.png "%OUT%\07_order_screen.png" > "%OUT%\07_order_screen_pull.txt" 2>&1
 %ADB_CMD% shell rm /sdcard/iretail_s23_order.png >nul 2>&1
@@ -101,6 +140,8 @@ pause >nul
   echo i-Retail v0.5.38 combined S2+S3 acceptance
   echo Device=%ADB_SERIAL%
   echo Timestamp=%STAMP%
+  echo GitBranch=%GIT_BRANCH%
+  echo GitSHA=%GIT_SHA%
   echo.
   echo SAFETY:
   echo No payment method should be selected during this test.
