@@ -36,9 +36,9 @@ jobs:
       - name: Verify v0.5.36 catalog and money
         run: python3 tools/verify_v0_5_36_catalog_money.py
 
-      - name: Assemble debug APK
+      - name: Run unit tests and assemble debug APK
         working-directory: .
-        run: gradle --no-daemon --stacktrace assembleDebug
+        run: gradle --no-daemon --stacktrace testDebugUnitTest assembleDebug
 
       - name: Upload debug APK
         if: success()
