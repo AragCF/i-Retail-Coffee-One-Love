@@ -11,8 +11,8 @@ android {
         applicationId 'com.coffeeonelove.iretail'
         minSdk 23
         targetSdk 35
-        versionCode 34
-        versionName '0.5.34-s1-truthful-states'
+        versionCode 35
+        versionName '0.5.35-root-layout'
     }
 
     compileOptions {
