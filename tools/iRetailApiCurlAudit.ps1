@@ -199,7 +199,7 @@ try {
 
     Write-Text (Join-Path $out "30_curl_version.txt") ((& curl.exe --version | Out-String))
     $summary = [ordered]@{
-        audit="i-Retail v0.5.40 Windows curl API audit"
+        audit="i-Retail v0.5.42 Windows curl API audit"
         timestamp=$stamp
         git_branch=$branch
         git_sha=$sha
@@ -218,7 +218,7 @@ try {
     Write-Text (Join-Path $out "SUMMARY.json") (($summary | ConvertTo-Json -Depth 6) + [Environment]::NewLine)
 
     $summaryLines = @(
-        "i-Retail v0.5.40 Windows curl API audit",
+        "i-Retail v0.5.42 Windows curl API audit",
         "GitBranch=" + $branch,
         "GitSHA=" + $sha,
         "AuthHTTP=" + $authMeta.http_code,
