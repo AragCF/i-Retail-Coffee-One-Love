@@ -52,29 +52,29 @@ class IretailContentRepository(private val context: Context) {
                 val token = try {
                     authenticate()
                 } catch (e: Exception) {
-                    throw CatalogStageException("authentication", safeCatalogFailureReason(e))
+                    throw CatalogStageException("authentication", safeCatalogFailureReason(e), safeCatalogFailureDetail(e))
                 }
 
                 val zipBytes = try {
                     downloadCatalogZip(token)
                 } catch (e: Exception) {
-                    throw CatalogStageException("download", safeCatalogFailureReason(e))
+                    throw CatalogStageException("download", safeCatalogFailureReason(e), safeCatalogFailureDetail(e))
                 }
 
                 val parsed = try {
                     parseCatalogZip(zipBytes)
                 } catch (e: Exception) {
-                    throw CatalogStageException("parse", safeCatalogFailureReason(e))
+                    throw CatalogStageException("parse", safeCatalogFailureReason(e), safeCatalogFailureDetail(e))
                 }
 
                 if (parsed.offersCount <= 0 || parsed.products.isEmpty()) {
-                    throw CatalogStageException("validate", "EMPTY_CATALOG")
+                    throw CatalogStageException("validate", "EMPTY_CATALOG", "catalog-empty")
                 }
 
                 try {
                     persistValidatedCatalog(zipBytes)
                 } catch (e: Exception) {
-                    throw CatalogStageException("cache", safeCatalogFailureReason(e))
+                    throw CatalogStageException("cache", safeCatalogFailureReason(e), safeCatalogFailureDetail(e))
                 }
 
                 CatalogRefreshResult(
@@ -90,6 +90,7 @@ class IretailContentRepository(private val context: Context) {
                 val stageError = e as? CatalogStageException
                 val failureStage = stageError?.stage ?: "unknown"
                 val failureReason = stageError?.safeReason ?: safeCatalogFailureReason(e)
+                val failureDetail = stageError?.safeDetail ?: safeCatalogFailureDetail(e)
                 val cached = try { parseCatalogZip(cacheFile.readBytes()) } catch (_: Exception) { null }
                 if (cached != null && cached.products.isNotEmpty()) {
                     CatalogRefreshResult(
@@ -101,7 +102,8 @@ class IretailContentRepository(private val context: Context) {
                         offersCount = cached.offersCount,
                         channelId = apiConfig.channelId,
                         failureStage = failureStage,
-                        failureReason = failureReason
+                        failureReason = failureReason,
+                        failureDetail = failureDetail
                     )
                 } else {
                     CatalogRefreshResult(
@@ -506,10 +508,27 @@ class IretailContentRepository(private val context: Context) {
             is java.net.UnknownHostException -> "UNKNOWN_HOST"
             is java.net.SocketTimeoutException -> "TIMEOUT"
             is java.net.ConnectException -> "CONNECT"
+            is javax.net.ssl.SSLHandshakeException -> "SSL_HANDSHAKE"
+            is javax.net.ssl.SSLPeerUnverifiedException -> "SSL_PEER_UNVERIFIED"
+            is javax.net.ssl.SSLProtocolException -> "SSL_PROTOCOL"
+            is javax.net.ssl.SSLKeyException -> "SSL_KEY"
             is javax.net.ssl.SSLException -> "SSL"
             is org.json.JSONException -> "JSON"
             else -> error.javaClass.simpleName.take(64).ifBlank { "ERROR" }
         }
+    }
+
+    private fun safeCatalogFailureDetail(error: Throwable): String {
+        val classes = mutableListOf<String>()
+        var current: Throwable? = error
+        var depth = 0
+        while (current != null && depth < 6) {
+            val name = current.javaClass.simpleName.take(64).ifBlank { "Throwable" }
+            if (classes.lastOrNull() != name) classes.add(name)
+            current = current.cause
+            depth++
+        }
+        return classes.joinToString(">").take(240).ifBlank { "unknown" }
     }
 
     private fun fallbackProducts(): List<Product> = listOf(
@@ -542,8 +561,9 @@ class IretailContentRepository(private val context: Context) {
 
     private class CatalogStageException(
         val stage: String,
-        val safeReason: String
-    ) : IllegalStateException("$stage:$safeReason")
+        val safeReason: String,
+        val safeDetail: String
+    ) : IllegalStateException("$stage:$safeReason:$safeDetail")
 
     private class AuthenticationRejectedException : IllegalStateException("authentication rejected")
 }
