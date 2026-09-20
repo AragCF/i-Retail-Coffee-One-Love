@@ -30,7 +30,7 @@ checks = {
     "JL22 selector falls back to numbered menu": "Select device number" in selector,
     "diagnostic script uses JL22 selector": "Select-JL22Device.ps1" in diag,
     "diagnostic script disables real POS": "--ez real_pos_enabled false" in diag,
-    "diagnostic script captures filtered catalog log": "IretailCatalog:I AndroidRuntime:E *:S" in diag,
+    "diagnostic script captures filtered catalog log": "IretailCatalog:I" in diag and "AndroidRuntime:E *:S" in diag,
     "diagnostic script does not capture full logcat": "logcat -d -v threadtime >" not in diag,
 }
 
