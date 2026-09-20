@@ -111,7 +111,16 @@ try {
         $dst = Join-Path (Join-Path $out "docs") $name
         $meta = Curl-ToFile $url $dst @()
         Save-Meta ($dst + ".http.json") $meta
-        $docInfo += [pscustomobject]@{name=$name;http_code=$meta.http_code;curl_exit=$meta.curl_exit;size=(if(Test-Path $dst){(Get-Item $dst).Length}else{0})}
+        $docSize = 0
+        if (Test-Path -LiteralPath $dst) {
+            $docSize = (Get-Item -LiteralPath $dst).Length
+        }
+        $docInfo += [pscustomobject]@{
+            name = $name
+            http_code = $meta.http_code
+            curl_exit = $meta.curl_exit
+            size = $docSize
+        }
     }
 
     $hits = @()
