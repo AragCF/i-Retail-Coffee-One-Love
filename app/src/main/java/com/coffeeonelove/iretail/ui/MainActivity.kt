@@ -216,7 +216,8 @@ class MainActivity : Activity() {
                 android.util.Log.i(
                     "IretailCatalog",
                     "REFRESH success=${result.success} source=${result.source} products=${result.products.size} " +
-                        "offers=${result.offersCount} categories=${result.categoriesCount} channel=${result.channelId}"
+                        "offers=${result.offersCount} categories=${result.categoriesCount} channel=${result.channelId} " +
+                        "failureStage=${result.failureStage ?: "-"} failureReason=${result.failureReason ?: "-"}"
                 )
                 catalogDataSource = result.source
                 catalogMessage = result.message
