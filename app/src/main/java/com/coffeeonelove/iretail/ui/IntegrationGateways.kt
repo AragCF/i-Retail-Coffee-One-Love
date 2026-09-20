@@ -274,7 +274,11 @@ class IretailContentRepository(private val context: Context) {
         val payload = fields.entries.joinToString("&") { entry ->
             URLEncoder.encode(entry.key, "UTF-8") + "=" + URLEncoder.encode(entry.value, "UTF-8")
         }.toByteArray(Charsets.UTF_8)
-        val conn = (url.openConnection() as HttpURLConnection).apply {
+        val rawConnection = url.openConnection()
+        if (rawConnection is javax.net.ssl.HttpsURLConnection) {
+            IretailTlsCompat.applyIfNeeded(context, url, rawConnection)
+        }
+        val conn = (rawConnection as HttpURLConnection).apply {
             requestMethod = "POST"
             connectTimeout = 15000
             readTimeout = 30000
