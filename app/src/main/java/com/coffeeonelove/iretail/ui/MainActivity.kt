@@ -728,7 +728,7 @@ class MainActivity : Activity() {
         card.addView(volume, childParams(RectSpec(12, volumeY, cardW - 24, 28)))
 
         val price = TextView(this).apply {
-            text = formatMoney(product.price)
+            text = formatMoney(product.priceMinor)
             setTextSize(TypedValue.COMPLEX_UNIT_PX, scaledTextSize(priceTextSize))
             setTextColor(green)
             gravity = Gravity.CENTER
@@ -765,7 +765,7 @@ class MainActivity : Activity() {
         addProductImage(product, RectSpec(405, 335, 270, 235))
         addLabel(normalizeProductName(product).uppercase(), RectSpec(285, 575, 510, 76), 32f, dark, Gravity.CENTER, true, Color.WHITE)
         addLabel(product.volume.replace("мл", " мл"), RectSpec(405, 650, 270, 52), 21f, blueGray, Gravity.CENTER, false, Color.WHITE)
-        addLabel(formatMoney(product.price), RectSpec(405, 700, 270, 58), 26f, dark, Gravity.CENTER, true, Color.WHITE)
+        addLabel(formatMoney(product.priceMinor), RectSpec(405, 700, 270, 58), 26f, dark, Gravity.CENTER, true, Color.WHITE)
 
         // Свой стакан: одна понятная строка вместо дублей из исходной картинки.
         addBox(RectSpec(250, 748, 580, 92), Color.WHITE, 8f)
@@ -1002,11 +1002,11 @@ class MainActivity : Activity() {
                 rowButton("−", bx, 22, 58, 54, red) { decreaseLine(index) }
                 rowButton("Изм.", bx + 72, 22, 80, 54, blueGray) { editLine(index) }
                 rowButton("+", bx + 166, 22, 58, 54, green) { increaseLine(index) }
-                rowLabel(formatMoney(line.product.price * line.quantity), rowDesignWidth - 72, 57, 66, 30, 11f, dark, true, Gravity.RIGHT or Gravity.CENTER_VERTICAL)
+                rowLabel(formatMoney(line.product.priceMinor * line.quantity.toLong()), rowDesignWidth - 72, 57, 66, 30, 11f, dark, true, Gravity.RIGHT or Gravity.CENTER_VERTICAL)
             } else {
                 rowLabel("${normalizeProductName(line.product)} ×${line.quantity}", 92, 9, 445, 32, 15f, dark, true)
                 rowLabel(subtitle, 92, 43, 445, 28, 11f, blueGray, false)
-                rowLabel(formatMoney(line.product.price * line.quantity), rowDesignWidth - 168, 58, 150, 30, 13f, dark, true, Gravity.RIGHT or Gravity.CENTER_VERTICAL)
+                rowLabel(formatMoney(line.product.priceMinor * line.quantity.toLong()), rowDesignWidth - 168, 58, 150, 30, 13f, dark, true, Gravity.RIGHT or Gravity.CENTER_VERTICAL)
                 val bx = rowDesignWidth - 350
                 rowButton("−", bx, 21, 62, 55, red) { decreaseLine(index) }
                 rowButton("Изм.", bx + 74, 21, 84, 55, blueGray) { editLine(index) }
@@ -1020,7 +1020,7 @@ class MainActivity : Activity() {
             if (line.syrupAdded) flags.add(line.syrupNameLabel())
             val subtitle = line.product.volume.replace("мл", " мл") + if (flags.isEmpty()) "" else " • " + flags.joinToString(", ")
             rowLabel(subtitle, 125, 56, 470, 32, 13f, blueGray, false)
-            rowLabel(formatMoney(line.product.price * line.quantity), rowDesignWidth - 165, 44, 145, 45, 16f, dark, true, Gravity.RIGHT or Gravity.CENTER_VERTICAL)
+            rowLabel(formatMoney(line.product.priceMinor * line.quantity.toLong()), rowDesignWidth - 165, 44, 145, 45, 16f, dark, true, Gravity.RIGHT or Gravity.CENTER_VERTICAL)
             val bx = rowDesignWidth - 360
             rowButton("−", bx, 35, 70, 62, red) { decreaseLine(index) }
             rowLabel("×${line.quantity}", bx + 76, 36, 72, 58, 16f, dark, true, Gravity.CENTER)
@@ -1048,12 +1048,13 @@ class MainActivity : Activity() {
         val balance = loyaltyGateway.balanceLabel ?: "0 бонусов"
         val coupons = loyaltyGateway.couponsCount
         val available = loyaltyGateway.availableBonusAmount
+        val availableMinor = Money.wholeUnitsToMinor(available.coerceAtLeast(0)).coerceAtMost(cartGrossTotal())
         addBox(RectSpec(80, 360, 920, 720), Color.WHITE, 28f)
         addLabel("КАРТА ЛОЯЛЬНОСТИ", RectSpec(150, 410, 780, 70), 27f, dark, Gravity.CENTER, true, Color.TRANSPARENT)
         addLabel("Баланс", RectSpec(170, 520, 250, 50), 21f, blueGray, Gravity.LEFT or Gravity.CENTER_VERTICAL, false, Color.TRANSPARENT)
         addLabel(balance, RectSpec(420, 505, 480, 70), 32f, green, Gravity.RIGHT or Gravity.CENTER_VERTICAL, true, Color.TRANSPARENT)
         addLabel("Доступно к списанию", RectSpec(170, 610, 430, 50), 19f, blueGray, Gravity.LEFT or Gravity.CENTER_VERTICAL, false, Color.TRANSPARENT)
-        addLabel(formatMoney(available.coerceAtMost(cartGrossTotal())), RectSpec(600, 598, 300, 65), 27f, dark, Gravity.RIGHT or Gravity.CENTER_VERTICAL, true, Color.TRANSPARENT)
+        addLabel(formatMoney(availableMinor), RectSpec(600, 598, 300, 65), 27f, dark, Gravity.RIGHT or Gravity.CENTER_VERTICAL, true, Color.TRANSPARENT)
         if (coupons > 0) addLabel("Купонов: $coupons", RectSpec(170, 690, 730, 44), 19f, dark, Gravity.CENTER, false, Color.TRANSPARENT)
         val hint = if (available > 0) "Нажмите «Применить бонусы», чтобы уменьшить сумму заказа." else "Карта уже привязана к заказу. Бонусов для списания сейчас нет."
         addLabel(hint, RectSpec(170, 760, 730, 100), 19f, blueGray, Gravity.CENTER, false, Color.TRANSPARENT)
@@ -1118,11 +1119,11 @@ class MainActivity : Activity() {
             else -> "Проверяем оплату и готовим чек"
         }
         addLabel(statusText, RectSpec(145, 1230, 790, 70), 24f, 0xFF333333.toInt(), Gravity.CENTER, true, 0xEEFFFFFF.toInt())
-        if (order != null) addLabel("Заказ ${order.externalNumber} • ${formatMoney(order.amount)}", RectSpec(145, 1310, 790, 55), 18f, 0xFF6D8297.toInt(), Gravity.CENTER, false, 0xEEFFFFFF.toInt())
+        if (order != null) addLabel("Заказ ${order.externalNumber} • ${formatMoney(order.amountMinor)}", RectSpec(145, 1310, 790, 55), 18f, 0xFF6D8297.toInt(), Gravity.CENTER, false, 0xEEFFFFFF.toInt())
 
         // В исходном POS-макете сумма была статичной. Закрываем нижний финансовый блок и
         // показываем реальную сумму текущего заказа, чтобы не было расхождения 57 ₽ / 589 ₽.
-        val total = order?.amount ?: cartTotal()
+        val total = order?.amountMinor ?: cartTotal()
         addBox(RectSpec(0, 1560, 1080, 250), Color.WHITE, 0f)
         addLabel("К оплате", RectSpec(30, 1595, 420, 60), 24f, dark, Gravity.LEFT or Gravity.CENTER_VERTICAL, true, Color.TRANSPARENT)
         addLabel(formatMoney(total), RectSpec(650, 1585, 390, 80), 40f, dark, Gravity.RIGHT or Gravity.CENTER_VERTICAL, true, Color.TRANSPARENT)
@@ -1144,7 +1145,7 @@ class MainActivity : Activity() {
             addLabel("Номер платежа", RectSpec(520, 595, 400, 45), 17f, blueGray, Gravity.LEFT or Gravity.CENTER_VERTICAL, false, Color.TRANSPARENT)
             addLabel(order.localId.padStart(6, '0'), RectSpec(520, 640, 400, 55), 22f, dark, Gravity.LEFT or Gravity.CENTER_VERTICAL, true, Color.TRANSPARENT)
             addLabel("Сумма", RectSpec(520, 720, 400, 45), 17f, blueGray, Gravity.LEFT or Gravity.CENTER_VERTICAL, false, Color.TRANSPARENT)
-            addLabel(formatMoney(order.amount), RectSpec(520, 765, 400, 60), 24f, dark, Gravity.LEFT or Gravity.CENTER_VERTICAL, true, Color.TRANSPARENT)
+            addLabel(formatMoney(order.amountMinor), RectSpec(520, 765, 400, 60), 24f, dark, Gravity.LEFT or Gravity.CENTER_VERTICAL, true, Color.TRANSPARENT)
             addLabel("Чек подготовлен", RectSpec(170, 870, 740, 60), 22f, green, Gravity.CENTER, true, Color.TRANSPARENT)
         }
         if (!recommendationsHidden) renderRecommendationPopupIfNeeded()
@@ -1265,7 +1266,7 @@ class MainActivity : Activity() {
         addProductImage(product, RectSpec(rect.x + rect.width / 2 - 90, rect.y + 18, 180, 155))
         addLabel(shortProductName(product).uppercase(), RectSpec(rect.x + 14, rect.y + 180, rect.width - 28, 48), 18f, dark, Gravity.CENTER, true, Color.TRANSPARENT)
         addLabel(product.volume.replace("мл", " мл"), RectSpec(rect.x + 20, rect.y + 227, rect.width - 40, 34), 15f, blueGray, Gravity.CENTER, false, Color.TRANSPARENT)
-        addLabel(formatMoney(product.price), RectSpec(rect.x + 20, rect.y + 260, rect.width - 40, 42), 18f, green, Gravity.CENTER, true, Color.TRANSPARENT)
+        addLabel(formatMoney(product.priceMinor), RectSpec(rect.x + 20, rect.y + 260, rect.width - 40, 42), 18f, green, Gravity.CENTER, true, Color.TRANSPARENT)
     }
 
     private fun renderLandscapeCartPanel() {
@@ -1293,7 +1294,7 @@ class MainActivity : Activity() {
         addProductImage(product, RectSpec(250, 235, 380, 315))
         addLabel(normalizeProductName(product).uppercase(), RectSpec(125, 560, 630, 70), 33f, dark, Gravity.CENTER, true, Color.TRANSPARENT)
         addLabel(product.volume.replace("мл", " мл"), RectSpec(230, 635, 420, 45), 20f, blueGray, Gravity.CENTER, false, Color.TRANSPARENT)
-        addLabel(formatMoney(product.price), RectSpec(230, 690, 420, 55), 26f, dark, Gravity.CENTER, true, Color.TRANSPARENT)
+        addLabel(formatMoney(product.priceMinor), RectSpec(230, 690, 420, 55), 26f, dark, Gravity.CENTER, true, Color.TRANSPARENT)
         addLabel("У меня свой стакан", RectSpec(195, 765, 340, 58), 22f, dark, Gravity.LEFT or Gravity.CENTER_VERTICAL, false, Color.TRANSPARENT)
         addRoundedLabel(if (pendingOwnCup) "✓" else "", RectSpec(550, 768, 92, 52), 24f, Color.WHITE, Gravity.CENTER, true, if (pendingOwnCup) green else 0xFFE4E4E4.toInt(), 26f)
 
@@ -1347,7 +1348,8 @@ class MainActivity : Activity() {
     private fun renderLandscapeLoyaltyProfile() {
         renderLandscapeHeader()
         val balance = loyaltyGateway.balanceLabel ?: "0 бонусов"
-        val available = loyaltyGateway.availableBonusAmount.coerceAtMost(cartGrossTotal())
+        val available = loyaltyGateway.availableBonusAmount
+        val availableMinor = Money.wholeUnitsToMinor(available.coerceAtLeast(0)).coerceAtMost(cartGrossTotal())
         addLabel("Карта лояльности", RectSpec(650, 95, 620, 60), 30f, dark, Gravity.CENTER, true, Color.TRANSPARENT)
         addRoundedLabel("←", RectSpec(22, 14, 64, 64), 32f, Color.WHITE, Gravity.CENTER, true, green, 0f)
         addBox(RectSpec(520, 220, 880, 520), Color.WHITE, 28f)
@@ -1355,7 +1357,7 @@ class MainActivity : Activity() {
         addLabel("Баланс", RectSpec(620, 360, 260, 50), 24f, blueGray, Gravity.LEFT or Gravity.CENTER_VERTICAL, false, Color.TRANSPARENT)
         addLabel(balance, RectSpec(890, 345, 360, 70), 36f, dark, Gravity.RIGHT or Gravity.CENTER_VERTICAL, true, Color.TRANSPARENT)
         addLabel("Доступно к списанию", RectSpec(620, 455, 420, 50), 22f, blueGray, Gravity.LEFT or Gravity.CENTER_VERTICAL, false, Color.TRANSPARENT)
-        addLabel(formatMoney(available), RectSpec(1060, 442, 190, 68), 30f, dark, Gravity.RIGHT or Gravity.CENTER_VERTICAL, true, Color.TRANSPARENT)
+        addLabel(formatMoney(availableMinor), RectSpec(1060, 442, 190, 68), 30f, dark, Gravity.RIGHT or Gravity.CENTER_VERTICAL, true, Color.TRANSPARENT)
         val couponsText = if (loyaltyGateway.couponsCount > 0) "Купонов: ${loyaltyGateway.couponsCount}" else "Активных купонов нет"
         addLabel(couponsText, RectSpec(620, 545, 630, 44), 21f, blueGray, Gravity.CENTER, false, Color.TRANSPARENT)
         val hint = if (available > 0) "Бонусы будут переданы в заказ как ibonus_discount_sum." else "Карта уже привязана к заказу. Бонусов для списания сейчас нет."
@@ -1401,7 +1403,7 @@ class MainActivity : Activity() {
         addLabel(title, RectSpec(230, 220, 1460, 130), 42f, dark, Gravity.CENTER, true, Color.TRANSPARENT)
         addBox(RectSpec(685, 380, 550, 330), 0xFFF4F6F7.toInt(), 26f)
         addLabel(if (currentScreen == "PAYMENT_ONLINE_QR") "QR" else "POS", RectSpec(785, 445, 350, 160), 56f, blueGray, Gravity.CENTER, true, Color.TRANSPARENT)
-        val total = order?.amount ?: cartTotal()
+        val total = order?.amountMinor ?: cartTotal()
         addLabel("Заказ ${order?.externalNumber ?: ""} • ${formatMoney(total)}", RectSpec(450, 735, 1020, 55), 22f, blueGray, Gravity.CENTER, false, Color.TRANSPARENT)
         addLabel("К оплате", RectSpec(70, 890, 400, 60), 25f, dark, Gravity.LEFT or Gravity.CENTER_VERTICAL, true, Color.TRANSPARENT)
         addLabel(formatMoney(total), RectSpec(1400, 880, 420, 75), 40f, dark, Gravity.RIGHT or Gravity.CENTER_VERTICAL, true, Color.TRANSPARENT)
@@ -1419,7 +1421,7 @@ class MainActivity : Activity() {
         addLabel("Способ оплаты", RectSpec(610, 365, 360, 45), 17f, blueGray, Gravity.LEFT or Gravity.CENTER_VERTICAL, false, Color.TRANSPARENT)
         addLabel(paymentMethodTitle(order?.paymentMethod), RectSpec(610, 410, 380, 55), 22f, dark, Gravity.LEFT or Gravity.CENTER_VERTICAL, true, Color.TRANSPARENT)
         addLabel("Сумма", RectSpec(610, 500, 360, 45), 17f, blueGray, Gravity.LEFT or Gravity.CENTER_VERTICAL, false, Color.TRANSPARENT)
-        addLabel(formatMoney(order?.amount ?: cartTotal()), RectSpec(610, 545, 380, 55), 24f, dark, Gravity.LEFT or Gravity.CENTER_VERTICAL, true, Color.TRANSPARENT)
+        addLabel(formatMoney(order?.amountMinor ?: cartTotal()), RectSpec(610, 545, 380, 55), 24f, dark, Gravity.LEFT or Gravity.CENTER_VERTICAL, true, Color.TRANSPARENT)
         addLabel("МЫ РЕКОМЕНДУЕМ", RectSpec(1230, 190, 560, 55), 28f, dark, Gravity.CENTER, true, Color.TRANSPARENT)
         addRoundedLabel("С картой дешевле\nПодробнее →", RectSpec(1230, 270, 560, 110), 20f, Color.WHITE, Gravity.CENTER, true, 0xFF2E6A2E.toInt(), 14f)
         addRoundedLabel("Абонемент на кофе\nПодробнее →", RectSpec(1230, 405, 560, 110), 20f, Color.WHITE, Gravity.CENTER, true, 0xFF555555.toInt(), 14f)
@@ -2045,7 +2047,7 @@ class MainActivity : Activity() {
 
     private fun startRealCardPayment() {
         val order = orderGateway.currentOrder()
-        if (order == null || order.amount <= 0) {
+        if (order == null || order.amountMinor <= 0L) {
             toast("Не удалось определить сумму заказа")
             openScreen("PAYMENT_METHOD_ALL")
             return
@@ -2055,7 +2057,7 @@ class MainActivity : Activity() {
             return
         }
 
-        val amount = String.format(Locale.US, "%d.00", order.amount)
+        val amount = Money.paymentAmount(order.amountMinor)
         cardPaymentBusy = true
         cardPaymentStatus = if (cardPaymentClient.hasUnresolvedPayment()) {
             "Проверяем предыдущую незавершённую оплату…"
@@ -2247,18 +2249,18 @@ class MainActivity : Activity() {
         openScreen("SCREEN_SAVER_COFFEE", remember = false)
     }
 
-    private fun cartGrossTotal(): Int = cart.sumOf { it.product.price * it.quantity }
+    private fun cartGrossTotal(): Long = cart.sumOf { it.product.priceMinor * it.quantity.toLong() }
 
-    private fun orderDiscount(): Int = loyaltyGateway.bonusApplied.coerceAtMost(cartGrossTotal()).coerceAtLeast(0)
+    private fun orderDiscount(): Long = loyaltyGateway.bonusAppliedMinor.coerceAtMost(cartGrossTotal()).coerceAtLeast(0L)
 
-    private fun cartTotal(): Int = (cartGrossTotal() - orderDiscount()).coerceAtLeast(0)
+    private fun cartTotal(): Long = (cartGrossTotal() - orderDiscount()).coerceAtLeast(0L)
 
-    private fun formatMoney(value: Int): String = "$value,00 ₽"
+    private fun formatMoney(valueMinor: Long): String = Money.formatRub(valueMinor)
 
     private fun loyaltyOrderNote(full: Boolean): String? {
-        if (!loyaltyGateway.attachedToOrder && orderDiscount() <= 0) return null
+        if (!loyaltyGateway.attachedToOrder && orderDiscount() <= 0L) return null
         val discount = orderDiscount()
-        return if (discount > 0) {
+        return if (discount > 0L) {
             if (full) "До скидки ${formatMoney(cartGrossTotal())} • iBonus −${formatMoney(discount)}" else "iBonus −${formatMoney(discount)}"
         } else {
             val balance = loyaltyGateway.balanceLabel?.takeIf { it.isNotBlank() } ?: "0 бонусов"
@@ -2269,7 +2271,7 @@ class MainActivity : Activity() {
     private fun loyaltyPaymentSuffix(): String {
         val discount = orderDiscount()
         return when {
-            discount > 0 -> " • iBonus −${formatMoney(discount)}"
+            discount > 0L -> " • iBonus −${formatMoney(discount)}"
             loyaltyGateway.attachedToOrder -> " • карта лояльности, скидка 0 ₽"
             else -> ""
         }
@@ -2277,7 +2279,7 @@ class MainActivity : Activity() {
 
     private fun applyLoyaltyBonusAndReturn() {
         val bonus = loyaltyGateway.applyBonus(cartGrossTotal())
-        if (bonus > 0) {
+        if (bonus > 0L) {
             toast("Бонусы применены: ${formatMoney(bonus)}")
         } else if (loyaltyGateway.loggedIn) {
             toast("Карта лояльности применена. Бонусов для списания нет")
@@ -2296,7 +2298,7 @@ class MainActivity : Activity() {
         statusLabel.visibility = if (demoStatusVisible) View.VISIBLE else View.GONE
         if (demoStatusVisible) {
             val total = cartTotal()
-            statusLabel.text = "UI v0.5.35 | $currentScreen | товаров: ${cart.sumOf { it.quantity }} | сумма: $total ₽ | данные: $catalogDataSource | $catalogMessage | карта: Kozen; прочие способы: отключены"
+            statusLabel.text = "UI v0.5.36 | $currentScreen | товаров: ${cart.sumOf { it.quantity }} | сумма: ${formatMoney(total)} | данные: $catalogDataSource | $catalogMessage | карта: Kozen; прочие способы: отключены"
         }
     }
 
