@@ -91,6 +91,6 @@ if errorlevel 1 (
 
 echo.
 echo [SUCCESS] Latest S2+S3 acceptance ZIP was committed and pushed.
-echo You can now tell ChatGPT: "Отчёт в Git, продолжай."
+powershell -NoProfile -Command "Write-Host 'Отчёт в Git, продолжай.'"
 pause
 exit /b 0
