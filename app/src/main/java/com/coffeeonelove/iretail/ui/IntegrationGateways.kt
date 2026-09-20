@@ -34,17 +34,49 @@ class IretailContentRepository(private val context: Context) {
 
     fun refreshProductsAsync(onResult: (CatalogRefreshResult) -> Unit) {
         if (!apiConfig.enabled) {
-            onResult(CatalogRefreshResult(false, emptyList(), "Удалённый каталог отключён в content/iretail-api.json", "content XML", channelId = apiConfig.channelId))
+            onResult(
+                CatalogRefreshResult(
+                    false,
+                    emptyList(),
+                    "Удалённый каталог отключён в content/iretail-api.json",
+                    "content XML",
+                    channelId = apiConfig.channelId,
+                    failureStage = "configuration",
+                    failureReason = "DISABLED"
+                )
+            )
             return
         }
         Thread {
             val result = try {
-                val zipBytes = downloadCatalogZip()
-                val parsed = parseCatalogZip(zipBytes)
-                if (parsed.offersCount <= 0 || parsed.products.isEmpty()) {
-                    throw IllegalStateException("Каталог I-Retail не содержит пригодных товаров")
+                val token = try {
+                    authenticate()
+                } catch (e: Exception) {
+                    throw CatalogStageException("authentication", safeCatalogFailureReason(e))
                 }
-                persistValidatedCatalog(zipBytes)
+
+                val zipBytes = try {
+                    downloadCatalogZip(token)
+                } catch (e: Exception) {
+                    throw CatalogStageException("download", safeCatalogFailureReason(e))
+                }
+
+                val parsed = try {
+                    parseCatalogZip(zipBytes)
+                } catch (e: Exception) {
+                    throw CatalogStageException("parse", safeCatalogFailureReason(e))
+                }
+
+                if (parsed.offersCount <= 0 || parsed.products.isEmpty()) {
+                    throw CatalogStageException("validate", "EMPTY_CATALOG")
+                }
+
+                try {
+                    persistValidatedCatalog(zipBytes)
+                } catch (e: Exception) {
+                    throw CatalogStageException("cache", safeCatalogFailureReason(e))
+                }
+
                 CatalogRefreshResult(
                     success = true,
                     products = parsed.products,
@@ -55,11 +87,32 @@ class IretailContentRepository(private val context: Context) {
                     channelId = apiConfig.channelId
                 )
             } catch (e: Exception) {
+                val stageError = e as? CatalogStageException
+                val failureStage = stageError?.stage ?: "unknown"
+                val failureReason = stageError?.safeReason ?: safeCatalogFailureReason(e)
                 val cached = try { parseCatalogZip(cacheFile.readBytes()) } catch (_: Exception) { null }
                 if (cached != null && cached.products.isNotEmpty()) {
-                    CatalogRefreshResult(true, cached.products, "I-Retail недоступен, показан сохранённый каталог: ${e.cleanMessage()}", "I-Retail ZIP cache", cached.categoriesCount, cached.offersCount, apiConfig.channelId)
+                    CatalogRefreshResult(
+                        success = true,
+                        products = cached.products,
+                        message = "I-Retail недоступен, показан сохранённый каталог",
+                        source = "I-Retail ZIP cache",
+                        categoriesCount = cached.categoriesCount,
+                        offersCount = cached.offersCount,
+                        channelId = apiConfig.channelId,
+                        failureStage = failureStage,
+                        failureReason = failureReason
+                    )
                 } else {
-                    CatalogRefreshResult(false, emptyList(), "I-Retail недоступен, показан XML-макет: ${e.cleanMessage()}", "content XML", channelId = apiConfig.channelId)
+                    CatalogRefreshResult(
+                        success = false,
+                        products = emptyList(),
+                        message = "I-Retail недоступен, показан XML-макет",
+                        source = "content XML",
+                        channelId = apiConfig.channelId,
+                        failureStage = failureStage,
+                        failureReason = failureReason
+                    )
                 }
             }
             onResult(result)
@@ -110,13 +163,11 @@ class IretailContentRepository(private val context: Context) {
             }
     }
 
-    private fun downloadCatalogZip(): ByteArray {
-        val token = authenticate()
-        return postFormBytes(
+    private fun downloadCatalogZip(accessToken: String): ByteArray =
+        postFormBytes(
             path = "iretail/catalog/download-actual-zip",
-            fields = apiFields(token) + mapOf("channel_id" to apiConfig.channelId)
+            fields = apiFields(accessToken) + mapOf("channel_id" to apiConfig.channelId)
         )
-    }
 
     private fun lookupLoyalty(input: String): LoyaltyLookupResult {
         val token = authenticate()
@@ -200,7 +251,7 @@ class IretailContentRepository(private val context: Context) {
                 "client_secret" to apiConfig.clientSecret
             )
         )
-        if (!json.optBoolean("status", false)) throw IllegalStateException(json.optJSONObject("result")?.optString("title") ?: "authentication failed")
+        if (!json.optBoolean("status", false)) throw AuthenticationRejectedException()
         return json.getJSONObject("result").getString("access_token")
     }
 
@@ -447,6 +498,20 @@ class IretailContentRepository(private val context: Context) {
 
     private fun Exception.cleanMessage(): String = message?.take(180) ?: javaClass.simpleName
 
+    private fun safeCatalogFailureReason(error: Exception): String {
+        if (error is AuthenticationRejectedException) return "REJECTED"
+        val httpCode = Regex("HTTP\\s+(\\d{3})").find(error.message.orEmpty())?.groupValues?.getOrNull(1)
+        if (!httpCode.isNullOrBlank()) return "HTTP_$httpCode"
+        return when (error) {
+            is java.net.UnknownHostException -> "UNKNOWN_HOST"
+            is java.net.SocketTimeoutException -> "TIMEOUT"
+            is java.net.ConnectException -> "CONNECT"
+            is javax.net.ssl.SSLException -> "SSL"
+            is org.json.JSONException -> "JSON"
+            else -> error.javaClass.simpleName.take(64).ifBlank { "ERROR" }
+        }
+    }
+
     private fun fallbackProducts(): List<Product> = listOf(
         Product("coffee-americano", "coffee-americano", "Американо", "200мл", 149, "coffee", true, gcode = "Coffee-01"),
         Product("coffee-cappuccino", "coffee-cappuccino", "Капучино", "200мл", 149, "coffee", true, gcode = "Coffee-02"),
@@ -474,6 +539,13 @@ class IretailContentRepository(private val context: Context) {
         val categoriesCount: Int,
         val offersCount: Int
     )
+
+    private class CatalogStageException(
+        val stage: String,
+        val safeReason: String
+    ) : IllegalStateException("$stage:$safeReason")
+
+    private class AuthenticationRejectedException : IllegalStateException("authentication rejected")
 }
 
 class LocalRetailOrderGateway {
