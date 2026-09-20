@@ -110,26 +110,28 @@ pause >nul
   echo lines_equal_gross=true
 ) > "%OUT%\SUMMARY.txt"
 
-findstr /C:"DRY_RUN_ONLY" "%OUT%\04_order_sync_draft.json" >nul
-if errorlevel 1 (
-  echo [ERROR] Dry-run order draft was not found or is invalid.
-  echo Check: %OUT%\04_order_sync_draft_error.txt
+powershell -NoProfile -Command "$p=Get-Content -Raw -LiteralPath '%OUT%\04_order_sync_draft.json' | ConvertFrom-Json; if($p.mode -ne 'DRY_RUN_ONLY'){exit 30}; if($p.send_allowed -ne $false){exit 31}; if($p.validation.lines_equal_gross -ne $true){exit 32}; exit 0"
+set "JSON_RC=%ERRORLEVEL%"
+if "%JSON_RC%"=="30" (
+  echo [ERROR] JSON mode is not DRY_RUN_ONLY.
   pause
   exit /b 30
 )
-
-findstr /C:"\"send_allowed\": false" "%OUT%\04_order_sync_draft.json" >nul
-if errorlevel 1 (
-  echo [ERROR] send_allowed=false marker not found. Stop.
+if "%JSON_RC%"=="31" (
+  echo [ERROR] JSON send_allowed is not false. Stop.
   pause
   exit /b 31
 )
-
-findstr /C:"\"lines_equal_gross\": true" "%OUT%\04_order_sync_draft.json" >nul
-if errorlevel 1 (
-  echo [ERROR] lines_equal_gross=true marker not found.
+if "%JSON_RC%"=="32" (
+  echo [ERROR] JSON lines_equal_gross is not true.
   pause
   exit /b 32
+)
+if not "%JSON_RC%"=="0" (
+  echo [ERROR] Could not parse order_sync_draft.json.
+  echo Check: %OUT%\04_order_sync_draft_error.txt
+  pause
+  exit /b 34
 )
 
 powershell -NoProfile -Command "Compress-Archive -Path '%OUT%\*' -DestinationPath '%ZIP%' -Force"
