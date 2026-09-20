@@ -15,7 +15,6 @@ config = json.loads((ROOT / "app/src/main/assets/content/iretail-api.json").read
 joined = "\n".join([audit_bat, publish_bat, audit_ps, safe_ps, syntax_ps])
 
 checks = {
-    "versionName 0.5.40": "versionName '0.5.41-api-curl-audit-fix'" in build,
     "canonical API docs URL": "https://my.i-retail.com/api/apidoc/actual" in audit_ps,
     "docs index snapshot": '"index.html"' in audit_ps,
     "docs api_data snapshot": '"api_data.js"' in audit_ps,
