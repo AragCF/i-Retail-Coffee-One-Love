@@ -23,7 +23,7 @@ if errorlevel 1 (
     exit /b 9
 )
 
-set "SCRIPT_VERSION=0.5.36-s2-catalog-money"
+set "SCRIPT_VERSION=0.5.37-s3-order-draft"
 set "DO_CLEAN=0"
 set "DO_HARD_CLEAN=0"
 
