@@ -42,8 +42,10 @@ for path in active:
     if OLD in text:
         bad.append(str(path.relative_to(ROOT)))
 
-require("active scripts/workflows do not reference old nested path", not bad)
 if bad:
-    print("\n".join(bad))
+    print("[DETAIL] Old nested path is still referenced by:")
+    for item in bad:
+        print(" - " + item)
+require("active scripts/workflows do not reference old nested path", not bad)
 
 print(f"[OK] v0.5.35 root-layout guard: {len(checks)} checks passed")
