@@ -113,7 +113,8 @@ class IretailContentRepository(private val context: Context) {
                         source = "content XML",
                         channelId = apiConfig.channelId,
                         failureStage = failureStage,
-                        failureReason = failureReason
+                        failureReason = failureReason,
+                        failureDetail = failureDetail
                     )
                 }
             }
