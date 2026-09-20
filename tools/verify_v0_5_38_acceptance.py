@@ -12,6 +12,8 @@ checks = {
     "audit forbids payment selection": "DO NOT choose card, cash or online payment" in audit,
     "audit forces real POS off": "--ez real_pos_enabled false" in audit,
     "audit extracts local draft": "order_sync_draft.json" in audit,
+    "audit clears stale draft first": "rm -f files/order_sync_draft.json" in audit,
+    "audit classifies live catalog separately from cache": 'source=I-Retail ZIP products=' in audit and 'S2_LIVE=YES' in audit,
     "audit parses JSON with PowerShell": "ConvertFrom-Json" in audit,
     "audit requires DRY_RUN_ONLY": "$p.mode -ne 'DRY_RUN_ONLY'" in audit,
     "audit requires send_allowed false": "$p.send_allowed -ne $false" in audit,
