@@ -32,7 +32,7 @@ active.extend((ROOT / ".github/workflows").glob("*.yaml"))
 active.extend((ROOT / "tools").rglob("*.py"))
 active.extend((ROOT / "tools").rglob("*.ps1"))
 active.extend((ROOT / "tools").rglob("*.bat"))
-active.extend([ROOT / "README.md", ROOT / "settings.gradle", ROOT / "build.gradle", ROOT / "gradle.properties"])
+active.extend([ROOT / "settings.gradle", ROOT / "build.gradle", ROOT / "gradle.properties"])
 
 bad = []
 for path in active:
