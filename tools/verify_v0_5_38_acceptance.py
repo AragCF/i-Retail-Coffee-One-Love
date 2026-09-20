@@ -1,0 +1,39 @@
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[1]
+build = (ROOT / "app/build.gradle").read_text(encoding="utf-8")
+audit = (ROOT / "S23_01_BUILD_INSTALL_ACCEPTANCE_AUDIT.bat").read_text(encoding="utf-8")
+gitignore = (ROOT / ".gitignore").read_text(encoding="utf-8")
+selector = (ROOT / "tools/Select-JL22Device.ps1").read_text(encoding="utf-8")
+
+checks = {
+    "versionCode 38": "versionCode 38" in build,
+    "versionName 0.5.38": "versionName '0.5.38-s2-s3-acceptance'" in build,
+    "combined audit exists": "SAFE S2 + S3 ACCEPTANCE" in audit,
+    "audit forbids payment selection": "DO NOT choose card, cash or online payment" in audit,
+    "audit forces real POS off": "--ez real_pos_enabled false" in audit,
+    "audit pins expected Git branch": "EXPECTED_BRANCH=v0.5.38-s2-s3-acceptance" in audit,
+    "audit rejects tracked local changes": "git diff --quiet" in audit and "git diff --cached --quiet" in audit,
+    "audit records Git SHA": "git rev-parse HEAD" in audit and "GitSHA=%GIT_SHA%" in audit,
+    "JL22 selector checks product": "octopus_jetinno" in selector,
+    "JL22 selector checks model": "UniWin_M190" in selector,
+    "JL22 selector checks device": "octopus-jetinno" in selector,
+    "JL22 selector has interactive menu": "Select device number" in selector,
+    "acceptance audit uses JL22 selector": "Select-JL22Device.ps1" in audit,
+    "audit extracts local draft": "order_sync_draft.json" in audit,
+    "audit clears stale draft first": "rm -f files/order_sync_draft.json" in audit,
+    "audit classifies live catalog separately from cache": 'source=I-Retail ZIP products=' in audit and 'S2_LIVE=YES' in audit,
+    "audit parses JSON with PowerShell": "ConvertFrom-Json" in audit,
+    "audit requires DRY_RUN_ONLY": "$p.mode -ne 'DRY_RUN_ONLY'" in audit,
+    "audit requires send_allowed false": "$p.send_allowed -ne $false" in audit,
+    "audit checks exact line sum": "$p.validation.lines_equal_gross -ne $true" in audit,
+    "nested builds ignored": "**/build/" in gitignore,
+    "runtime logs ignored": "*_logs/" in gitignore,
+}
+
+failed = [name for name, ok in checks.items() if not ok]
+for name, ok in checks.items():
+    print(("[OK] " if ok else "[FAIL] ") + name)
+if failed:
+    raise SystemExit("v0.5.38 acceptance guard failed: " + ", ".join(failed))
+print(f"[OK] v0.5.38 acceptance guard: {len(checks)} checks passed")

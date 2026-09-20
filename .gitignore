@@ -8,3 +8,9 @@
 .cxx/
 *.apk
 *.aab
+**/build/
+**/.gradle/
+**/.kotlin/
+dist/
+*_logs/
+test_reports/s23_acceptance/S23_ACCEPTANCE_*/
