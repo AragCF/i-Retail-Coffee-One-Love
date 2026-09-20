@@ -59,7 +59,7 @@ mkdir "%OUT%" >nul 2>nul
 
 %ADB_CMD% logcat -c
 %ADB_CMD% shell am force-stop com.coffeeonelove.iretail
-%ADB_CMD% shell am start -n com.coffeeonelove.iretail/.ui.MainActivity > "%OUT%\01_start.txt" 2>&1
+%ADB_CMD% shell am start -n com.coffeeonelove.iretail/.ui.MainActivity --ez real_pos_enabled false > "%OUT%\01_start.txt" 2>&1
 
 echo.
 echo ============================================================
