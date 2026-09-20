@@ -3,7 +3,7 @@ name: AOA Production Bridge report
 on:
   push:
     paths:
-      - 'iRetail_Android_UI_v0.5.8_smartskypos_probe_source/test_reports/aoa_production_bridge/**'
+      - 'test_reports/aoa_production_bridge/**'
 
 jobs:
   report:
@@ -14,7 +14,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          ROOT='iRetail_Android_UI_v0.5.8_smartskypos_probe_source/test_reports/aoa_production_bridge'
+          ROOT='test_reports/aoa_production_bridge'
           ZIP="$(find "$ROOT" -maxdepth 1 -type f -name 'AOA_PROD_BRIDGE_JL22_KOZEN_*.zip' -printf '%T@ %p\n' | sort -nr | head -n1 | cut -d' ' -f2-)"
           echo "LATEST_ZIP=$ZIP"
           echo '===== SUMMARY.txt ====='

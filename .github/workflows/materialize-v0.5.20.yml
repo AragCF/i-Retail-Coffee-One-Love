@@ -5,8 +5,8 @@ on:
     branches:
       - v0.5.20-main-ui-kozen-payment
     paths:
-      - 'iRetail_Android_UI_v0.5.8_smartskypos_probe_source/tools/materialize_v0_5_20.py'
-      - 'iRetail_Android_UI_v0.5.8_smartskypos_probe_source/tools/harden_v0_5_20_recovery.py'
+      - 'tools/materialize_v0_5_20.py'
+      - 'tools/harden_v0_5_20_recovery.py'
       - '.github/workflows/materialize-v0.5.20.yml'
   workflow_dispatch:
 
@@ -27,8 +27,8 @@ jobs:
 
       - name: Materialize guarded source changes
         run: |
-          python3 iRetail_Android_UI_v0.5.8_smartskypos_probe_source/tools/materialize_v0_5_20.py
-          python3 iRetail_Android_UI_v0.5.8_smartskypos_probe_source/tools/harden_v0_5_20_recovery.py
+          python3 tools/materialize_v0_5_20.py
+          python3 tools/harden_v0_5_20_recovery.py
 
       - name: Verify diff is cleanly applicable
         run: git diff --check
@@ -45,7 +45,7 @@ jobs:
           gradle-version: '8.7'
 
       - name: Build main UI and Kozen bridge
-        working-directory: iRetail_Android_UI_v0.5.8_smartskypos_probe_source
+        working-directory: .
         run: gradle --no-daemon --stacktrace :app:assembleDebug :kozenBridge:assembleDebug
 
       - name: Commit materialized source
@@ -59,12 +59,12 @@ jobs:
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add \
-            iRetail_Android_UI_v0.5.8_smartskypos_probe_source/app/build.gradle \
-            iRetail_Android_UI_v0.5.8_smartskypos_probe_source/app/src/main/AndroidManifest.xml \
-            iRetail_Android_UI_v0.5.8_smartskypos_probe_source/app/src/main/java/com/coffeeonelove/iretail/ui/MainActivity.kt \
-            iRetail_Android_UI_v0.5.8_smartskypos_probe_source/app/src/main/java/com/coffeeonelove/iretail/pos/KozenAoaPaymentClient.java \
-            iRetail_Android_UI_v0.5.8_smartskypos_probe_source/kozenBridge/build.gradle \
-            iRetail_Android_UI_v0.5.8_smartskypos_probe_source/kozenBridge/src/main/java/com/coffeeonelove/iretail/kozenbridge/BridgeActivity.java \
-            iRetail_Android_UI_v0.5.8_smartskypos_probe_source/kozenBridge/src/main/java/com/coffeeonelove/iretail/kozenbridge/ProductionBridgeService.java
+            app/build.gradle \
+            app/src/main/AndroidManifest.xml \
+            app/src/main/java/com/coffeeonelove/iretail/ui/MainActivity.kt \
+            app/src/main/java/com/coffeeonelove/iretail/pos/KozenAoaPaymentClient.java \
+            kozenBridge/build.gradle \
+            kozenBridge/src/main/java/com/coffeeonelove/iretail/kozenbridge/BridgeActivity.java \
+            kozenBridge/src/main/java/com/coffeeonelove/iretail/kozenbridge/ProductionBridgeService.java
           git commit -m 'v0.5.20: materialize payment recovery hardening [skip ci]'
           git push origin HEAD:v0.5.20-main-ui-kozen-payment

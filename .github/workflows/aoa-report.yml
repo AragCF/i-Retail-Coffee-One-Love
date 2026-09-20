@@ -5,7 +5,7 @@ on:
     branches:
       - v0.5.13-aoa-bridge-probe
     paths:
-      - 'iRetail_Android_UI_v0.5.8_smartskypos_probe_source/test_reports/aoa/**'
+      - 'test_reports/aoa/**'
       - '.github/workflows/aoa-report.yml'
   workflow_dispatch:
 
@@ -23,7 +23,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          ROOT='iRetail_Android_UI_v0.5.8_smartskypos_probe_source/test_reports/aoa'
+          ROOT='test_reports/aoa'
           if [ ! -d "$ROOT" ]; then
             echo 'No AOA report directory yet.'
             exit 0

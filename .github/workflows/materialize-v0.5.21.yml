@@ -5,8 +5,8 @@ on:
     branches:
       - v0.5.21-machine-modes
     paths:
-      - 'iRetail_Android_UI_v0.5.8_smartskypos_probe_source/tools/materialize_v0_5_21.py'
-      - 'iRetail_Android_UI_v0.5.8_smartskypos_probe_source/app/src/main/java/com/coffeeonelove/iretail/ui/MachineModeRuntime.kt'
+      - 'tools/materialize_v0_5_21.py'
+      - 'app/src/main/java/com/coffeeonelove/iretail/ui/MachineModeRuntime.kt'
       - '.github/workflows/materialize-v0.5.21.yml'
   workflow_dispatch:
 
@@ -26,7 +26,7 @@ jobs:
           fetch-depth: 0
 
       - name: Materialize guarded source changes
-        run: python3 iRetail_Android_UI_v0.5.8_smartskypos_probe_source/tools/materialize_v0_5_21.py
+        run: python3 tools/materialize_v0_5_21.py
 
       - name: Verify diff
         run: git diff --check
@@ -43,7 +43,7 @@ jobs:
           gradle-version: '8.7'
 
       - name: Build main UI and Kozen bridge
-        working-directory: iRetail_Android_UI_v0.5.8_smartskypos_probe_source
+        working-directory: .
         run: gradle --no-daemon --stacktrace :app:assembleDebug :kozenBridge:assembleDebug
 
       - name: Commit materialized source
@@ -57,8 +57,8 @@ jobs:
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add \
-            iRetail_Android_UI_v0.5.8_smartskypos_probe_source/app/build.gradle \
-            iRetail_Android_UI_v0.5.8_smartskypos_probe_source/app/src/main/AndroidManifest.xml \
-            iRetail_Android_UI_v0.5.8_smartskypos_probe_source/app/src/main/java/com/coffeeonelove/iretail/ui/MainActivity.kt
+            app/build.gradle \
+            app/src/main/AndroidManifest.xml \
+            app/src/main/java/com/coffeeonelove/iretail/ui/MainActivity.kt
           git commit -m 'v0.5.21: materialize standalone and kiosk machine modes [skip ci]'
           git push origin HEAD:v0.5.21-machine-modes

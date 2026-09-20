@@ -5,7 +5,7 @@ on:
     branches:
       - 'v0.5.14-smartskypos-over-aoa'
     paths:
-      - 'iRetail_Android_UI_v0.5.8_smartskypos_probe_source/test_reports/aoa_state/**'
+      - 'test_reports/aoa_state/**'
 
 jobs:
   report:
@@ -16,7 +16,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          ROOT='iRetail_Android_UI_v0.5.8_smartskypos_probe_source/test_reports/aoa_state'
+          ROOT='test_reports/aoa_state'
           ZIP="$(find "$ROOT" -maxdepth 1 -type f -name 'AOA_STATE_JL22_KOZEN_*.zip' -printf '%T@ %p\n' | sort -nr | head -n1 | cut -d' ' -f2-)"
           echo "LATEST_ZIP=$ZIP"
           echo '===== SUMMARY.txt ====='
