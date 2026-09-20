@@ -100,7 +100,7 @@ mkdir "%OUT%" >nul 2>nul
   adb devices -l
 ) > "%OUT%\00_git_and_device.txt" 2>&1
 
-%ADB_CMD% shell getprop ro.product.product.name > "%OUT%\01_product_name.txt" 2>&1
+%ADB_CMD% shell getprop ro.product.name > "%OUT%\01_product_name.txt" 2>&1
 %ADB_CMD% shell getprop ro.product.model > "%OUT%\02_model.txt" 2>&1
 %ADB_CMD% shell getprop ro.product.device > "%OUT%\03_device.txt" 2>&1
 %ADB_CMD% shell getprop ro.build.version.release > "%OUT%\04_android_version.txt" 2>&1
