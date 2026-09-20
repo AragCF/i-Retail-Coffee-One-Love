@@ -11,9 +11,10 @@ checks = {
     "combined audit exists": "SAFE S2 + S3 ACCEPTANCE" in audit,
     "audit forbids payment selection": "DO NOT choose card, cash or online payment" in audit,
     "audit extracts local draft": "order_sync_draft.json" in audit,
-    "audit requires DRY_RUN_ONLY": 'findstr /C:"DRY_RUN_ONLY"' in audit,
-    "audit requires send_allowed false": "send_allowed" in audit and "false" in audit,
-    "audit checks exact line sum": "lines_equal_gross" in audit,
+    "audit parses JSON with PowerShell": "ConvertFrom-Json" in audit,
+    "audit requires DRY_RUN_ONLY": "$p.mode -ne 'DRY_RUN_ONLY'" in audit,
+    "audit requires send_allowed false": "$p.send_allowed -ne $false" in audit,
+    "audit checks exact line sum": "$p.validation.lines_equal_gross -ne $true" in audit,
     "nested builds ignored": "**/build/" in gitignore,
     "runtime logs ignored": "*_logs/" in gitignore,
 }
