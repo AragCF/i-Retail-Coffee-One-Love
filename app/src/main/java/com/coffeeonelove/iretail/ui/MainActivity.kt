@@ -217,7 +217,8 @@ class MainActivity : Activity() {
                     "IretailCatalog",
                     "REFRESH success=${result.success} source=${result.source} products=${result.products.size} " +
                         "offers=${result.offersCount} categories=${result.categoriesCount} channel=${result.channelId} " +
-                        "failureStage=${result.failureStage ?: "-"} failureReason=${result.failureReason ?: "-"}"
+                        "failureStage=${result.failureStage ?: "-"} failureReason=${result.failureReason ?: "-"} " +
+                        "failureDetail=${result.failureDetail ?: "-"}"
                 )
                 catalogDataSource = result.source
                 catalogMessage = result.message

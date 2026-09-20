@@ -3,7 +3,7 @@ setlocal EnableExtensions DisableDelayedExpansion
 cd /d "%~dp0"
 if errorlevel 1 exit /b 10
 
-set "EXPECTED_BRANCH=v0.5.42-s2-jl22-network-diagnostics"
+set "EXPECTED_BRANCH=v0.5.43-s2-jl22-ssl-diagnostics"
 set "GIT_BRANCH="
 where git >nul 2>nul
 if errorlevel 1 (
