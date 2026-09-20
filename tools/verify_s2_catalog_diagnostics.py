@@ -14,7 +14,7 @@ checks = {
     "authentication stage exists": 'CatalogStageException("authentication"' in gateways,
     "download stage exists": 'CatalogStageException("download"' in gateways,
     "parse stage exists": 'CatalogStageException("parse"' in gateways,
-    "validate stage exists": 'CatalogStageException("validate", "EMPTY_CATALOG")' in gateways,
+    "validate stage exists": 'CatalogStageException("validate", "EMPTY_CATALOG"' in gateways,
     "cache stage exists": 'CatalogStageException("cache"' in gateways,
     "HTTP errors are reduced to status code": '"HTTP_$httpCode"' in gateways,
     "DNS failure is classified": '"UNKNOWN_HOST"' in gateways,
