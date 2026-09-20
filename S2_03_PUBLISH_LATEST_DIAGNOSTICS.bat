@@ -3,7 +3,7 @@ setlocal EnableExtensions DisableDelayedExpansion
 cd /d "%~dp0"
 if errorlevel 1 exit /b 10
 
-set "EXPECTED_BRANCH=v0.5.45-s2-tls-chain-capture-fix"
+set "EXPECTED_BRANCH=v0.5.46-s2-isrg-root-x1-compat"
 set "GIT_BRANCH="
 where git >nul 2>nul
 if errorlevel 1 (
