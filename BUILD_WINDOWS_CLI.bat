@@ -1,7 +1,7 @@
 @echo off
 setlocal EnableExtensions DisableDelayedExpansion
 
-rem i-Retail Android UI v0.5.34 S1 truthful states
+rem i-Retail Android UI v0.5.35 root layout
 rem Windows CLI debug APK build script.
 rem
 rem Important:
@@ -23,7 +23,7 @@ if errorlevel 1 (
     exit /b 9
 )
 
-set "SCRIPT_VERSION=0.5.34-s1-truthful-states"
+set "SCRIPT_VERSION=0.5.35-root-layout"
 set "DO_CLEAN=0"
 set "DO_HARD_CLEAN=0"
 

@@ -8,3 +8,8 @@
 .cxx/
 *.apk
 *.aab
+**/build/
+**/.gradle/
+**/.kotlin/
+dist/
+*_logs/

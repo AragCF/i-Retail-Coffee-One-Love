@@ -5,7 +5,7 @@ on:
     branches:
       - v0.5.25-vendotek-ready-state
     paths:
-      - 'iRetail_Android_UI_v0.5.8_smartskypos_probe_source/test_reports/vendotek_ready/**'
+      - 'test_reports/vendotek_ready/**'
 
 permissions:
   contents: read
@@ -19,7 +19,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          ROOT='iRetail_Android_UI_v0.5.8_smartskypos_probe_source/test_reports/vendotek_ready'
+          ROOT='test_reports/vendotek_ready'
           ZIP="$(find "$ROOT" -maxdepth 1 -type f -name 'VENDOTEK_READY_*.zip' -printf '%T@ %p\n' | sort -nr | head -n1 | cut -d' ' -f2-)"
           echo "LATEST_ZIP=$ZIP"
           echo '===== SUMMARY.txt ====='

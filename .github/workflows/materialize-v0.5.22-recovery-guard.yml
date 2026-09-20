@@ -5,7 +5,7 @@ on:
     branches:
       - v0.5.22-payment-diagnostics
     paths:
-      - 'iRetail_Android_UI_v0.5.8_smartskypos_probe_source/tools/materialize_v0_5_22_recovery_guard.py'
+      - 'tools/materialize_v0_5_22_recovery_guard.py'
       - '.github/workflows/materialize-v0.5.22-recovery-guard.yml'
   workflow_dispatch:
 
@@ -25,7 +25,7 @@ jobs:
           fetch-depth: 0
 
       - name: Materialize recovery guard
-        run: python3 iRetail_Android_UI_v0.5.8_smartskypos_probe_source/tools/materialize_v0_5_22_recovery_guard.py
+        run: python3 tools/materialize_v0_5_22_recovery_guard.py
 
       - name: Verify diff
         run: git diff --check
@@ -42,7 +42,7 @@ jobs:
           gradle-version: '8.7'
 
       - name: Build read-only recovery apps
-        working-directory: iRetail_Android_UI_v0.5.8_smartskypos_probe_source
+        working-directory: .
         run: gradle --no-daemon --stacktrace :kozenRecoveryBridge:assembleDebug :jl22AoaRecovery:assembleDebug
 
       - name: Commit materialized source
@@ -56,8 +56,8 @@ jobs:
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add \
-            iRetail_Android_UI_v0.5.8_smartskypos_probe_source/kozenRecoveryBridge/build.gradle \
-            iRetail_Android_UI_v0.5.8_smartskypos_probe_source/kozenRecoveryBridge/src/main/java/com/coffeeonelove/iretail/kozenrecovery/RecoveryBridgeService.java \
-            iRetail_Android_UI_v0.5.8_smartskypos_probe_source/AOA_16_LAST_TRANSACTION_RECOVERY.bat
+            kozenRecoveryBridge/build.gradle \
+            kozenRecoveryBridge/src/main/java/com/coffeeonelove/iretail/kozenrecovery/RecoveryBridgeService.java \
+            AOA_16_LAST_TRANSACTION_RECOVERY.bat
           git commit -m 'v0.5.22: guard read-only recovery bridge from duplicate starts [skip ci]'
           git push origin HEAD:v0.5.22-payment-diagnostics

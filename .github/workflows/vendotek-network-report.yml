@@ -2,7 +2,7 @@ name: Vendotek network access report
 on:
   push:
     branches: [v0.5.33-vendotek-network-access]
-    paths: ['iRetail_Android_UI_v0.5.8_smartskypos_probe_source/test_reports/vendotek_network/**']
+    paths: ['test_reports/vendotek_network/**']
 permissions:
   contents: read
 jobs:
@@ -17,7 +17,7 @@ jobs:
           python3 - <<'PY'
           from pathlib import Path
           import zipfile
-          root=Path('iRetail_Android_UI_v0.5.8_smartskypos_probe_source/test_reports/vendotek_network')
+          root=Path('test_reports/vendotek_network')
           reports=sorted(root.glob('VENDOTEK_NETWORK_*.zip'))
           if not reports: raise SystemExit('No report archive found')
           p=reports[-1]

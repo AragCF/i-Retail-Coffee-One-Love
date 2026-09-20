@@ -2296,7 +2296,7 @@ class MainActivity : Activity() {
         statusLabel.visibility = if (demoStatusVisible) View.VISIBLE else View.GONE
         if (demoStatusVisible) {
             val total = cartTotal()
-            statusLabel.text = "UI v0.5.34 | $currentScreen | товаров: ${cart.sumOf { it.quantity }} | сумма: $total ₽ | данные: $catalogDataSource | $catalogMessage | карта: Kozen; прочие способы: отключены"
+            statusLabel.text = "UI v0.5.35 | $currentScreen | товаров: ${cart.sumOf { it.quantity }} | сумма: $total ₽ | данные: $catalogDataSource | $catalogMessage | карта: Kozen; прочие способы: отключены"
         }
     }
 

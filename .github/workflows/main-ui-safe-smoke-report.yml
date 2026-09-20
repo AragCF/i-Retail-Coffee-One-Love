@@ -5,7 +5,7 @@ on:
     branches:
       - v0.5.20-main-ui-kozen-payment
     paths:
-      - 'iRetail_Android_UI_v0.5.8_smartskypos_probe_source/test_reports/main_ui_safe_smoke/**'
+      - 'test_reports/main_ui_safe_smoke/**'
 
 permissions:
   contents: read
@@ -20,7 +20,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          ROOT='iRetail_Android_UI_v0.5.8_smartskypos_probe_source/test_reports/main_ui_safe_smoke'
+          ROOT='test_reports/main_ui_safe_smoke'
           ZIP="$(find "$ROOT" -maxdepth 1 -type f -name 'MAIN_UI_SAFE_SMOKE_*.zip' -printf '%T@ %p\n' | sort -nr | head -n1 | cut -d' ' -f2-)"
           echo "LATEST_ZIP=$ZIP"
           echo '===== SUMMARY.txt ====='

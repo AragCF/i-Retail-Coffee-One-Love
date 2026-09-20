@@ -3,7 +3,7 @@ on:
   push:
     branches: [v0.5.33-vendotek-network-access]
     paths:
-      - 'iRetail_Android_UI_v0.5.8_smartskypos_probe_source/tools/VendotekNetworkAccessAudit.ps1'
+      - 'tools/VendotekNetworkAccessAudit.ps1'
       - '.github/workflows/vendotek-network-checks.yml'
 permissions:
   contents: read
@@ -17,7 +17,7 @@ jobs:
         shell: powershell
         run: |
           $ErrorActionPreference='Stop'
-          $p=Join-Path $env:GITHUB_WORKSPACE 'iRetail_Android_UI_v0.5.8_smartskypos_probe_source/tools/VendotekNetworkAccessAudit.ps1'
+          $p=Join-Path $env:GITHUB_WORKSPACE 'tools/VendotekNetworkAccessAudit.ps1'
           if ([IO.File]::ReadAllBytes($p) | Where-Object { $_ -gt 127 }) { throw 'Script is not ASCII-safe.' }
           $tokens=$null; $errors=$null
           [void][Management.Automation.Language.Parser]::ParseFile($p,[ref]$tokens,[ref]$errors)

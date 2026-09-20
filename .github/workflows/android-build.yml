@@ -27,18 +27,20 @@ jobs:
         with:
           gradle-version: '8.7'
 
-      - name: Verify v0.5.34 S1 contract guard
-        working-directory: iRetail_Android_UI_v0.5.8_smartskypos_probe_source
-        run: python3 tools/verify_v0_5_34_s1.py
+      - name: Verify v0.5.35 root layout
+        run: python3 tools/verify_v0_5_35_root_layout.py
+
+      - name: Verify S1 truthful states
+        run: python3 tools/verify_s1_truthful_states.py
 
       - name: Assemble debug APK
-        working-directory: iRetail_Android_UI_v0.5.8_smartskypos_probe_source
+        working-directory: .
         run: gradle --no-daemon --stacktrace assembleDebug
 
       - name: Upload debug APK
         if: success()
         uses: actions/upload-artifact@v4
         with:
-          name: iRetail-v0.5.34-debug-apk
-          path: iRetail_Android_UI_v0.5.8_smartskypos_probe_source/app/build/outputs/apk/debug/*.apk
+          name: iRetail-v0.5.35-debug-apk
+          path: app/build/outputs/apk/debug/*.apk
           if-no-files-found: error

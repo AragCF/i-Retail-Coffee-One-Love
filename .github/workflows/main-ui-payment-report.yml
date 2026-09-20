@@ -5,7 +5,7 @@ on:
     branches:
       - v0.5.21-machine-modes
     paths:
-      - 'iRetail_Android_UI_v0.5.8_smartskypos_probe_source/test_reports/main_ui_payment/**'
+      - 'test_reports/main_ui_payment/**'
 
 jobs:
   report:
@@ -16,7 +16,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          ROOT='iRetail_Android_UI_v0.5.8_smartskypos_probe_source/test_reports/main_ui_payment'
+          ROOT='test_reports/main_ui_payment'
           ZIP="$(find "$ROOT" -maxdepth 1 -type f -name 'MAIN_UI_REAL_PAYMENT_*.zip' -printf '%T@ %p\n' | sort -nr | head -n1 | cut -d' ' -f2-)"
           echo "LATEST_ZIP=$ZIP"
           echo '===== SUMMARY.txt ====='
