@@ -1,7 +1,7 @@
 @echo off
 setlocal EnableExtensions DisableDelayedExpansion
 
-rem i-Retail Android UI v0.5.39 S2 catalog diagnostics
+rem i-Retail Android UI v0.5.40 Retail API curl audit
 rem Windows CLI debug APK build script.
 rem
 rem Important:
@@ -23,7 +23,7 @@ if errorlevel 1 (
     exit /b 9
 )
 
-set "SCRIPT_VERSION=0.5.39-s2-catalog-diagnostics"
+set "SCRIPT_VERSION=0.5.40-api-curl-audit"
 set "DO_CLEAN=0"
 set "DO_HARD_CLEAN=0"
 
