@@ -85,7 +85,7 @@ class OrderSyncDraftBuilder(private val context: Context) {
         file.writeText(report.toString(2), Charsets.UTF_8)
         Log.i(
             TAG,
-            "DRAFT_WRITTEN file=$FILE_NAME products=\${order.items.size} gross=\${money(order.grossAmountMinor)} " +
+            "DRAFT_WRITTEN file=$FILE_NAME products=${order.items.size} gross=${money(order.grossAmountMinor)} " +
                 "linesEqualGross=$sumsMatch sendAllowed=false"
         )
         return OrderSyncDraftResult(file, sumsMatch, unresolved.length())
