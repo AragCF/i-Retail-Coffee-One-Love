@@ -1,0 +1,67 @@
+name: Materialize v0.5.36 S2 catalog money
+
+on:
+  push:
+    branches:
+      - v0.5.36-s2-catalog-money
+    paths:
+      - 'tools/materialize_v0_5_36_s2.py'
+      - 'tools/verify_v0_5_36_s2.py'
+      - 'app/src/main/java/com/coffeeonelove/iretail/ui/Models.kt'
+      - '.github/workflows/materialize-v0.5.36-s2.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  materialize-build-commit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@v4
+        with:
+          ref: v0.5.36-s2-catalog-money
+          fetch-depth: 0
+
+      - name: Materialize S2 changes
+        run: python3 tools/materialize_v0_5_36_s2.py
+
+      - name: Verify diff
+        run: git diff --check
+
+      - name: Verify S1
+        run: python3 tools/verify_s1_truthful_states.py
+
+      - name: Verify S2
+        run: python3 tools/verify_v0_5_36_s2.py
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Gradle 8.7
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.7'
+
+      - name: Assemble debug APK
+        run: gradle --no-daemon --stacktrace assembleDebug
+
+      - name: Commit materialized source
+        shell: bash
+        run: |
+          set -euo pipefail
+          if git diff --quiet; then
+            echo 'No source changes to commit.'
+            exit 0
+          fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add             app/build.gradle             BUILD_WINDOWS_CLI.bat             app/src/main/java/com/coffeeonelove/iretail/ui/IntegrationGateways.kt             app/src/main/java/com/coffeeonelove/iretail/ui/MainActivity.kt
+          git commit -m 'v0.5.36: materialize S2 catalog and monetary precision'
+          git push origin HEAD:v0.5.36-s2-catalog-money

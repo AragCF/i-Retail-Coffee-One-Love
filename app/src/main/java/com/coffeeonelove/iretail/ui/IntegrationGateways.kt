@@ -40,10 +40,13 @@ class IretailContentRepository(private val context: Context) {
         Thread {
             val result = try {
                 val zipBytes = downloadCatalogZip()
-                cacheFile.writeBytes(zipBytes)
                 val parsed = parseCatalogZip(zipBytes)
+                if (parsed.offersCount <= 0 || parsed.products.isEmpty()) {
+                    throw IllegalStateException("Каталог I-Retail не содержит пригодных товаров")
+                }
+                persistValidatedCatalog(zipBytes)
                 CatalogRefreshResult(
-                    success = parsed.products.isNotEmpty(),
+                    success = true,
                     products = parsed.products,
                     message = "I-Retail: загружено ${parsed.products.size} товаров из ${parsed.offersCount} предложений",
                     source = "I-Retail ZIP",
@@ -277,7 +280,8 @@ class IretailContentRepository(private val context: Context) {
         val id = offer.optLong("id", 0L).takeIf { it > 0 }?.toString() ?: return null
         val name = offer.optString("name", "").trim()
         if (name.isBlank()) return null
-        val price = parsePrice(offer.optString("price", "0"))
+        val priceMinor = parsePriceMinor(offer.optString("price", "0"))
+        val price = (priceMinor / 100L).coerceIn(0L, Int.MAX_VALUE.toLong()).toInt()
         val categoryId = offer.optInt("category_id", 0)
         val categoryTitle = categories[categoryId]
         val imageUrl = offer.optJSONArray("pictures")?.optJSONObject(0)?.optString("url")?.takeIf { it.isNotBlank() }
@@ -295,14 +299,19 @@ class IretailContentRepository(private val context: Context) {
             heat = category == "micromarket" && offer.optInt("microwave_time", 0) > 0,
             gcode = gcode,
             imageUrl = imageUrl,
-            categoryTitle = categoryTitle
+            categoryTitle = categoryTitle,
+            priceMinor = priceMinor
         )
     }
 
-    private fun parsePrice(value: String): Int = try {
-        BigDecimal(value.replace(',', '.')).setScale(0, RoundingMode.HALF_UP).toInt()
+    private fun parsePriceMinor(value: String): Long = try {
+        BigDecimal(value.replace(',', '.'))
+            .setScale(2, RoundingMode.HALF_UP)
+            .movePointRight(2)
+            .longValueExact()
+            .coerceAtLeast(0L)
     } catch (_: Exception) {
-        0
+        0L
     }
 
     private fun detectVolume(name: String, offer: JSONObject): String {
@@ -329,7 +338,8 @@ class IretailContentRepository(private val context: Context) {
             .mapNotNull { parseAttributes(it.groupValues[1]) }
             .mapNotNull { attrs ->
                 val caption = attrs["caption"]?.trim().orEmpty()
-                val price = attrs["price"]?.substringBefore('.')?.toIntOrNull() ?: return@mapNotNull null
+                val priceMinor = parsePriceMinor(attrs["price"].orEmpty())
+                val price = (priceMinor / 100L).coerceIn(0L, Int.MAX_VALUE.toLong()).toInt()
                 val offerId = attrs["offerId"]?.trim().orEmpty()
                 if (caption.isBlank() || offerId.isBlank()) return@mapNotNull null
                 val volume = Regex("(\\d+)\\s*мл", RegexOption.IGNORE_CASE).find(caption)?.value?.replace(" ", "") ?: ""
@@ -349,17 +359,45 @@ class IretailContentRepository(private val context: Context) {
                     category = category,
                     available = true,
                     heat = category == "micromarket",
-                    gcode = if (category == "coffee") "Coffee-$offerId" else null
+                    gcode = if (category == "coffee") "Coffee-$offerId" else null,
+                    priceMinor = priceMinor
                 )
             }
             .filter { it.category == "coffee" || it.category == "micromarket" }
-            .distinctBy { it.name.lowercase(Locale.ROOT) + "|" + it.price + "|" + it.volume }
+            .distinctBy { it.name.lowercase(Locale.ROOT) + "|" + it.priceMinor + "|" + it.volume }
             .toMutableList()
 
         if (offers.none { it.category == "micromarket" }) {
             offers.add(Product("local-food-1", "local-food-1", "Сэндвич", "1 шт.", 180, "micromarket", true, heat = true))
         }
         return offers.ifEmpty { fallbackProducts() }
+    }
+
+    private fun persistValidatedCatalog(zipBytes: ByteArray) {
+        val candidate = File(context.filesDir, "iretail_catalog_cache.zip.new")
+        val backup = File(context.filesDir, "iretail_catalog_cache.zip.bak")
+        candidate.delete()
+        backup.delete()
+
+        candidate.writeBytes(zipBytes)
+        val reparsed = parseCatalogZip(candidate.readBytes())
+        if (reparsed.offersCount <= 0 || reparsed.products.isEmpty()) {
+            candidate.delete()
+            throw IllegalStateException("Проверка нового каталога после записи не пройдена")
+        }
+
+        if (cacheFile.exists() && !cacheFile.renameTo(backup)) {
+            candidate.delete()
+            throw IllegalStateException("Не удалось сохранить резервную копию каталога")
+        }
+
+        if (!candidate.renameTo(cacheFile)) {
+            if (backup.exists()) backup.renameTo(cacheFile)
+            candidate.delete()
+            throw IllegalStateException("Не удалось заменить кэш каталога")
+        }
+
+        backup.delete()
     }
 
     private fun readAsset(path: String): String = try {
@@ -442,18 +480,23 @@ class LocalRetailOrderGateway {
     private var sequence = 1000
     private var activeOrder: RuntimeOrder? = null
 
-    fun createOrder(lines: List<CartLine>, grossAmount: Int, ibonusDiscountSum: Int = 0, loyalty: LocalLoyaltyGateway? = null): RuntimeOrder {
+    fun createOrder(lines: List<CartLine>, grossAmountMinor: Long, ibonusDiscountMinor: Long = 0L, loyalty: LocalLoyaltyGateway? = null): RuntimeOrder {
         val number = SimpleDateFormat("yyyyMMdd-HHmmss", Locale.ROOT).format(Date()) + "-" + (++sequence)
-        val payableAmount = (grossAmount - ibonusDiscountSum).coerceAtLeast(0)
+        val safeGrossMinor = grossAmountMinor.coerceAtLeast(0L)
+        val safeDiscountMinor = ibonusDiscountMinor.coerceIn(0L, safeGrossMinor)
+        val payableMinor = (safeGrossMinor - safeDiscountMinor).coerceAtLeast(0L)
         val order = RuntimeOrder(
             localId = sequence.toString(),
             externalNumber = number,
-            amount = payableAmount,
+            amount = (payableMinor / 100L).coerceAtMost(Int.MAX_VALUE.toLong()).toInt(),
             items = lines.map { CartLine(it.product, it.quantity, it.ownCup, it.syrupAdded, it.syrupName) },
-            grossAmount = grossAmount,
-            ibonusDiscountSum = ibonusDiscountSum.coerceAtLeast(0),
+            grossAmount = (safeGrossMinor / 100L).coerceAtMost(Int.MAX_VALUE.toLong()).toInt(),
+            ibonusDiscountSum = (safeDiscountMinor / 100L).coerceAtMost(Int.MAX_VALUE.toLong()).toInt(),
             loyaltyExternalId = loyalty?.externalId,
-            loyaltyBalanceLabel = loyalty?.balanceLabel
+            loyaltyBalanceLabel = loyalty?.balanceLabel,
+            amountMinor = payableMinor,
+            grossAmountMinor = safeGrossMinor,
+            ibonusDiscountMinor = safeDiscountMinor
         )
         activeOrder = order
         return order
