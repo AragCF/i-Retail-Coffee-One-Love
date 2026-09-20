@@ -37,7 +37,7 @@ if errorlevel 1 (
 )
 
 set "LATEST_ZIP="
-for /f "delims=" %%F in ('powershell -NoProfile -Command "$f=Get-ChildItem -LiteralPath 'test_reports\s23_acceptance' -Filter 'S23_ACCEPTANCE_*.zip' -File -ErrorAction SilentlyContinue ^| Sort-Object LastWriteTime -Descending ^| Select-Object -First 1; if($f){$f.FullName}"') do if not defined LATEST_ZIP set "LATEST_ZIP=%%F"
+for /f "delims=" %%F in ('dir /b /a-d /o-d "test_reports\s23_acceptance\S23_ACCEPTANCE_*.zip" 2^>nul') do if not defined LATEST_ZIP set "LATEST_ZIP=%CD%\test_reports\s23_acceptance\%%F"
 
 if not defined LATEST_ZIP (
   echo [ERROR] No S23_ACCEPTANCE_*.zip found.
