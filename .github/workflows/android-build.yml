@@ -39,8 +39,8 @@ jobs:
       - name: Verify S3 dry-run order draft
         run: python3 tools/verify_s3_order_draft.py
 
-      - name: Verify v0.5.39 S2 catalog diagnostics
-        run: python3 tools/verify_v0_5_39_s2_diagnostics.py
+      - name: Verify S2 catalog diagnostics
+        run: python3 tools/verify_s2_catalog_diagnostics.py
 
       - name: Verify v0.5.40 Retail API curl audit
         run: python3 tools/verify_v0_5_40_api_curl_audit.py
