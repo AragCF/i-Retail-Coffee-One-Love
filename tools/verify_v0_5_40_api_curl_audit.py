@@ -15,8 +15,8 @@ config = json.loads((ROOT / "app/src/main/assets/content/iretail-api.json").read
 joined = "\n".join([audit_bat, publish_bat, audit_ps, safe_ps, syntax_ps])
 
 checks = {
-    "versionCode 40": "versionCode 40" in build,
-    "versionName 0.5.40": "versionName '0.5.40-api-curl-audit'" in build,
+    "versionCode 41": "versionCode 41" in build,
+    "versionName 0.5.40": "versionName '0.5.41-api-curl-audit-fix'" in build,
     "canonical API docs URL": "https://my.i-retail.com/api/apidoc/actual" in audit_ps,
     "docs index snapshot": '"index.html"' in audit_ps,
     "docs api_data snapshot": '"api_data.js"' in audit_ps,
@@ -33,6 +33,8 @@ checks = {
     "one-command audit auto publishes": "RAPI_02_PUBLISH_LATEST_API_AUDIT.bat" in audit_bat,
     "unpacked audit ignored": "test_reports/retail_api_curl/RAPI_CURL_*/" in gitignore,
     "PowerShell syntax checker exists": "Parser]::ParseFile" in syntax_ps,
+    "no parenthesized if runtime trap": "size=(if(" not in audit_ps.replace(" ", ""),
+    "doc size uses explicit assignment": "$docSize = 0" in audit_ps and "size = $docSize" in audit_ps,
 }
 
 for key in ("login", "password", "client_secret"):
@@ -45,6 +47,6 @@ for name, ok in checks.items():
     print(("[OK] " if ok else "[FAIL] ") + name)
 
 if failed:
-    raise SystemExit("v0.5.40 API curl audit guard failed: " + ", ".join(failed))
+    raise SystemExit("v0.5.41 API curl audit guard failed: " + ", ".join(failed))
 
-print(f"[OK] v0.5.40 API curl audit guard: {len(checks)} checks passed")
+print(f"[OK] v0.5.41 API curl audit guard: {len(checks)} checks passed")
