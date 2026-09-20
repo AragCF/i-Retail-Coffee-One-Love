@@ -27,8 +27,8 @@ jobs:
         with:
           gradle-version: '8.7'
 
-      - name: Verify v0.5.35 root layout
-        run: python3 tools/verify_v0_5_35_root_layout.py
+      - name: Verify repository root layout
+        run: python3 tools/verify_root_layout.py
 
       - name: Verify S1 truthful states
         run: python3 tools/verify_s1_truthful_states.py
