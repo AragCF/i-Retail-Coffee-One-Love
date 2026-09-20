@@ -2018,7 +2018,16 @@ class MainActivity : Activity() {
             toast("Нельзя оплатить пустой заказ")
             return
         }
-        orderGateway.createOrder(cart, cartGrossTotalMinor(), orderDiscountMinor(), loyaltyGateway)
+        val order = orderGateway.createOrder(cart, cartGrossTotalMinor(), orderDiscountMinor(), loyaltyGateway)
+        try {
+            val draft = OrderSyncDraftBuilder(this).write(order)
+            android.util.Log.i(
+                "IretailOrderDraft",
+                "CHECKOUT_DRAFT sumsMatch=${draft.sumsMatch} unresolved=${draft.unresolvedCount} sendAllowed=false"
+            )
+        } catch (e: Exception) {
+            android.util.Log.e("IretailOrderDraft", "DRAFT_ERROR ${e.javaClass.simpleName}: ${e.message}")
+        }
         openScreen("PAYMENT_METHOD_ALL")
     }
 
@@ -2321,7 +2330,7 @@ class MainActivity : Activity() {
         statusLabel.visibility = if (demoStatusVisible) View.VISIBLE else View.GONE
         if (demoStatusVisible) {
             val total = cartTotalMinor()
-            statusLabel.text = "UI v0.5.36 | $currentScreen | товаров: ${cart.sumOf { it.quantity }} | сумма: $total ₽ | данные: $catalogDataSource | $catalogMessage | карта: Kozen; прочие способы: отключены"
+            statusLabel.text = "UI v0.5.37 | $currentScreen | товаров: ${cart.sumOf { it.quantity }} | сумма: $total ₽ | данные: $catalogDataSource | $catalogMessage | карта: Kozen; прочие способы: отключены"
         }
     }
 
