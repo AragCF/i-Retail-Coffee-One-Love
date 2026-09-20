@@ -11,8 +11,8 @@ android {
         applicationId 'com.coffeeonelove.iretail'
         minSdk 23
         targetSdk 35
-        versionCode 40
-        versionName '0.5.40-api-curl-audit'
+        versionCode 41
+        versionName '0.5.41-api-curl-audit-fix'
     }
 
     compileOptions {
