@@ -48,6 +48,9 @@ jobs:
       - name: Verify TLS chain probe
         run: python3 tools/verify_tls_chain_probe.py
 
+      - name: Verify v0.5.46 ISRG Root X1 compatibility
+        run: python3 tools/verify_v0_5_46_isrg_root_x1_compat.py
+
       - name: Verify Retail API curl audit
         run: python3 tools/verify_api_curl_audit.py
 
@@ -67,6 +70,6 @@ jobs:
         if: success()
         uses: actions/upload-artifact@v4
         with:
-          name: iRetail-v0.5.45-debug-apk
+          name: iRetail-v0.5.46-debug-apk
           path: app/build/outputs/apk/debug/*.apk
           if-no-files-found: error
