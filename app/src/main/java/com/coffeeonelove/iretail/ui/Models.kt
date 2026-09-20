@@ -11,7 +11,8 @@ data class Product(
     val heat: Boolean = false,
     val gcode: String? = null,
     val imageUrl: String? = null,
-    val categoryTitle: String? = null
+    val categoryTitle: String? = null,
+    val priceMinor: Long = price.toLong() * 100L
 )
 
 data class CartLine(
@@ -54,7 +55,10 @@ data class RuntimeOrder(
     val loyaltyBalanceLabel: String? = null,
     var status: OrderStatus = OrderStatus.CREATED,
     var paymentMethod: PaymentMethod? = null,
-    var fiscalReceiptUrl: String? = null
+    var fiscalReceiptUrl: String? = null,
+    val amountMinor: Long = amount.toLong() * 100L,
+    val grossAmountMinor: Long = grossAmount.toLong() * 100L,
+    val ibonusDiscountMinor: Long = ibonusDiscountSum.toLong() * 100L
 )
 
 data class DeviceCommandResult(
