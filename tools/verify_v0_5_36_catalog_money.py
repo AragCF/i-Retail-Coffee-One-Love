@@ -34,4 +34,6 @@ require("downloaded catalog is parsed before cache write", 0 <= parse_at < write
 require("downloaded catalog is validated before cache write", 0 <= empty_at < write_at)
 require("UI displays current S2 version", "UI v0.5.36" in main)
 
+require("Money unit test exists", (ROOT / "app/src/test/java/com/coffeeonelove/iretail/ui/MoneyTest.kt").is_file())
+
 print(f"[OK] v0.5.36 S2 catalog/money guard: {len(checks)} checks passed")
