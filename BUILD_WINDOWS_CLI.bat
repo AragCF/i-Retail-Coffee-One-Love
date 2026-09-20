@@ -1,7 +1,7 @@
 @echo off
 setlocal EnableExtensions DisableDelayedExpansion
 
-rem i-Retail Android UI v0.5.44 S2 TLS chain probe
+rem i-Retail Android UI v0.5.45 S2 TLS chain capture fix
 rem Windows CLI debug APK build script.
 rem
 rem Important:
@@ -23,7 +23,7 @@ if errorlevel 1 (
     exit /b 9
 )
 
-set "SCRIPT_VERSION=0.5.44-s2-tls-chain-probe"
+set "SCRIPT_VERSION=0.5.45-s2-tls-chain-capture-fix"
 set "DO_CLEAN=0"
 set "DO_HARD_CLEAN=0"
 
