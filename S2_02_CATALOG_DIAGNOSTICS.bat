@@ -3,7 +3,7 @@ setlocal EnableExtensions DisableDelayedExpansion
 cd /d "%~dp0"
 if errorlevel 1 exit /b 10
 
-set "EXPECTED_BRANCH=v0.5.43-s2-jl22-ssl-diagnostics"
+set "EXPECTED_BRANCH=v0.5.44-s2-tls-chain-probe"
 set "GIT_BRANCH="
 set "GIT_SHA="
 
@@ -113,12 +113,12 @@ mkdir "%OUT%" >nul 2>nul
 
 %ADB_CMD% logcat -c
 %ADB_CMD% shell am force-stop com.coffeeonelove.iretail
-%ADB_CMD% shell am start -n com.coffeeonelove.iretail/.ui.MainActivity --ez real_pos_enabled false > "%OUT%\05_start.txt" 2>&1
+%ADB_CMD% shell am start -n com.coffeeonelove.iretail/.ui.MainActivity --ez real_pos_enabled false --ez tls_chain_probe true > "%OUT%\05_start.txt" 2>&1
 
 echo [INFO] Waiting 35 seconds for I-Retail catalog refresh...
 timeout /t 35 /nobreak >nul
 
-%ADB_CMD% logcat -d -v threadtime IretailCatalog:I AndroidRuntime:E *:S > "%OUT%\06_catalog_logcat.txt" 2>&1
+%ADB_CMD% logcat -d -v threadtime IretailCatalog:I IretailTls:I IretailTls:E AndroidRuntime:E *:S > "%OUT%\06_catalog_logcat.txt" 2>&1
 %ADB_CMD% shell dumpsys package com.coffeeonelove.iretail > "%OUT%\07_package.txt" 2>&1
 %ADB_CMD% shell ping -c 1 my.i-retail.com > "%OUT%\08_ping_api_host.txt" 2>&1
 %ADB_CMD% shell getprop net.dns1 > "%OUT%\09_dns1.txt" 2>&1
@@ -134,7 +134,7 @@ findstr /C:"REFRESH success=true source=I-Retail ZIP " "%OUT%\06_catalog_logcat.
 if not errorlevel 1 set "LIVE=YES"
 
 (
-  echo i-Retail v0.5.43 S2 JL22 SSL diagnostics
+  echo i-Retail v0.5.44 S2 TLS chain probe
   echo Timestamp=%STAMP%
   echo GitBranch=%GIT_BRANCH%
   echo GitSHA=%GIT_SHA%
@@ -145,6 +145,7 @@ if not errorlevel 1 set "LIVE=YES"
   echo failureStage=authentication^|download^|parse^|validate^|cache^|unknown
   echo failureReason=REJECTED^|HTTP_NNN^|UNKNOWN_HOST^|TIMEOUT^|CONNECT^|SSL_HANDSHAKE^|SSL_PEER_UNVERIFIED^|SSL_PROTOCOL^|SSL_KEY^|SSL^|JSON^|...
   echo failureDetail=exception-class-chain without secrets
+  echo TLS chain lines: IretailTls CHAIN / CERT / SYSTEM_TRUST
   echo.
   echo No password, access token or client secret should be present in this report.
 ) > "%OUT%\SUMMARY.txt"

@@ -182,6 +182,9 @@ class MainActivity : Activity() {
         hideSystemUi()
         contentRepository = IretailContentRepository(this)
         cardPaymentClient = KozenAoaPaymentClient(this)
+        if (intent?.getBooleanExtra("tls_chain_probe", false) == true) {
+            IretailTlsChainProbe.runAsync(this)
+        }
         catalog = contentRepository.loadProducts()
         paymentMethods = contentRepository.loadPaymentMethods()
         buildRootView()
