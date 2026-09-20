@@ -10,6 +10,7 @@ checks = {
     "versionName 0.5.38": "versionName '0.5.38-s2-s3-acceptance'" in build,
     "combined audit exists": "SAFE S2 + S3 ACCEPTANCE" in audit,
     "audit forbids payment selection": "DO NOT choose card, cash or online payment" in audit,
+    "audit forces real POS off": "--ez real_pos_enabled false" in audit,
     "audit extracts local draft": "order_sync_draft.json" in audit,
     "audit parses JSON with PowerShell": "ConvertFrom-Json" in audit,
     "audit requires DRY_RUN_ONLY": "$p.mode -ne 'DRY_RUN_ONLY'" in audit,
