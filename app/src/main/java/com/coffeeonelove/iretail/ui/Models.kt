@@ -74,7 +74,9 @@ data class CatalogRefreshResult(
     val source: String,
     val categoriesCount: Int = 0,
     val offersCount: Int = 0,
-    val channelId: String = ""
+    val channelId: String = "",
+    val failureStage: String? = null,
+    val failureReason: String? = null
 )
 
 data class LoyaltyLookupResult(
