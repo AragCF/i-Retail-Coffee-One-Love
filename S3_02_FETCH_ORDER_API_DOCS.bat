@@ -3,7 +3,7 @@ setlocal EnableExtensions DisableDelayedExpansion
 cd /d "%~dp0"
 if errorlevel 1 exit /b 10
 
-set "EXPECTED_BRANCH=v0.5.47-s3-order-contract-audit"
+set "EXPECTED_BRANCH=v0.5.48-s3-order-contract-audit-fix"
 set "GIT_BRANCH="
 
 where git >nul 2>nul
@@ -45,7 +45,7 @@ if errorlevel 1 (
 )
 
 echo ============================================================
-echo i-Retail v0.5.47 - S3 ORDER CONTRACT DOCUMENTATION AUDIT
+echo i-Retail v0.5.48 - S3 ORDER CONTRACT DOCUMENTATION AUDIT
 echo ============================================================
 echo [1/2] Fetch current order-related API documentation.
 echo [2/2] Package and publish evidence to Git.
