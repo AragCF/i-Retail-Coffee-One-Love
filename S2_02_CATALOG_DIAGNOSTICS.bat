@@ -3,7 +3,7 @@ setlocal EnableExtensions DisableDelayedExpansion
 cd /d "%~dp0"
 if errorlevel 1 exit /b 10
 
-set "EXPECTED_BRANCH=v0.5.45-s2-tls-chain-capture-fix"
+set "EXPECTED_BRANCH=v0.5.46-s2-isrg-root-x1-compat"
 set "GIT_BRANCH="
 set "GIT_SHA="
 
@@ -118,7 +118,7 @@ mkdir "%OUT%" >nul 2>nul
 echo [INFO] Waiting 35 seconds for I-Retail catalog refresh...
 timeout /t 35 /nobreak >nul
 
-%ADB_CMD% logcat -d -v threadtime IretailCatalog:I IretailTls:V AndroidRuntime:E *:S > "%OUT%\06_catalog_logcat.txt" 2>&1
+%ADB_CMD% logcat -d -v threadtime IretailCatalog:I IretailTls:V IretailTlsCompat:I AndroidRuntime:E *:S > "%OUT%\06_catalog_logcat.txt" 2>&1
 %ADB_CMD% shell dumpsys package com.coffeeonelove.iretail > "%OUT%\07_package.txt" 2>&1
 %ADB_CMD% shell ping -c 1 my.i-retail.com > "%OUT%\08_ping_api_host.txt" 2>&1
 %ADB_CMD% shell getprop net.dns1 > "%OUT%\09_dns1.txt" 2>&1
@@ -134,7 +134,7 @@ findstr /C:"REFRESH success=true source=I-Retail ZIP " "%OUT%\06_catalog_logcat.
 if not errorlevel 1 set "LIVE=YES"
 
 (
-  echo i-Retail v0.5.45 S2 TLS chain capture fix
+  echo i-Retail v0.5.46 S2 ISRG Root X1 compatibility
   echo Timestamp=%STAMP%
   echo GitBranch=%GIT_BRANCH%
   echo GitSHA=%GIT_SHA%
@@ -146,6 +146,7 @@ if not errorlevel 1 set "LIVE=YES"
   echo failureReason=REJECTED^|HTTP_NNN^|UNKNOWN_HOST^|TIMEOUT^|CONNECT^|SSL_HANDSHAKE^|SSL_PEER_UNVERIFIED^|SSL_PROTOCOL^|SSL_KEY^|SSL^|JSON^|...
   echo failureDetail=exception-class-chain without secrets
   echo TLS chain lines: IretailTls CHAIN / CERT / SYSTEM_TRUST
+  echo Compatibility lines: IretailTlsCompat LEGACY_ROOT_APPLIED / SYSTEM_TRUST_FAIL_EXTRA_ROOT_OK
   echo.
   echo No password, access token or client secret should be present in this report.
 ) > "%OUT%\SUMMARY.txt"
