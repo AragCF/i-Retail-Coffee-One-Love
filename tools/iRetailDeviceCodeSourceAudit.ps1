@@ -87,12 +87,17 @@ try {
     })
     $authRaw = Join-Path $tmp "auth.raw"
 
-    & curl.exe --silent --show-error --location --connect-timeout 15 --max-time 45 --retry 0 --request POST ^
-        --header "Content-Type: application/x-www-form-urlencoded; charset=UTF-8" ^
-        --header "Accept: application/json, */*" ^
-        --data-binary ("@" + $authForm) ^
-        --output $authRaw ^
-        ($baseUrl + "user/authentication") > $null
+    $authArgs = @(
+        "--silent","--show-error","--location",
+        "--connect-timeout","15","--max-time","45","--retry","0",
+        "--request","POST",
+        "--header","Content-Type: application/x-www-form-urlencoded; charset=UTF-8",
+        "--header","Accept: application/json, */*",
+        "--data-binary",("@" + $authForm),
+        "--output",$authRaw,
+        ($baseUrl + "user/authentication")
+    )
+    & curl.exe @authArgs > $null
     if ($LASTEXITCODE -ne 0) { throw "Authentication curl failed" }
 
     $auth = Get-Content -Raw -LiteralPath $authRaw -Encoding UTF8 | ConvertFrom-Json

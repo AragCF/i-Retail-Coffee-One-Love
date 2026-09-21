@@ -1,6 +1,6 @@
 # i-Retail Coffee One Love
 
-Текущая рабочая версия: **0.5.66-s3-device-code-source-audit**.
+Текущая рабочая версия: **0.5.67-s3-device-code-source-audit-fix**.
 
 Android-проект теперь расположен непосредственно в корне репозитория. Дополнительный каталог
 `iRetail_Android_UI_v0.5.8_smartskypos_probe_source` больше не используется.
@@ -479,3 +479,10 @@ v0.5.62 исправляет только guard. Статус контракта
 `S3_17_AUDIT_DEVICE_CODE_SOURCE.bat`
 
 Никакого повторного `device/register` в этом выпуске нет.
+
+
+## Исправление v0.5.67
+
+В v0.5.66 новый read-only аудит источника device_code не дошёл до запуска: PowerShell parser правильно остановил сценарий из-за использования cmd-переноса строк `^` внутри файла `.ps1`.
+
+В v0.5.67 блок авторизации переведён на обычный массив аргументов PowerShell. Сетевой набор не менялся: только authentication, `device/get-by-channel-id` и `device/get-device-info`. Повторного `device/register` нет.
