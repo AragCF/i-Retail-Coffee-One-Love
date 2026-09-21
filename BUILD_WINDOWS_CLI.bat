@@ -1,7 +1,7 @@
 @echo off
 setlocal EnableExtensions DisableDelayedExpansion
 
-rem i-Retail Android UI v0.5.51 S3 device/service reconciliation
+rem i-Retail Android UI v0.5.52 S3 device/service summary fix
 rem Windows CLI debug APK build script.
 rem
 rem Important:
@@ -23,7 +23,7 @@ if errorlevel 1 (
     exit /b 9
 )
 
-set "SCRIPT_VERSION=0.5.51-s3-device-service-reconciliation"
+set "SCRIPT_VERSION=0.5.52-s3-device-service-summary-fix"
 set "DO_CLEAN=0"
 set "DO_HARD_CLEAN=0"
 
