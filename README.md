@@ -1,6 +1,6 @@
 # i-Retail Coffee One Love
 
-Текущая рабочая версия: **0.5.72-s3-admin-device-doc-analysis**.
+Текущая рабочая версия: **0.5.73-s3-admin-device-inventory-audit**.
 
 Android-проект теперь расположен непосредственно в корне репозитория. Дополнительный каталог
 `iRetail_Android_UI_v0.5.8_smartskypos_probe_source` больше не используется.
@@ -554,3 +554,21 @@ v0.5.72 делает только публичные GET-запросы к `api/
 - требуется ли предварительная настройка в кабинете до вызова register.
 
 Рабочий API и авторизация не вызываются.
+
+
+## S3 — read-only административная инвентаризация устройств
+
+Документация v0.5.72 доказала, что кассы создаются отдельным административным методом `/api/admin/device/create`, а регистрация только подключает уже существующее устройство.
+
+Перед любым созданием v0.5.73 выполняет только чтение:
+- `admin/device/get-count-device-in-channel`;
+- `admin/device/find`;
+- `admin/device/get-device-info`;
+- `admin/device/get-list-device-involved-in-orders`.
+
+Цель — выяснить, существуют ли уже `workplace_cashier` / `self_service_terminal`, и что представляет собой старый configured device_id 6287.
+
+Запуск:
+`S3_22_AUDIT_ADMIN_DEVICE_INVENTORY.bat`
+
+Create/update/repeat-activation/remove/register/order/payment/shift mutation не вызываются.

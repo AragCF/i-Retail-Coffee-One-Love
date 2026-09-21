@@ -28,3 +28,4 @@ test_reports/s3_device_register/DEVICE_REGISTER_PROBE_1_0_1.marker.json
 test_reports/s3_device_code_source/S3_DEVICE_CODE_SOURCE_*/
 test_reports/s3_external_register/S3_EXTERNAL_REGISTER_*/
 test_reports/s3_external_register/EXTERNAL_SYSTEM_REGISTER_PROBE_1_0_0.marker.json
+test_reports/s3_admin_device_inventory/S3_ADMIN_DEVICE_INVENTORY_*/
