@@ -1,0 +1,39 @@
+{
+  "snapshot_date": "2026-09-21",
+  "channel_id": "5676",
+  "profile_id": "2512",
+  "currency_id": "643",
+  "employee_id_candidate": 3405,
+  "card_service_in_slug_candidate": "external_plastic_cards",
+  "configured_device_snapshot": {
+    "device_id": 6287,
+    "cashbox_proven": false,
+    "device_info_result": "error.cashboxNotFind"
+  },
+  "server_device_snapshot": {
+    "device_id": 3476,
+    "type": "coffee_machine",
+    "condition": "offline",
+    "last_ping_date": "2026-05-29",
+    "current_for_new_order": false
+  },
+  "shift_snapshot": {
+    "id": 164570,
+    "status_id": 1,
+    "check_counter": 15,
+    "cashier_opening_id": 3405,
+    "time_opening_date": "2026-05-29",
+    "active_more_one_day": true,
+    "current_for_new_order": false
+  },
+  "tax": {
+    "id": 29259,
+    "rate": 0,
+    "tax_included_in_price": false,
+    "number_in_printer": 4
+  },
+  "notes": [
+    "Snapshot contains only non-secret read-only evidence.",
+    "No value in this file authorizes device registration, shift mutation, payment creation or order synchronization."
+  ]
+}

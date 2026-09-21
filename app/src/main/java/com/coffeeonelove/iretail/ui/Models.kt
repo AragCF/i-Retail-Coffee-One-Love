@@ -12,7 +12,13 @@ data class Product(
     val gcode: String? = null,
     val imageUrl: String? = null,
     val categoryTitle: String? = null,
-    val priceMinor: Long = price.toLong() * 100L
+    val priceMinor: Long = price.toLong() * 100L,
+    val idYml: String? = null,
+    val typeId: Int? = null,
+    val unitId: Int? = null,
+    val catalogCurrency: String? = null,
+    val basePriceMinor: Long? = null,
+    val taxId: Int? = null
 )
 
 data class CartLine(

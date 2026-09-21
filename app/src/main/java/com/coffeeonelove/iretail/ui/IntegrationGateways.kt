@@ -339,6 +339,7 @@ class IretailContentRepository(private val context: Context) {
         val name = offer.optString("name", "").trim()
         if (name.isBlank()) return null
         val priceMinor = parsePriceMinor(offer.optString("price", "0"))
+        val basePriceMinor = parsePriceMinor(offer.optString("base_price", offer.optString("price", "0")))
         val price = (priceMinor / 100L).coerceIn(0L, Int.MAX_VALUE.toLong()).toInt()
         val categoryId = offer.optInt("category_id", 0)
         val categoryTitle = categories[categoryId]
@@ -358,7 +359,13 @@ class IretailContentRepository(private val context: Context) {
             gcode = gcode,
             imageUrl = imageUrl,
             categoryTitle = categoryTitle,
-            priceMinor = priceMinor
+            priceMinor = priceMinor,
+            idYml = offer.optString("id_yml", "").takeIf { it.isNotBlank() && it != "null" },
+            typeId = offer.optInt("type_id", 0).takeIf { it > 0 },
+            unitId = offer.optInt("unit_id", 0).takeIf { it > 0 },
+            catalogCurrency = offer.optString("currency_id", "").takeIf { it.isNotBlank() && it != "null" },
+            basePriceMinor = basePriceMinor,
+            taxId = offer.optInt("tax_id", 0).takeIf { it > 0 }
         )
     }
 
