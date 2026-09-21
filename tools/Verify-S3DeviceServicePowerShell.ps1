@@ -31,6 +31,14 @@ if($text -notmatch '&\s*curl\.exe'){
     Write-Host "[FAIL] curl.exe is not invoked explicitly."
     exit 4
 }
+if($text -match 'profile_services\s*=\s*@\(\$profileServiceItems\)' -or $text -match 'used_services\s*=\s*@\(\$usedServiceItems\)'){
+    Write-Host "[FAIL] Windows PowerShell generic-list array binding pattern detected."
+    exit 5
+}
+if($text -notmatch '\$profileServiceItems\.ToArray\(\)' -or $text -notmatch '\$usedServiceItems\.ToArray\(\)'){
+    Write-Host "[FAIL] Generic service lists are not converted with ToArray()."
+    exit 6
+}
 
 Write-Host "[OK] S3 device/service PowerShell syntax/runtime-pattern checks passed."
 exit 0

@@ -371,6 +371,9 @@ try {
     [void][int]::TryParse([string]$config.device_id,[ref]$configuredDeviceIdValue)
     $configuredDeviceFound = ($deviceIds -contains $configuredDeviceIdValue)
 
+    $profileServiceArray = $profileServiceItems.ToArray()
+    $usedServiceArray = $usedServiceItems.ToArray()
+
     $summary = [ordered]@{
         audit="i-Retail S3 device/service reconciliation"
         timestamp=$stamp
@@ -386,8 +389,8 @@ try {
         device_ids=$deviceIdsLimited
         configured_device_found=$configuredDeviceFound
         device_checks=$deviceChecks
-        profile_services=@($profileServiceItems)
-        used_services=@($usedServiceItems)
+        profile_services=$profileServiceArray
+        used_services=$usedServiceArray
         order_send_allowed=$false
         automatic_device_selection=$false
         network_actions="authentication + semantically read-only reconciliation POSTs only"
@@ -416,8 +419,8 @@ try {
         "DevicesFound=" + $deviceIds.Count,
         "DevicesChecked=" + $deviceIdsLimited.Count,
         "ConfiguredDeviceFound=" + $configuredDeviceFound,
-        "ProfileServiceSlugs=" + ((@($profileServiceItems | ForEach-Object { $_.slug }) | Sort-Object -Unique) -join ","),
-        "UsedServiceSlugs=" + ((@($usedServiceItems | ForEach-Object { $_.slug }) | Sort-Object -Unique) -join ","),
+        "ProfileServiceSlugs=" + ((@($profileServiceArray | ForEach-Object { $_.slug }) | Sort-Object -Unique) -join ","),
+        "UsedServiceSlugs=" + ((@($usedServiceArray | ForEach-Object { $_.slug }) | Sort-Object -Unique) -join ","),
         "OrderSendAllowed=NO",
         "AutomaticDeviceSelection=NO"
     )
@@ -444,8 +447,8 @@ try {
     Write-Host "[SUCCESS] S3 device/service reconciliation completed."
     Write-Host ("[REPORT] " + $zip)
     Write-Host ("[DEVICES] found=" + $deviceIds.Count + " checked=" + $deviceIdsLimited.Count + " configuredFound=" + $configuredDeviceFound)
-    Write-Host ("[PROFILE SERVICES] " + ((@($profileServiceItems | ForEach-Object { $_.slug }) | Sort-Object -Unique) -join ","))
-    Write-Host ("[USED SERVICES] " + ((@($usedServiceItems | ForEach-Object { $_.slug }) | Sort-Object -Unique) -join ","))
+    Write-Host ("[PROFILE SERVICES] " + ((@($profileServiceArray | ForEach-Object { $_.slug }) | Sort-Object -Unique) -join ","))
+    Write-Host ("[USED SERVICES] " + ((@($usedServiceArray | ForEach-Object { $_.slug }) | Sort-Object -Unique) -join ","))
     exit 0
 }
 finally {
