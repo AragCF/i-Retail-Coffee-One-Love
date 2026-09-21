@@ -88,7 +88,7 @@ function Invoke-CurlToFile([string]$Url,[string]$Output,[string[]]$Extra,[string
 function Is-SensitiveKey([string]$Key,[bool]$RedactNames = $false) {
     if ([string]::IsNullOrWhiteSpace($Key)) { return $false }
     if ($RedactNames -and $Key -match '(?i)^(name|title|description)$') { return $true }
-    return ($Key -match '(?i)^(password|client_secret|secret|access_token|refresh_token|token|pin|device_code|external_code|code|phone|email|first_name|last_name|patronymic|full_name|username|address|inn|serial|serial_number|fn_serial|kkt_serial|mac|ip|url_ofd)$')
+    return ($Key -match '(?i)(password$|secret$|token$|pin$|device_code$|external_code$|^code$|phone$|email$|first_name$|last_name$|patronymic$|full_name$|username$|address$|^inn$|serial$|serial_number$|fn_serial$|kkt_serial$|^mac$|^ip$|url_ofd$|account_id$|user_id$|offline_shop_id$)')
 }
 
 function Sanitize-Value($Value,[string]$Key = "",[bool]$RedactNames = $false) {
