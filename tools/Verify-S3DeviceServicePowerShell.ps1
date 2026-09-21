@@ -39,6 +39,7 @@ if($text -notmatch '\$profileServiceItems\.ToArray\(\)' -or $text -notmatch '\$u
     Write-Host "[FAIL] Generic service lists are not converted with ToArray()."
     exit 6
 }
+
 $hardStart = $text.IndexOf('$hardReportSecrets = @(')
 if($hardStart -lt 0){
     Write-Host "[FAIL] hardReportSecrets block was not found."
@@ -50,6 +51,7 @@ if($hardEnd -lt 0){
     exit 8
 }
 $hardBlock = $text.Substring($hardStart, $hardEnd - $hardStart)
+
 if($hardBlock -match 'config\.device_code' -or $hardBlock -match 'config\.login'){
     Write-Host "[FAIL] Short/identifier-like values must not participate in raw whole-report secret matching."
     exit 9
@@ -62,31 +64,19 @@ if($text -notmatch '\$redactionSecrets\s*=\s*@\(' -or $text -notmatch 'config\.d
     Write-Host "[FAIL] device_code must remain in request/error redaction."
     exit 11
 }
-if($text -notmatch 'token\
-Write-Host "[OK] S3 device/service PowerShell syntax/runtime-pattern checks passed."
-exit 0
- -or $text -notmatch 'password\
-Write-Host "[OK] S3 device/service PowerShell syntax/runtime-pattern checks passed."
-exit 0
- -or $text -notmatch 'secret\
-Write-Host "[OK] S3 device/service PowerShell syntax/runtime-pattern checks passed."
-exit 0
-){
-    Write-Host "[FAIL] Sensitive-key sanitizer must cover token/password/secret suffixes."
-    exit 12
+
+foreach($requiredPattern in @('token\$','password\$','secret\$')){
+    if($text -notmatch $requiredPattern){
+        Write-Host ("[FAIL] Sensitive-key sanitizer is missing suffix pattern: " + $requiredPattern)
+        exit 12
+    }
 }
-if($text -notmatch 'account_id\
-Write-Host "[OK] S3 device/service PowerShell syntax/runtime-pattern checks passed."
-exit 0
- -or $text -notmatch 'user_id\
-Write-Host "[OK] S3 device/service PowerShell syntax/runtime-pattern checks passed."
-exit 0
- -or $text -notmatch 'offline_shop_id\
-Write-Host "[OK] S3 device/service PowerShell syntax/runtime-pattern checks passed."
-exit 0
-){
-    Write-Host "[FAIL] Unneeded profile/account identifiers must be redacted."
-    exit 13
+
+foreach($requiredPattern in @('account_id\$','user_id\$','offline_shop_id\$')){
+    if($text -notmatch $requiredPattern){
+        Write-Host ("[FAIL] Unneeded identifier redaction is missing: " + $requiredPattern)
+        exit 13
+    }
 }
 
 Write-Host "[OK] S3 device/service PowerShell syntax/runtime-pattern checks passed."
