@@ -110,6 +110,9 @@ jobs:
         shell: pwsh
         run: ./tools/Verify-S3CounterSourcePowerShell.ps1
 
+      - name: Verify device/register contract gate
+        run: python3 tools/verify_v0_5_61_device_register_contract.py
+
       - name: Assemble debug APK
         working-directory: .
         run: gradle --no-daemon --stacktrace assembleDebug
@@ -118,6 +121,6 @@ jobs:
         if: success()
         uses: actions/upload-artifact@v4
         with:
-          name: iRetail-v0.5.60-debug-apk
+          name: iRetail-v0.5.61-debug-apk
           path: app/build/outputs/apk/debug/*.apk
           if-no-files-found: error

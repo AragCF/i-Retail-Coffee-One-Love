@@ -1,7 +1,7 @@
 @echo off
 setlocal EnableExtensions DisableDelayedExpansion
 
-rem i-Retail Android UI v0.5.60 S3 device counter methods fix
+rem i-Retail Android UI v0.5.61 S3 device register contract
 rem Windows CLI debug APK build script.
 rem
 rem Important:
@@ -23,7 +23,7 @@ if errorlevel 1 (
     exit /b 9
 )
 
-set "SCRIPT_VERSION=0.5.60-s3-device-counter-methods-fix"
+set "SCRIPT_VERSION=0.5.61-s3-device-register-contract"
 set "DO_CLEAN=0"
 set "DO_HARD_CLEAN=0"
 
