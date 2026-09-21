@@ -51,7 +51,7 @@ echo [1/2] Fetch current order-related API documentation.
 echo [2/2] Package and publish evidence to Git.
 echo.
 
-powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0toolsiRetailOrderDocsAudit.ps1" -RepoRoot "%CD%"
+powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0tools\\iRetailOrderDocsAudit.ps1" -RepoRoot "%CD%"
 if errorlevel 1 (
   echo [ERROR] Order API documentation audit failed.
   pause
