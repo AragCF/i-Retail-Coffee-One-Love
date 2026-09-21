@@ -48,7 +48,7 @@ try {
             '(?i)"(access_token|refresh_token|client_secret|password)"\s*:\s*"(?!\[REDACTED\])[^"]+"',
             '(?i)"pin"\s*:\s*"(?!\[REDACTED\])[^"]+"',
             '(?i)"(device_code|external_code)"\s*:\s*"(?!\[REDACTED\])[^"]+"',
-            '(?i)"(phone|email|first_name|last_name|patronymic|full_name|address|inn|serial|serial_number|fn_serial|kkt_serial|mac|ip|url_ofd)"\s*:\s*"(?!\[REDACTED\])[^"]+"'
+            '(?i)"(username|phone|email|first_name|last_name|patronymic|full_name|address|inn|serial|serial_number|fn_serial|kkt_serial|mac|ip|url_ofd)"\s*:\s*"(?!\[REDACTED\])[^"]+"'
         )
 
         foreach($pattern in $patterns) {
