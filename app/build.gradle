@@ -11,8 +11,8 @@ android {
         applicationId 'com.coffeeonelove.iretail'
         minSdk 23
         targetSdk 35
-        versionCode 53
-        versionName '0.5.53-s3-safety-scan-fix'
+        versionCode 54
+        versionName '0.5.54-s3-sanitized-reconciliation'
     }
 
     compileOptions {
