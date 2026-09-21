@@ -371,6 +371,9 @@ try {
     [void][int]::TryParse([string]$config.device_id,[ref]$configuredDeviceIdValue)
     $configuredDeviceFound = ($deviceIds -contains $configuredDeviceIdValue)
 
+    $profileServiceArray = $profileServiceItems.ToArray()
+    $usedServiceArray = $usedServiceItems.ToArray()
+
     $summary = [ordered]@{
         audit="i-Retail S3 device/service reconciliation"
         timestamp=$stamp
@@ -386,8 +389,8 @@ try {
         device_ids=$deviceIdsLimited
         configured_device_found=$configuredDeviceFound
         device_checks=$deviceChecks
-        profile_services=@($profileServiceItems)
-        used_services=@($usedServiceItems)
+        profile_services=$profileServiceArray
+        used_services=$usedServiceArray
         order_send_allowed=$false
         automatic_device_selection=$false
         network_actions="authentication + semantically read-only reconciliation POSTs only"
