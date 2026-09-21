@@ -24,7 +24,7 @@ checks = {
     "summary says no order send": 'OrderSendAllowed=NO' in ps,
     "no curl POST request": '"--request"' not in ps and " -X " not in ps,
     "one-command audit publishes": "S3_03_PUBLISH_ORDER_API_DOCS.bat" in run_bat,
-    "publisher only stages report": 'test_reports\\s3_order_contract' in pub_bat,
+    "publisher only stages report": "test_reports\\s3_order_contract" in pub_bat,
     "unpacked report ignored": "test_reports/s3_order_contract/S3_ORDER_DOCS_*/" in gitignore,
 }
 
