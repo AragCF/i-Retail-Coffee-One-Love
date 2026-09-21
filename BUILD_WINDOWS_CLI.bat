@@ -1,7 +1,7 @@
 @echo off
 setlocal EnableExtensions DisableDelayedExpansion
 
-rem i-Retail Android UI v0.5.46 S2 ISRG Root X1 compatibility
+rem i-Retail Android UI v0.5.47 S3 order contract audit
 rem Windows CLI debug APK build script.
 rem
 rem Important:
@@ -23,7 +23,7 @@ if errorlevel 1 (
     exit /b 9
 )
 
-set "SCRIPT_VERSION=0.5.46-s2-isrg-root-x1-compat"
+set "SCRIPT_VERSION=0.5.47-s3-order-contract-audit"
 set "DO_CLEAN=0"
 set "DO_HARD_CLEAN=0"
 
