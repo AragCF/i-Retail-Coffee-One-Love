@@ -1,6 +1,6 @@
 # i-Retail Coffee One Love
 
-Текущая рабочая версия: **0.5.62-s3-device-register-contract-fix**.
+Текущая рабочая версия: **0.5.63-s3-device-register-contract-type-guard**.
 
 Android-проект теперь расположен непосредственно в корне репозитория. Дополнительный каталог
 `iRetail_Android_UI_v0.5.8_smartskypos_probe_source` больше не используется.
@@ -413,3 +413,18 @@ S2: **закрыт, 6/6, 100%**.
 В v0.5.61 контракт был опубликован корректно, но новая автоматическая проверка версии содержала лишнее экранирование регулярного выражения и не смогла распознать `versionCode`.
 
 v0.5.62 исправляет только guard. Статус контракта остаётся `PROPOSED_NOT_APPROVED`; исполняемого вызова `device/register` по-прежнему нет.
+
+
+## Контракт device/register 1.0.1 — различие типов устройств
+
+Точный текст документации `device/register` указывает возвращаемый `type_slug` как `workplace_cashier` или `self_service_terminal`. Это отличается от найденной серверной записи `3476` с типом `coffee_machine`.
+
+Поэтому контракт 1.0.1 запрещает:
+- автоматически считать результат register той же кофемашиной 3476;
+- менять рабочий `device_id` по результату пробника;
+- связывать `self_service_terminal` и `coffee_machine` без отдельного доказательства.
+
+Текущий контракт:
+`docs/S3_DEVICE_REGISTER_CONTROLLED_PROBE_CONTRACT_v1.0.1.md`
+
+Статус остаётся `PROPOSED_NOT_APPROVED`.

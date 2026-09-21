@@ -1,7 +1,7 @@
 @echo off
 setlocal EnableExtensions DisableDelayedExpansion
 
-rem i-Retail Android UI v0.5.62 S3 device register contract fix
+rem i-Retail Android UI v0.5.63 S3 device register contract type guard
 rem Windows CLI debug APK build script.
 rem
 rem Important:
@@ -23,7 +23,7 @@ if errorlevel 1 (
     exit /b 9
 )
 
-set "SCRIPT_VERSION=0.5.62-s3-device-register-contract-fix"
+set "SCRIPT_VERSION=0.5.63-s3-device-register-contract-type-guard"
 set "DO_CLEAN=0"
 set "DO_HARD_CLEAN=0"
 
