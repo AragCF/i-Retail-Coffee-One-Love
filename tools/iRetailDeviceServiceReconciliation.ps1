@@ -186,7 +186,7 @@ function Add-SlugItems($Value,[System.Collections.Generic.List[object]]$List) {
 $branch = (& git -C $RepoRoot branch --show-current | Select-Object -First 1)
 $sha = (& git -C $RepoRoot rev-parse HEAD | Select-Object -First 1)
 
-$baseSecrets = @(
+$redactionSecrets = @(
     [string]$config.login,
     [string]$config.password,
     [string]$config.client_secret,
@@ -220,7 +220,7 @@ try {
         "--header","Content-Type: application/x-www-form-urlencoded; charset=UTF-8",
         "--header","Accept: application/json, */*",
         "--data-binary",("@" + $authForm)
-    ) $baseSecrets
+    ) $redactionSecrets
     Save-Json (Join-Path $out "02_auth_http.json") $authMeta 5
 
     $token = ""
@@ -243,7 +243,17 @@ try {
         throw "Authentication did not produce access token"
     }
 
-    $allSecrets = @($baseSecrets + @($token)) | Where-Object { -not [string]::IsNullOrEmpty($_) } | Select-Object -Unique
+    $requestRedactionSecrets = @($redactionSecrets + @($token)) | Where-Object { -not [string]::IsNullOrEmpty($_) } | Select-Object -Unique
+
+    # Only high-entropy credentials are scanned as raw values across the entire report.
+    # device_code/login are still structurally redacted by key, but are intentionally
+    # excluded here because short/public-looking values can legitimately equal IDs
+    # that the report must preserve (for example configured_device_id).
+    $hardReportSecrets = @(
+        [string]$config.password,
+        [string]$config.client_secret,
+        [string]$token
+    ) | Where-Object { -not [string]::IsNullOrEmpty($_) } | Select-Object -Unique
     $common = @{
         client_id=[string]$config.client_id
         client_secret=[string]$config.client_secret
@@ -264,7 +274,7 @@ try {
             "--header","Content-Type: application/x-www-form-urlencoded; charset=UTF-8",
             "--header","Accept: application/json, */*",
             "--data-binary",("@" + $form)
-        ) $allSecrets
+        ) $requestRedactionSecrets
 
         Save-Json (Join-Path $out ($Name + "_http.json")) $meta 5
 
@@ -429,7 +439,7 @@ try {
     $unsafe = @()
     Get-ChildItem -LiteralPath $out -Recurse -File | Where-Object { $_.Extension -match "^\.(txt|json)$" } | ForEach-Object {
         $content = Get-Content -Raw -LiteralPath $_.FullName -ErrorAction SilentlyContinue
-        foreach ($secret in $allSecrets) {
+        foreach ($secret in $hardReportSecrets) {
             if ($null -ne $content -and -not [string]::IsNullOrEmpty($secret) -and $content.Contains($secret)) {
                 $unsafe += $_.FullName
                 break
@@ -438,7 +448,9 @@ try {
     }
 
     if ($unsafe.Count -gt 0) {
-        throw "Safety scan failed: secret-like value found in report"
+        $unsafeNames = @($unsafe | ForEach-Object { Split-Path -Leaf $_ } | Sort-Object -Unique)
+        Write-Host ("[SAFETY] Files blocked by hard-secret scan: " + ($unsafeNames -join ","))
+        throw "Safety scan failed: credential/token value found in report"
     }
 
     if (Test-Path -LiteralPath $zip) { Remove-Item -LiteralPath $zip -Force }
