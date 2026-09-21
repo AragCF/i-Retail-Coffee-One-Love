@@ -96,6 +96,9 @@ jobs:
         shell: pwsh
         run: ./tools/Verify-S3CounterSourcePowerShell.ps1
 
+      - name: Analyze latest S3 counter-source ZIP
+        run: python3 tools/analyze_s3_counter_source_report.py
+
       - name: Assemble debug APK
         working-directory: .
         run: gradle --no-daemon --stacktrace assembleDebug
@@ -104,6 +107,6 @@ jobs:
         if: success()
         uses: actions/upload-artifact@v4
         with:
-          name: iRetail-v0.5.57-debug-apk
+          name: iRetail-v0.5.58-debug-apk
           path: app/build/outputs/apk/debug/*.apk
           if-no-files-found: error

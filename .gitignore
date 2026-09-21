@@ -21,3 +21,4 @@ test_reports/s3_order_contract/S3_ORDER_DOCS_*/
 test_reports/s3_order_dependencies/S3_ORDER_DEPS_*/
 test_reports/s3_live_reference/S3_LIVE_REF_*/
 test_reports/s3_device_service/S3_DEVICE_SERVICE_*/
+\ntest_reports/s3_dry_run_v2/S3_DRY_RUN_V2_*/\ntest_reports/s3_counter_sources/S3_COUNTER_SOURCES_*/\n
