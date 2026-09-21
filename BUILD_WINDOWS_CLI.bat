@@ -1,7 +1,7 @@
 @echo off
 setlocal EnableExtensions DisableDelayedExpansion
 
-rem i-Retail Android UI v0.5.64 S3 device register probe
+rem i-Retail Android UI v0.5.65 S3 device register result analysis
 rem Windows CLI debug APK build script.
 rem
 rem Important:
@@ -23,7 +23,7 @@ if errorlevel 1 (
     exit /b 9
 )
 
-set "SCRIPT_VERSION=0.5.64-s3-device-register-probe"
+set "SCRIPT_VERSION=0.5.65-s3-device-register-result-analysis"
 set "DO_CLEAN=0"
 set "DO_HARD_CLEAN=0"
 
