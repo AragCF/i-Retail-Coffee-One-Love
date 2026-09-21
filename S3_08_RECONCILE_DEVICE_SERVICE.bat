@@ -3,7 +3,7 @@ setlocal EnableExtensions DisableDelayedExpansion
 cd /d "%~dp0"
 if errorlevel 1 exit /b 10
 
-set "EXPECTED_BRANCH=v0.5.53-s3-safety-scan-fix"
+set "EXPECTED_BRANCH=v0.5.54-s3-sanitized-reconciliation"
 set "GIT_BRANCH="
 
 where git >nul 2>nul
@@ -43,7 +43,7 @@ if errorlevel 1 (
 )
 
 echo ============================================================
-echo i-Retail v0.5.53 - S3 DEVICE / SERVICE RECONCILIATION
+echo i-Retail v0.5.54 - S3 DEVICE / SERVICE RECONCILIATION
 echo ============================================================
 echo [1/2] Authenticate and read device/service state.
 echo [2/2] Sanitize, package and publish evidence to Git.
