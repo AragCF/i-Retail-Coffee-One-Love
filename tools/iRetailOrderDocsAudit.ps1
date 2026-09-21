@@ -26,7 +26,7 @@ function Write-Text([string]$Path,[string]$Text) {
     [IO.File]::WriteAllText($Path,$Text,$utf8)
 }
 
-function Curl([string]$Url,[string]$Output) {
+function Invoke-CurlToFile([string]$Url,[string]$Output) {
     $fmt = "http_code=%{http_code}|content_type=%{content_type}|time_total=%{time_total}|url_effective=%{url_effective}"
     $line = (& curl.exe --silent --show-error --location --connect-timeout 15 --max-time 45 --output $Output --write-out $fmt $Url | Out-String).Trim()
     $rc = $LASTEXITCODE
@@ -44,7 +44,7 @@ $sha = (& git -C $RepoRoot rev-parse HEAD | Select-Object -First 1)
 Write-Text (Join-Path $out "00_git_state.txt") ("Branch=" + $branch + [Environment]::NewLine + "SHA=" + $sha + [Environment]::NewLine)
 
 $indexPath = Join-Path $out "index.html"
-$indexMeta = Curl ($docBase + "/index.html") $indexPath
+$indexMeta = Invoke-CurlToFile ($docBase + "/index.html") $indexPath
 Write-Text (Join-Path $out "01_index_http.json") (($indexMeta | ConvertTo-Json -Depth 4) + [Environment]::NewLine)
 if ($indexMeta.curl_exit -ne 0 -or $indexMeta.http_code -ne "200") {
     throw "Could not fetch API documentation index"
@@ -75,7 +75,7 @@ foreach($href in $candidates) {
         $relative = $relative.TrimStart('/')
         $url = $docBase.TrimEnd('/') + "/" + $relative
     }
-    $meta = Curl $url $dst
+    $meta = Invoke-CurlToFile $url $dst
     $pageSize = 0
     if (Test-Path -LiteralPath $dst) {
         $pageSize = (Get-Item -LiteralPath $dst).Length

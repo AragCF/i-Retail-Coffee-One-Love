@@ -3,7 +3,7 @@ setlocal EnableExtensions DisableDelayedExpansion
 cd /d "%~dp0"
 if errorlevel 1 exit /b 10
 
-set "EXPECTED_BRANCH=v0.5.47-s3-order-contract-audit"
+set "EXPECTED_BRANCH=v0.5.48-s3-order-contract-audit-fix"
 set "GIT_BRANCH="
 for /f "delims=" %%B in ('git branch --show-current') do if not defined GIT_BRANCH set "GIT_BRANCH=%%B"
 if /I not "%GIT_BRANCH%"=="%EXPECTED_BRANCH%" (
