@@ -8,6 +8,17 @@ on:
   pull_request:
 
 jobs:
+  s3-external-code-analysis:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Analyze external_code evidence
+        run: python3 tools/analyze_s3_external_code_evidence.py
+
   s3-device-register-result-analysis:
     runs-on: ubuntu-latest
     timeout-minutes: 5
@@ -143,6 +154,6 @@ jobs:
         if: success()
         uses: actions/upload-artifact@v4
         with:
-          name: iRetail-v0.5.67-debug-apk
+          name: iRetail-v0.5.68-debug-apk
           path: app/build/outputs/apk/debug/*.apk
           if-no-files-found: error
