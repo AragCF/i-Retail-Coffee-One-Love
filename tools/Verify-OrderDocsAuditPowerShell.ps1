@@ -1,15 +1,22 @@
 $ErrorActionPreference = "Stop"
 $root = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
-$file = Join-Path $root "tools\iRetailOrderDocsAudit.ps1"
-$tokens = $null
-$errors = $null
-[System.Management.Automation.Language.Parser]::ParseFile($file,[ref]$tokens,[ref]$errors) | Out-Null
-if($errors.Count -gt 0){
-    Write-Host "[FAIL] $file"
-    foreach($e in $errors){ Write-Host ("  " + $e.Message) }
-    exit 1
+$files = @(
+    (Join-Path $root "tools\iRetailOrderDocsAudit.ps1"),
+    (Join-Path $root "tools\iRetailOrderDependencyDocsAudit.ps1")
+)
+
+foreach($file in $files){
+    $tokens = $null
+    $errors = $null
+    [System.Management.Automation.Language.Parser]::ParseFile($file,[ref]$tokens,[ref]$errors) | Out-Null
+    if($errors.Count -gt 0){
+        Write-Host "[FAIL] $file"
+        foreach($e in $errors){ Write-Host ("  " + $e.Message) }
+        exit 1
+    }
 }
-$text = Get-Content -Raw -LiteralPath $file -Encoding UTF8
+
+$text = ($files | ForEach-Object { Get-Content -Raw -LiteralPath $_ -Encoding UTF8 }) -join [Environment]::NewLine
 if($text -match '\(\s*if\s*\('){
     Write-Host "[FAIL] Parenthesized if-expression detected."
     exit 2
