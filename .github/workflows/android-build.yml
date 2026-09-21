@@ -79,8 +79,8 @@ jobs:
         shell: pwsh
         run: ./tools/Verify-S3LiveReferencePowerShell.ps1
 
-      - name: Verify v0.5.51 S3 device/service reconciliation
-        run: python3 tools/verify_v0_5_51_device_service_reconciliation.py
+      - name: Verify S3 device/service reconciliation
+        run: python3 tools/verify_s3_device_service_reconciliation.py
 
       - name: Verify S3 device/service PowerShell
         shell: pwsh
@@ -94,6 +94,6 @@ jobs:
         if: success()
         uses: actions/upload-artifact@v4
         with:
-          name: iRetail-v0.5.51-debug-apk
+          name: iRetail-v0.5.52-debug-apk
           path: app/build/outputs/apk/debug/*.apk
           if-no-files-found: error
