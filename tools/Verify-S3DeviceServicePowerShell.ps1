@@ -62,6 +62,32 @@ if($text -notmatch '\$redactionSecrets\s*=\s*@\(' -or $text -notmatch 'config\.d
     Write-Host "[FAIL] device_code must remain in request/error redaction."
     exit 11
 }
+if($text -notmatch 'token\
+Write-Host "[OK] S3 device/service PowerShell syntax/runtime-pattern checks passed."
+exit 0
+ -or $text -notmatch 'password\
+Write-Host "[OK] S3 device/service PowerShell syntax/runtime-pattern checks passed."
+exit 0
+ -or $text -notmatch 'secret\
+Write-Host "[OK] S3 device/service PowerShell syntax/runtime-pattern checks passed."
+exit 0
+){
+    Write-Host "[FAIL] Sensitive-key sanitizer must cover token/password/secret suffixes."
+    exit 12
+}
+if($text -notmatch 'account_id\
+Write-Host "[OK] S3 device/service PowerShell syntax/runtime-pattern checks passed."
+exit 0
+ -or $text -notmatch 'user_id\
+Write-Host "[OK] S3 device/service PowerShell syntax/runtime-pattern checks passed."
+exit 0
+ -or $text -notmatch 'offline_shop_id\
+Write-Host "[OK] S3 device/service PowerShell syntax/runtime-pattern checks passed."
+exit 0
+){
+    Write-Host "[FAIL] Unneeded profile/account identifiers must be redacted."
+    exit 13
+}
 
 Write-Host "[OK] S3 device/service PowerShell syntax/runtime-pattern checks passed."
 exit 0
