@@ -68,15 +68,25 @@ $downloaded = @()
 foreach($href in $candidates) {
     $cleanName = ($href -replace '^\./','') -replace '[^A-Za-z0-9._-]','_'
     $dst = Join-Path (Join-Path $out "pages") $cleanName
-    $url = if ($href -match '^https?://') { $href } else { $docBase.TrimEnd('/') + "/" + $href.TrimStart('.','/') }
+    if ($href -match '^https?://') {
+        $url = $href
+    } else {
+        $relative = $href -replace '^\\./',''
+        $relative = $relative.TrimStart('/')
+        $url = $docBase.TrimEnd('/') + "/" + $relative
+    }
     $meta = Curl $url $dst
+    $pageSize = 0
+    if (Test-Path -LiteralPath $dst) {
+        $pageSize = (Get-Item -LiteralPath $dst).Length
+    }
     $downloaded += [pscustomobject]@{
         href = $href
         file = $cleanName
         http_code = $meta.http_code
         curl_exit = $meta.curl_exit
         content_type = $meta.content_type
-        size = if(Test-Path -LiteralPath $dst){(Get-Item -LiteralPath $dst).Length}else{0}
+        size = $pageSize
     }
 }
 
