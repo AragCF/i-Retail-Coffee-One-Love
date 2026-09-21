@@ -1,6 +1,6 @@
 # i-Retail Coffee One Love
 
-Текущая рабочая версия: **0.5.68-s3-external-code-analysis**.
+Текущая рабочая версия: **0.5.69-s3-external-register-contract**.
 
 Android-проект теперь расположен непосредственно в корне репозитория. Дополнительный каталог
 `iRetail_Android_UI_v0.5.8_smartskypos_probe_source` больше не используется.
@@ -497,3 +497,14 @@ v0.5.62 исправляет только guard. Статус контракта
 Она выводит безопасные признаки code/external_code и все документированные маршруты рядом с `external_code`, в частности `device/get-device-info` и `device/register-external-system`.
 
 Новых запросов к I-Retail эта версия не делает.
+
+
+## S3 — proposed contract register-external-system
+
+Анализ v0.5.68 показал, что device 3476 имеет отдельный `external_code`, а документация связывает его именно с `iretail/device/register-external-system` — «Register a device for an external system».
+
+В v0.5.69 **нет исполняемого вызова** этого метода. Добавлен только контракт:
+
+`docs/S3_EXTERNAL_SYSTEM_REGISTER_CONTROLLED_PROBE_CONTRACT_v1.0.0.md`
+
+Статус: `PROPOSED_NOT_APPROVED`.

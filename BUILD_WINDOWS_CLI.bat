@@ -1,7 +1,7 @@
 @echo off
 setlocal EnableExtensions DisableDelayedExpansion
 
-rem i-Retail Android UI v0.5.68 S3 external code analysis
+rem i-Retail Android UI v0.5.69 S3 external register contract
 rem Windows CLI debug APK build script.
 rem
 rem Important:
@@ -23,7 +23,7 @@ if errorlevel 1 (
     exit /b 9
 )
 
-set "SCRIPT_VERSION=0.5.68-s3-external-code-analysis"
+set "SCRIPT_VERSION=0.5.69-s3-external-register-contract"
 set "DO_CLEAN=0"
 set "DO_HARD_CLEAN=0"
 
