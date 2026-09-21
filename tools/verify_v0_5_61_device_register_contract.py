@@ -13,7 +13,7 @@ checks = {
     "get-current forbidden": "`shift/get-current`" in contract and "допускает создание смены" in contract,
     "order synchronize forbidden": "`order/synchronize`" in contract and "остаётся запрещён" in contract,
     "no rollback fiction": "автоматический откат не предусматривается" in contract,
-    "versionCode at least 61": int(re.search(r"versionCode\\s+(\\d+)", gradle).group(1)) >= 61,
+    "versionCode at least 61": (lambda m: bool(m) and int(m.group(1)) >= 61)(re.search(r"versionCode\s+(\d+)", gradle)),
 }
 
 failed = [name for name, ok in checks.items() if not ok]
