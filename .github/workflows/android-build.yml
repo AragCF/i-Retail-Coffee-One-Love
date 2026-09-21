@@ -94,6 +94,6 @@ jobs:
         if: success()
         uses: actions/upload-artifact@v4
         with:
-          name: iRetail-v0.5.53-debug-apk
+          name: iRetail-v0.5.54-debug-apk
           path: app/build/outputs/apk/debug/*.apk
           if-no-files-found: error
