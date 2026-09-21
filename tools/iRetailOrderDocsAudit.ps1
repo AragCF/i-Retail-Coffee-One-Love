@@ -71,7 +71,7 @@ foreach($href in $candidates) {
     if ($href -match '^https?://') {
         $url = $href
     } else {
-        $relative = $href -replace '^\\./',''
+        $relative = $href -replace '^\./',''
         $relative = $relative.TrimStart('/')
         $url = $docBase.TrimEnd('/') + "/" + $relative
     }
