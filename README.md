@@ -1,6 +1,6 @@
 # i-Retail Coffee One Love
 
-Текущая рабочая версия: **0.5.65-s3-device-register-result-analysis**.
+Текущая рабочая версия: **0.5.66-s3-device-code-source-audit**.
 
 Android-проект теперь расположен непосредственно в корне репозитория. Дополнительный каталог
 `iRetail_Android_UI_v0.5.8_smartskypos_probe_source` больше не используется.
@@ -457,3 +457,25 @@ v0.5.62 исправляет только guard. Статус контракта
 ## S3 — автоматический разбор результата device/register
 
 Версия 0.5.65 не выполняет новых вызовов I-Retail. Она читает только уже опубликованный ZIP `S3_DEVICE_REGISTER_PROBE_*.zip` и выводит безопасные HTTP/API-результаты, снимки устройств и смен до/после и разницу списков устройств.
+
+
+## S3 — read-only аудит источника device_code
+
+Живой одноразовый `device/register` v0.5.64 был отвергнут сервером без видимых изменений состояния: HTTP 200, API status=false, список устройств до/после — только device 3476.
+
+Дополнительная проверка показала, что текущий configured `device_code` равен configured `device_id` и имеет ту же короткую длину, тогда как документация register ожидает отдельный encrypted device code.
+
+Версия 0.5.66 выполняет только read-only:
+- `iretail/device/get-by-channel-id`;
+- `iretail/device/get-device-info`.
+
+Сам серверный code/external_code не публикуется. Отчёт содержит только:
+- присутствует ли поле;
+- длину;
+- совпадает ли оно с текущим config device_code;
+- совпадает ли code с числовым device_id.
+
+Запуск:
+`S3_17_AUDIT_DEVICE_CODE_SOURCE.bat`
+
+Никакого повторного `device/register` в этом выпуске нет.

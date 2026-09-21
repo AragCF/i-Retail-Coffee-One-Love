@@ -11,8 +11,8 @@ android {
         applicationId 'com.coffeeonelove.iretail'
         minSdk 23
         targetSdk 35
-        versionCode 65
-        versionName '0.5.65-s3-device-register-result-analysis'
+        versionCode 66
+        versionName '0.5.66-s3-device-code-source-audit'
     }
 
     compileOptions {
