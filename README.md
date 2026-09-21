@@ -202,3 +202,16 @@ TLS-chain probe доказал цепочку `YR1 → Root YR → ISRG Root X1`
 `S2_02_CATALOG_DIAGNOSTICS.bat`
 
 Успех S2: `REFRESH success=true source=I-Retail ZIP`.
+
+
+## Статус S2
+
+S2: **закрыт, 6/6, 100%**.
+
+Живой прогон v0.5.46 на JL22 подтвердил:
+
+`REFRESH success=true source=I-Retail ZIP products=8 offers=8 categories=2`
+
+Точечная совместимость Android 6 с ISRG Root X1 сработала без отключения hostname verification и без trust-all.
+
+Следующий этап: S3 — аудит актуального контракта серверной синхронизации заказа. Реальная отправка заказа пока не включается.
