@@ -18,3 +18,4 @@ test_reports/s2_catalog_diagnostics/S2_DIAGNOSTICS_*/
 test_reports/retail_api_curl/RAPI_CURL_*/
 test_reports/s2_tls_chain_capture/TLS_CHAIN_*/
 test_reports/s3_order_contract/S3_ORDER_DOCS_*/
+test_reports/s3_order_dependencies/S3_ORDER_DEPS_*/
