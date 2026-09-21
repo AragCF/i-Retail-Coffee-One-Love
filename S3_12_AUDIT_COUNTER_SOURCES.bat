@@ -3,7 +3,7 @@ setlocal EnableExtensions DisableDelayedExpansion
 cd /d "%~dp0"
 if errorlevel 1 exit /b 10
 
-set "EXPECTED_BRANCH=v0.5.56-s3-counter-source-audit"
+set "EXPECTED_BRANCH=v0.5.57-s3-counter-source-audit-fix"
 set "GIT_BRANCH="
 
 where git >nul 2>nul
@@ -43,7 +43,7 @@ if errorlevel 1 (
 )
 
 echo ============================================================
-echo i-Retail v0.5.56 - S3 COUNTER SOURCE DOCUMENTATION AUDIT
+echo i-Retail v0.5.57 - S3 COUNTER SOURCE DOCUMENTATION AUDIT
 echo ============================================================
 echo [1/3] Fetch the current published API documentation index.
 echo [2/3] Discover every iretail controller page and locate counters.

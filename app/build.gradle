@@ -11,8 +11,8 @@ android {
         applicationId 'com.coffeeonelove.iretail'
         minSdk 23
         targetSdk 35
-        versionCode 56
-        versionName '0.5.56-s3-counter-source-audit'
+        versionCode 57
+        versionName '0.5.57-s3-counter-source-audit-fix'
     }
 
     compileOptions {
