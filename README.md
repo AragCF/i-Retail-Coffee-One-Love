@@ -1,6 +1,6 @@
 # i-Retail Coffee One Love
 
-Текущая рабочая версия: **0.5.69-s3-external-register-contract**.
+Текущая рабочая версия: **0.5.70-s3-external-register-probe**.
 
 Android-проект теперь расположен непосредственно в корне репозитория. Дополнительный каталог
 `iRetail_Android_UI_v0.5.8_smartskypos_probe_source` больше не используется.
@@ -508,3 +508,24 @@ v0.5.62 исправляет только guard. Статус контракта
 `docs/S3_EXTERNAL_SYSTEM_REGISTER_CONTROLLED_PROBE_CONTRACT_v1.0.0.md`
 
 Статус: `PROPOSED_NOT_APPROVED`.
+
+
+## S3 — одобренный одноразовый register-external-system probe
+
+Пользователь явно одобрил один пробный `register-external-system`.
+
+Версия 0.5.70:
+- read-only получает device 3476 и его external_code;
+- external_code существует только в оперативной памяти;
+- до сетевого вызова создаёт две устойчивые marker-метки;
+- выполняет ровно один `iretail/device/register-external-system(external_code)`;
+- отключает curl retries и redirects для изменяющего вызова;
+- после ответа только read-only перечитывает устройства и активные смены;
+- не записывает returned device_id в конфигурацию;
+- не отправляет заказ и не создаёт платеж.
+
+Основной запуск:
+`S3_19_RUN_EXTERNAL_SYSTEM_REGISTER_PROBE.bat`
+
+Только read-only восстановление после начатой попытки:
+`S3_21_COLLECT_EXTERNAL_REGISTER_STATE_ONLY.bat`
