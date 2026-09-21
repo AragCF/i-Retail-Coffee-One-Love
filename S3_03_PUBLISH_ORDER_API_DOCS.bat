@@ -29,7 +29,7 @@ if errorlevel 1 (
 )
 
 set "LATEST_FILE="
-for /f "delims=" %%F in ('dir /b /a-d /o-d "test_reportss3_order_contractS3_ORDER_DOCS_*.zip" 2^>nul') do if not defined LATEST_FILE set "LATEST_FILE=%%F"
+for /f "delims=" %%F in ('dir /b /a-d /o-d "test_reports\\s3_order_contract\\S3_ORDER_DOCS_*.zip" 2^>nul') do if not defined LATEST_FILE set "LATEST_FILE=%%F"
 
 if not defined LATEST_FILE (
   echo [ERROR] No S3_ORDER_DOCS_*.zip found.
@@ -37,8 +37,8 @@ if not defined LATEST_FILE (
   exit /b 20
 )
 
-set "LATEST_REL=test_reportss3_order_contract%LATEST_FILE%"
-set "LATEST_ZIP=%CD%%LATEST_REL%"
+set "LATEST_REL=test_reports\\s3_order_contract\\%LATEST_FILE%"
+set "LATEST_ZIP=%CD%\\%LATEST_REL%"
 
 powershell -NoProfile -Command "$z='%LATEST_ZIP%'; Add-Type -AssemblyName System.IO.Compression.FileSystem; $a=[IO.Compression.ZipFile]::OpenRead($z); try{$n=$a.Entries.FullName; if($n -notcontains 'SUMMARY.txt'){exit 21}; if($n -notcontains '02_candidate_pages.txt'){exit 22}} finally {$a.Dispose()}; exit 0"
 set "ZIP_RC=%ERRORLEVEL%"
