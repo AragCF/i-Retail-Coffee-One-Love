@@ -8,6 +8,20 @@ on:
   pull_request:
 
 jobs:
+  s3-counter-method-analysis:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Analyze S3 counter-source summary
+        run: python3 tools/analyze_s3_counter_source_report.py
+
+      - name: Analyze device counter methods
+        run: python3 tools/analyze_s3_device_counter_methods.py
+
   assemble-debug:
     runs-on: ubuntu-latest
     timeout-minutes: 20
@@ -96,9 +110,6 @@ jobs:
         shell: pwsh
         run: ./tools/Verify-S3CounterSourcePowerShell.ps1
 
-      - name: Analyze latest S3 counter-source ZIP
-        run: python3 tools/analyze_s3_counter_source_report.py
-
       - name: Assemble debug APK
         working-directory: .
         run: gradle --no-daemon --stacktrace assembleDebug
@@ -107,6 +118,6 @@ jobs:
         if: success()
         uses: actions/upload-artifact@v4
         with:
-          name: iRetail-v0.5.58-debug-apk
+          name: iRetail-v0.5.59-debug-apk
           path: app/build/outputs/apk/debug/*.apk
           if-no-files-found: error
