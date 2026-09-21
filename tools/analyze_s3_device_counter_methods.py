@@ -19,7 +19,7 @@ print(f"[INFO] Analyzing device counter methods from {zip_path.relative_to(ROOT)
 with zipfile.ZipFile(zip_path, "r") as zf:
     device_members = [
         name for name in zf.namelist()
-        if Path(name).name == "app-controllers-iretail-devicecontroller.html"
+        if name.replace("\\", "/").split("/")[-1] == "app-controllers-iretail-devicecontroller.html"
     ]
     if not device_members:
         raise SystemExit("Device controller page not found in report ZIP")
