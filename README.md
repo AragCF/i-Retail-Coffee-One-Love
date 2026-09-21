@@ -1,6 +1,6 @@
 # i-Retail Coffee One Love
 
-Текущая рабочая версия: **0.5.70-s3-external-register-probe**.
+Текущая рабочая версия: **0.5.71-s3-external-register-result-analysis**.
 
 Android-проект теперь расположен непосредственно в корне репозитория. Дополнительный каталог
 `iRetail_Android_UI_v0.5.8_smartskypos_probe_source` больше не используется.
@@ -529,3 +529,15 @@ v0.5.62 исправляет только guard. Статус контракта
 
 Только read-only восстановление после начатой попытки:
 `S3_21_COLLECT_EXTERNAL_REGISTER_STATE_ONLY.bat`
+
+
+## S3 — анализ результата внешней регистрации
+
+v0.5.71 не выполняет никаких новых вызовов I-Retail. Она анализирует уже опубликованные ZIP обеих регистрационных проб и ранее скачанную документацию device controller.
+
+Цель:
+- сравнить ordinary register и register-external-system;
+- проверить, одинаков ли тип серверного отказа;
+- подтвердить отсутствие изменений devices/shifts;
+- перечислить документированные device endpoints;
+- выяснить, есть ли в API путь создания workplace_cashier/self_service_terminal или эти сущности должны заранее существовать в кабинете.
