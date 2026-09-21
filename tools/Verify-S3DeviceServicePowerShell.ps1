@@ -39,6 +39,29 @@ if($text -notmatch '\$profileServiceItems\.ToArray\(\)' -or $text -notmatch '\$u
     Write-Host "[FAIL] Generic service lists are not converted with ToArray()."
     exit 6
 }
+$hardStart = $text.IndexOf('$hardReportSecrets = @(')
+if($hardStart -lt 0){
+    Write-Host "[FAIL] hardReportSecrets block was not found."
+    exit 7
+}
+$hardEnd = $text.IndexOf(') | Where-Object', $hardStart)
+if($hardEnd -lt 0){
+    Write-Host "[FAIL] hardReportSecrets block is malformed."
+    exit 8
+}
+$hardBlock = $text.Substring($hardStart, $hardEnd - $hardStart)
+if($hardBlock -match 'config\.device_code' -or $hardBlock -match 'config\.login'){
+    Write-Host "[FAIL] Short/identifier-like values must not participate in raw whole-report secret matching."
+    exit 9
+}
+if($hardBlock -notmatch 'config\.password' -or $hardBlock -notmatch 'config\.client_secret' -or $hardBlock -notmatch '\$token'){
+    Write-Host "[FAIL] Password, client_secret and token must remain in the hard whole-report scan."
+    exit 10
+}
+if($text -notmatch '\$redactionSecrets\s*=\s*@\(' -or $text -notmatch 'config\.device_code'){
+    Write-Host "[FAIL] device_code must remain in request/error redaction."
+    exit 11
+}
 
 Write-Host "[OK] S3 device/service PowerShell syntax/runtime-pattern checks passed."
 exit 0
