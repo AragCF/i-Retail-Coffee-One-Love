@@ -1,7 +1,7 @@
 @echo off
 setlocal EnableExtensions DisableDelayedExpansion
 
-rem i-Retail Android UI v0.5.55 S3 DRY_RUN v2
+rem i-Retail Android UI v0.5.56 S3 counter source audit
 rem Windows CLI debug APK build script.
 rem
 rem Important:
@@ -23,7 +23,7 @@ if errorlevel 1 (
     exit /b 9
 )
 
-set "SCRIPT_VERSION=0.5.55-s3-dry-run-v2"
+set "SCRIPT_VERSION=0.5.56-s3-counter-source-audit"
 set "DO_CLEAN=0"
 set "DO_HARD_CLEAN=0"
 
