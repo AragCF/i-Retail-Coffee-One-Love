@@ -1,6 +1,6 @@
 # i-Retail Coffee One Love
 
-Текущая рабочая версия: **0.5.63-s3-device-register-contract-type-guard**.
+Текущая рабочая версия: **0.5.64-s3-device-register-probe**.
 
 Android-проект теперь расположен непосредственно в корне репозитория. Дополнительный каталог
 `iRetail_Android_UI_v0.5.8_smartskypos_probe_source` больше не используется.
@@ -428,3 +428,27 @@ v0.5.62 исправляет только guard. Статус контракта
 `docs/S3_DEVICE_REGISTER_CONTROLLED_PROBE_CONTRACT_v1.0.1.md`
 
 Статус остаётся `PROPOSED_NOT_APPROVED`.
+
+
+## S3 — одобренный одноразовый device/register probe
+
+Пользователь одобрил контролируемый опыт. Версия 0.5.64 реализует ровно один потенциально изменяющий вызов:
+
+`iretail/device/register(device_code)`
+
+Перед ним и после него выполняются только ранее использованные read-only проверки устройства и открытой смены.
+
+Защита:
+- две локальные метки попытки: в репозитории и в LocalAppData Windows;
+- метка создаётся до register-вызова;
+- curl retry=0;
+- register не следует HTTP-redirect;
+- при тайм-ауте/неразбираемом результате повтор автоматически запрещён;
+- возвращённый device_id/type_slug не записывается в рабочую конфигурацию;
+- order/payment/shift mutation не вызываются.
+
+Основной запуск:
+`S3_14_RUN_DEVICE_REGISTER_PROBE.bat`
+
+Если после начатой попытки нужно только перечитать состояние без повторной регистрации:
+`S3_16_COLLECT_DEVICE_REGISTER_STATE_ONLY.bat`
