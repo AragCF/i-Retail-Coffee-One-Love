@@ -11,8 +11,8 @@ android {
         applicationId 'com.coffeeonelove.iretail'
         minSdk 23
         targetSdk 35
-        versionCode 88
-        versionName '0.5.88-jl22-simple-cmd-autoselect'
+        versionCode 89
+        versionName '0.5.89-standalone-safe-smoke'
     }
 
     compileOptions {

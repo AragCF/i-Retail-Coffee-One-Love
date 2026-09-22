@@ -1,7 +1,7 @@
 @echo off
 setlocal EnableExtensions DisableDelayedExpansion
 
-rem i-Retail Android UI v0.5.88 JL22 simple cmd autoselect
+rem i-Retail Android UI v0.5.89 standalone safe smoke
 rem Windows CLI debug APK build script.
 rem
 rem Important:
@@ -23,7 +23,7 @@ if errorlevel 1 (
     exit /b 9
 )
 
-set "SCRIPT_VERSION=0.5.88-jl22-simple-cmd-autoselect"
+set "SCRIPT_VERSION=0.5.89-standalone-safe-smoke"
 set "DO_CLEAN=0"
 set "DO_HARD_CLEAN=0"
 

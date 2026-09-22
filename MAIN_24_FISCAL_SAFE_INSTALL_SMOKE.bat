@@ -3,13 +3,13 @@ setlocal EnableExtensions DisableDelayedExpansion
 cd /d "%~dp0"
 if errorlevel 1 exit /b 10
 
-set "EXPECTED_BRANCH=v0.5.88-jl22-simple-cmd-autoselect"
-set "EXPECTED_VERSION=0.5.88-jl22-simple-cmd-autoselect"
+set "EXPECTED_BRANCH=v0.5.89-standalone-safe-smoke"
+set "EXPECTED_VERSION=0.5.89-standalone-safe-smoke"
 set "JL22=%~1"
 set "OUTCOME=STARTED"
 
 echo ============================================================
-echo i-Retail v0.5.88 - FISCAL SAFE INSTALL SMOKE
+echo i-Retail v0.5.89 - STANDALONE FISCAL SAFE SMOKE
 echo ============================================================
 echo.
 echo SAFE MODE:
@@ -128,12 +128,19 @@ echo [3/7] Clearing only this smoke-test evidence...
 adb -s "%JL22%" logcat -c
 adb -s "%JL22%" shell run-as com.coffeeonelove.iretail rm -f files/fiscalization_dry_run.json >nul 2>nul
 
-echo [4/7] Launching UI in explicit SAFE MODE...
-adb -s "%JL22%" shell am start -W -n com.coffeeonelove.iretail/.ui.MainActivity --es machine_mode kiosk --ez real_pos_enabled false
+echo [4/7] Persisting STANDALONE safe mode and launching i-Retail...
+adb -s "%JL22%" shell am start -W -n com.coffeeonelove.iretail/.ui.MainActivity --es machine_mode standalone --ez persist_machine_mode true --ez real_pos_enabled false --ez configure_only true >nul
+if errorlevel 1 (
+  echo [ERROR] Could not persist standalone mode.
+  pause
+  exit /b 23
+)
+timeout /t 1 /nobreak >nul
+adb -s "%JL22%" shell am start -W -n com.coffeeonelove.iretail/.ui.MainActivity
 if errorlevel 1 (
   echo [ERROR] Main UI launch failed.
   pause
-  exit /b 23
+  exit /b 24
 )
 
 echo.
@@ -146,7 +153,7 @@ echo 3. Open payment methods.
 echo 4. Tap BANK CARD exactly once.
 echo.
 echo Expected:
-echo   - UI says real POS is disabled;
+echo   - UI says card payment is disabled in standalone/autonomous mode;
 echo   - Kozen/card is NOT requested;
 echo   - no payment is sent;
 echo   - no fiscalization is sent.
@@ -169,6 +176,7 @@ mkdir "%OUT%"
   echo model=%MODEL%
   echo device=%DEVICE%
   echo expected_version=%EXPECTED_VERSION%
+  echo machine_mode=standalone
   echo real_pos_enabled=false
   echo kozen_used=false
   echo financial_operation_allowed=false
@@ -180,8 +188,9 @@ echo [5/7] Collecting safe evidence...
 adb devices -l > "%OUT%\01_adb_devices.txt" 2>&1
 adb -s "%JL22%" shell dumpsys package com.coffeeonelove.iretail > "%OUT%\02_package.txt" 2>&1
 adb -s "%JL22%" shell dumpsys activity activities > "%OUT%\03_activities.txt" 2>&1
-adb -s "%JL22%" logcat -d -v threadtime IretailMachineMode:I IretailOrderDraft:I FiscalDryRun:I AndroidRuntime:E ActivityManager:I *:S > "%OUT%\04_logcat.txt" 2>&1
+adb -s "%JL22%" logcat -d -v threadtime IretailMachineMode:I IretailForegroundKeeper:I IretailOrderDraft:I FiscalDryRun:I AndroidRuntime:E ActivityManager:I *:S > "%OUT%\04_logcat.txt" 2>&1
 adb -s "%JL22%" shell run-as com.coffeeonelove.iretail sh -c "if [ -f files/fiscalization_dry_run.json ]; then echo PRESENT; else echo ABSENT; fi" > "%OUT%\05_fiscal_draft_state.txt" 2>&1
+adb -s "%JL22%" shell run-as com.coffeeonelove.iretail cat shared_prefs/iretail_machine_mode_v1.xml > "%OUT%\06_machine_mode.txt" 2>&1
 
 set "VERSION_OK=0"
 findstr /I /C:"versionName=%EXPECTED_VERSION%" "%OUT%\02_package.txt" >nul 2>nul
@@ -199,8 +208,17 @@ set "DRAFT_PRESENT=0"
 findstr /I /C:"PRESENT" "%OUT%\05_fiscal_draft_state.txt" >nul 2>nul
 if not errorlevel 1 set "DRAFT_PRESENT=1"
 
+set "MODE_OK=0"
+findstr /I /C:">standalone<" "%OUT%\06_machine_mode.txt" >nul 2>nul
+if not errorlevel 1 (
+  findstr /I /C:"name=\"real_pos_enabled\" value=\"false\"" "%OUT%\06_machine_mode.txt" >nul 2>nul
+  if not errorlevel 1 set "MODE_OK=1"
+)
+
 if "%VERSION_OK%"=="0" (
   set "OUTCOME=WRONG_APP_VERSION"
+) else if "%MODE_OK%"=="0" (
+  set "OUTCOME=WRONG_MACHINE_MODE"
 ) else if "%FINANCIAL_MARKER%"=="1" (
   set "OUTCOME=UNSAFE_FINANCIAL_MARKER_FOUND"
 ) else if "%FISCAL_MARKER%"=="1" (
@@ -216,6 +234,8 @@ if "%VERSION_OK%"=="0" (
   echo %OUTCOME%
   echo.
   echo version_ok=%VERSION_OK%
+  echo machine_mode_ok=%MODE_OK%
+  echo machine_mode=standalone
   echo financial_marker_found=%FINANCIAL_MARKER%
   echo fiscal_marker_found=%FISCAL_MARKER%
   echo fiscal_draft_present=%DRAFT_PRESENT%
@@ -233,10 +253,7 @@ if errorlevel 1 (
   exit /b 24
 )
 
-echo [7/7] Restoring stock Jetinno UI and publishing report...
-adb -s "%JL22%" shell am force-stop com.coffeeonelove.iretail >nul 2>nul
-adb -s "%JL22%" shell monkey -p com.jinuo.mhwang.jetinnocoffe -c android.intent.category.LAUNCHER 1 >nul 2>nul
-
+echo [7/7] Publishing report; i-Retail remains in foreground...
 if /I not "%OUTCOME%"=="SAFE_OK_NO_PAYMENT_NO_FISCAL_SEND" (
   echo [ERROR] Smoke test outcome is not safe-success: %OUTCOME%
   echo [ERROR] Report will NOT be auto-published until inspected manually.
@@ -256,6 +273,7 @@ echo ============================================================
 echo FISCAL SAFE SMOKE COMPLETE
 echo Outcome: %OUTCOME%
 echo Report published to Git.
+echo i-Retail remains active in persistent STANDALONE mode.
 echo ============================================================
 pause
 exit /b 0
