@@ -1,7 +1,7 @@
 @echo off
 setlocal EnableExtensions DisableDelayedExpansion
 
-rem i-Retail Android UI v0.5.86 JL22 live ADB autoselect
+rem i-Retail Android UI v0.5.87 JL22 any live interface
 rem Windows CLI debug APK build script.
 rem
 rem Important:
@@ -23,7 +23,7 @@ if errorlevel 1 (
     exit /b 9
 )
 
-set "SCRIPT_VERSION=0.5.86-jl22-live-adb-autoselect"
+set "SCRIPT_VERSION=0.5.87-jl22-any-live-interface"
 set "DO_CLEAN=0"
 set "DO_HARD_CLEAN=0"
 

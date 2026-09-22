@@ -3,13 +3,13 @@ setlocal EnableExtensions DisableDelayedExpansion
 cd /d "%~dp0"
 if errorlevel 1 exit /b 10
 
-set "EXPECTED_BRANCH=v0.5.86-jl22-live-adb-autoselect"
-set "EXPECTED_VERSION=0.5.86-jl22-live-adb-autoselect"
+set "EXPECTED_BRANCH=v0.5.87-jl22-any-live-interface"
+set "EXPECTED_VERSION=0.5.87-jl22-any-live-interface"
 set "JL22=%~1"
 set "OUTCOME=STARTED"
 
 echo ============================================================
-echo i-Retail v0.5.86 - FISCAL SAFE INSTALL SMOKE
+echo i-Retail v0.5.87 - FISCAL SAFE INSTALL SMOKE
 echo ============================================================
 echo.
 echo SAFE MODE:
@@ -54,16 +54,16 @@ if errorlevel 1 (
 )
 
 if not defined JL22 (
-  for /f "usebackq delims=" %%D in (`powershell -NoProfile -Command "$m=@(adb devices -l ^| Select-String 'product:octopus_jetinno model:UniWin_M190 device:octopus-jetinno'); $live=@($m ^| Where-Object { $_.Line -match '^\S+\s+device\s+' }); if($live.Count -eq 1){ (($live[0].Line -split '\s+')[0]) }"`) do if not defined JL22 set "JL22=%%D"
+  for /f "usebackq delims=" %%D in (`powershell -NoProfile -Command "$m=@(adb devices -l ^| Select-String 'product:octopus_jetinno model:UniWin_M190 device:octopus-jetinno' ^| Where-Object { $_.Line -match '^\S+\s+device\s+' }); if($m.Count -gt 0){ (($m[0].Line -split '\s+')[0]) }"`) do if not defined JL22 set "JL22=%%D"
 )
 
 if not defined JL22 (
-  echo [ERROR] Could not uniquely find ONE LIVE JL22 by ADB signature:
+  echo [ERROR] Could not find any LIVE JL22 by ADB signature:
   echo         product:octopus_jetinno model:UniWin_M190 device:octopus-jetinno
   echo.
   adb devices -l
   echo.
-  echo NOTE: matching OFFLINE ADB entries are ignored by auto-selection.\necho You may pass the live JL22 adb serial/IP as the first argument.
+  echo Any live USB or Ethernet ADB interface is acceptable.
   pause
   exit /b 15
 )
@@ -82,7 +82,9 @@ for /f "delims=" %%V in ('adb -s "%JL22%" shell getprop ro.product.model 2^>nul'
 for /f "delims=" %%V in ('adb -s "%JL22%" shell getprop ro.product.device 2^>nul') do if not defined DEVICE set "DEVICE=%%V"
 for /f "delims=" %%V in ('adb -s "%JL22%" shell getprop ro.product.name 2^>nul') do if not defined PRODUCT set "PRODUCT=%%V"
 
-if /I not "%MODEL%"=="UniWin_M190" (
+set "MODEL_NORM=%MODEL:_=%"
+set "MODEL_NORM=%MODEL_NORM: =%"
+if /I not "%MODEL_NORM%"=="UniWinM190" (
   echo [ERROR] Selected device is not JL22. model=%MODEL%
   pause
   exit /b 17

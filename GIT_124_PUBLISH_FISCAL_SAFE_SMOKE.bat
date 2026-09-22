@@ -2,7 +2,7 @@
 setlocal EnableExtensions DisableDelayedExpansion
 cd /d "%~dp0"
 
-set "EXPECTED_BRANCH=v0.5.86-jl22-live-adb-autoselect"
+set "EXPECTED_BRANCH=v0.5.87-jl22-any-live-interface"
 for /f "delims=" %%B in ('git branch --show-current') do if not defined GIT_BRANCH set "GIT_BRANCH=%%B"
 if /I not "%GIT_BRANCH%"=="%EXPECTED_BRANCH%" (
   echo [ERROR] Wrong branch: %GIT_BRANCH%
@@ -32,7 +32,7 @@ if not errorlevel 1 (
   exit /b 0
 )
 
-git commit -m "test: v0.5.86 fiscal safe smoke %LATEST%"
+git commit -m "test: v0.5.87 fiscal safe smoke %LATEST%"
 if errorlevel 1 exit /b 14
 
 git push origin HEAD
