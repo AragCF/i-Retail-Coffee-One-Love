@@ -11,8 +11,8 @@ android {
         applicationId 'com.coffeeonelove.iretail'
         minSdk 23
         targetSdk 35
-        versionCode 79
-        versionName '0.5.79-s3-support-request-admin-device-provisioning'
+        versionCode 80
+        versionName '0.5.80-s3-fiscal-api-alternative-analysis'
     }
 
     compileOptions {

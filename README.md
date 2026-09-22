@@ -1,6 +1,6 @@
 # i-Retail Coffee One Love
 
-Текущая рабочая версия: **0.5.79-s3-support-request-admin-device-provisioning**.
+Текущая рабочая версия: **0.5.80-s3-fiscal-api-alternative-analysis**.
 
 Android-проект теперь расположен непосредственно в корне репозитория. Дополнительный каталог
 `iRetail_Android_UI_v0.5.8_smartskypos_probe_source` больше не используется.
@@ -649,3 +649,14 @@ v0.5.77 не выполняет новых запросов I-Retail. Она ч�
 `docs/S3_IRETAIL_SUPPORT_RESPONSE_CHECKLIST_v0.5.79.md`
 
 Новых API-вызовов и изменений рабочего поведения приложения нет.
+
+
+## S3 — найден независимый контур фискализации
+
+Загруженный `API web-фискальник.docx` показывает отдельный внешний API фискализации, который не требует device/counters/shift.
+
+Добавлены:
+- `docs/S3_FISCAL_API_ALTERNATIVE_ANALYSIS_v0.5.80.md`;
+- `docs/S3_IRETAIL_SUPPORT_REQUEST_REVISED_v0.5.80.md`.
+
+Вывод: блокер `order/synchronize` не должен блокировать Fiscal adapter. Но старый cloud-fiscal API необходимо подтвердить, потому что документ 2019 года, а более новое ТЗ указывает сменяемый fiscal provider / Первого ОФД.
