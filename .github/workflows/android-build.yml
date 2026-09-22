@@ -204,6 +204,13 @@ jobs:
         shell: pwsh
         run: ./tools/Verify-S3AdminDeviceInventoryPowerShell.ps1
 
+      - name: Verify S3 admin-auth permission audit
+        run: python3 tools/verify_v0_5_76_admin_auth_permission.py
+
+      - name: Verify S3 admin-auth permission PowerShell
+        shell: pwsh
+        run: ./tools/Verify-S3AdminAuthPermissionPowerShell.ps1
+
       - name: Assemble debug APK
         working-directory: .
         run: gradle --no-daemon --stacktrace assembleDebug
@@ -212,6 +219,6 @@ jobs:
         if: success()
         uses: actions/upload-artifact@v4
         with:
-          name: iRetail-v0.5.75-debug-apk
+          name: iRetail-v0.5.76-debug-apk
           path: app/build/outputs/apk/debug/*.apk
           if-no-files-found: error

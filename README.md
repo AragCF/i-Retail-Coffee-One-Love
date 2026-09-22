@@ -1,6 +1,6 @@
 # i-Retail Coffee One Love
 
-Текущая рабочая версия: **0.5.75-s3-admin-permission-doc-analysis**.
+Текущая рабочая версия: **0.5.76-s3-admin-auth-permission-audit**.
 
 Android-проект теперь расположен непосредственно в корне репозитория. Дополнительный каталог
 `iRetail_Android_UI_v0.5.8_smartskypos_probe_source` больше не используется.
@@ -593,3 +593,21 @@ v0.5.74 доказал, что все проверенные `admin/device/*` в
 v0.5.75 делает только публичные GET-запросы к документации и ищет user/role/permission/authentication endpoints и описание прав, необходимых для административного device management.
 
 Рабочие API-вызовы и авторизация не выполняются.
+
+
+## S3 — read-only сравнение обычной и административной авторизации
+
+Документация v0.5.75 показала отдельный `/api/user/admin-authentication` и `/api/user/get-permissions`.
+
+v0.5.76 локально, с уже существующими учётными данными:
+- выполняет обычную `user/authentication`;
+- выполняет `user/admin-authentication`;
+- сравнивает только наличие/равенство токенов, без публикации самих токенов;
+- читает `user/get-permissions` для обоих токенов;
+- читает `user/get-profile-list` с admin token;
+- только если admin-auth успешен, read-only вызывает `admin/device/find`.
+
+Create/update/repeat-activation/remove/register/order/payment/shift mutation отсутствуют.
+
+Запуск:
+`S3_24_AUDIT_ADMIN_AUTH_PERMISSION.bat`
