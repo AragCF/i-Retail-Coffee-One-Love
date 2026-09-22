@@ -3,13 +3,13 @@ setlocal EnableExtensions DisableDelayedExpansion
 cd /d "%~dp0"
 if errorlevel 1 exit /b 10
 
-set "EXPECTED_BRANCH=v0.5.87-jl22-any-live-interface"
-set "EXPECTED_VERSION=0.5.87-jl22-any-live-interface"
+set "EXPECTED_BRANCH=v0.5.88-jl22-simple-cmd-autoselect"
+set "EXPECTED_VERSION=0.5.88-jl22-simple-cmd-autoselect"
 set "JL22=%~1"
 set "OUTCOME=STARTED"
 
 echo ============================================================
-echo i-Retail v0.5.87 - FISCAL SAFE INSTALL SMOKE
+echo i-Retail v0.5.88 - FISCAL SAFE INSTALL SMOKE
 echo ============================================================
 echo.
 echo SAFE MODE:
@@ -54,16 +54,18 @@ if errorlevel 1 (
 )
 
 if not defined JL22 (
-  for /f "usebackq delims=" %%D in (`powershell -NoProfile -Command "$m=@(adb devices -l ^| Select-String 'product:octopus_jetinno model:UniWin_M190 device:octopus-jetinno' ^| Where-Object { $_.Line -match '^\S+\s+device\s+' }); if($m.Count -gt 0){ (($m[0].Line -split '\s+')[0]) }"`) do if not defined JL22 set "JL22=%%D"
+  for /f "tokens=1,2,*" %%A in ('adb devices -l ^| findstr /I /C:"product:octopus_jetinno model:UniWin_M190 device:octopus-jetinno"') do (
+    if /I "%%B"=="device" if not defined JL22 set "JL22=%%A"
+  )
 )
 
 if not defined JL22 (
-  echo [ERROR] Could not find any LIVE JL22 by ADB signature:
+  echo [ERROR] Could not find a live JL22 by ADB signature:
   echo         product:octopus_jetinno model:UniWin_M190 device:octopus-jetinno
   echo.
   adb devices -l
   echo.
-  echo Any live USB or Ethernet ADB interface is acceptable.
+  echo Any live USB or Ethernet ADB interface is acceptable; the first matching one is used.
   pause
   exit /b 15
 )
