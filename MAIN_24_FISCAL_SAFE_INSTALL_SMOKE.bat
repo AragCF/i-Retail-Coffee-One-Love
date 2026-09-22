@@ -3,13 +3,13 @@ setlocal EnableExtensions DisableDelayedExpansion
 cd /d "%~dp0"
 if errorlevel 1 exit /b 10
 
-set "EXPECTED_BRANCH=v0.5.84-fiscal-safe-install-smoke"
+set "EXPECTED_BRANCH=v0.5.85-fiscal-safe-smoke-guard-fix"
 set "EXPECTED_VERSION=0.5.84-fiscal-safe-install-smoke"
 set "JL22=%~1"
 set "OUTCOME=STARTED"
 
 echo ============================================================
-echo i-Retail v0.5.84 - FISCAL SAFE INSTALL SMOKE
+echo i-Retail v0.5.85 - FISCAL SAFE INSTALL SMOKE
 echo ============================================================
 echo.
 echo SAFE MODE:
