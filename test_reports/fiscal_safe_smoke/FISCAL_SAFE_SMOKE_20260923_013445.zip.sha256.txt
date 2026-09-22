@@ -1,0 +1,3 @@
+SHA256 hash of test_reports\fiscal_safe_smoke\FISCAL_SAFE_SMOKE_20260923_013445.zip:
+f2276396fed17837aac4f44de914e8cb5f6319c548983d5bffb2bbdf10734e67
+CertUtil: -hashfile command completed successfully.
