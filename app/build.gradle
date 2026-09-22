@@ -11,8 +11,8 @@ android {
         applicationId 'com.coffeeonelove.iretail'
         minSdk 23
         targetSdk 35
-        versionCode 85
-        versionName '0.5.85-fiscal-safe-smoke-guard-fix'
+        versionCode 86
+        versionName '0.5.86-jl22-live-adb-autoselect'
     }
 
     compileOptions {

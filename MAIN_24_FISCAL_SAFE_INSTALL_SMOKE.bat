@@ -3,13 +3,13 @@ setlocal EnableExtensions DisableDelayedExpansion
 cd /d "%~dp0"
 if errorlevel 1 exit /b 10
 
-set "EXPECTED_BRANCH=v0.5.85-fiscal-safe-smoke-guard-fix"
-set "EXPECTED_VERSION=0.5.84-fiscal-safe-install-smoke"
+set "EXPECTED_BRANCH=v0.5.86-jl22-live-adb-autoselect"
+set "EXPECTED_VERSION=0.5.86-jl22-live-adb-autoselect"
 set "JL22=%~1"
 set "OUTCOME=STARTED"
 
 echo ============================================================
-echo i-Retail v0.5.85 - FISCAL SAFE INSTALL SMOKE
+echo i-Retail v0.5.86 - FISCAL SAFE INSTALL SMOKE
 echo ============================================================
 echo.
 echo SAFE MODE:
@@ -54,16 +54,16 @@ if errorlevel 1 (
 )
 
 if not defined JL22 (
-  for /f "usebackq delims=" %%D in (`powershell -NoProfile -Command "$m=@(adb devices -l ^| Select-String 'product:octopus_jetinno model:UniWin_M190 device:octopus-jetinno'); if($m.Count -eq 1){ (($m[0].Line -split '\s+')[0]) }"`) do if not defined JL22 set "JL22=%%D"
+  for /f "usebackq delims=" %%D in (`powershell -NoProfile -Command "$m=@(adb devices -l ^| Select-String 'product:octopus_jetinno model:UniWin_M190 device:octopus-jetinno'); $live=@($m ^| Where-Object { $_.Line -match '^\S+\s+device\s+' }); if($live.Count -eq 1){ (($live[0].Line -split '\s+')[0]) }"`) do if not defined JL22 set "JL22=%%D"
 )
 
 if not defined JL22 (
-  echo [ERROR] Could not uniquely find JL22 by ADB signature:
+  echo [ERROR] Could not uniquely find ONE LIVE JL22 by ADB signature:
   echo         product:octopus_jetinno model:UniWin_M190 device:octopus-jetinno
   echo.
   adb devices -l
   echo.
-  echo You may pass the JL22 adb serial/IP as the first argument.
+  echo NOTE: matching OFFLINE ADB entries are ignored by auto-selection.\necho You may pass the live JL22 adb serial/IP as the first argument.
   pause
   exit /b 15
 )
