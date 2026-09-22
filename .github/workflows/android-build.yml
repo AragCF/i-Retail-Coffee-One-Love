@@ -228,6 +228,9 @@ jobs:
       - name: Verify fiscal adapter boundary
         run: python3 tools/verify_v0_5_82_fiscal_adapter_boundary.py
 
+      - name: Verify v0.5.84 fiscal safe smoke
+        run: python3 tools/verify_v0_5_84_fiscal_safe_smoke.py
+
       - name: Assemble debug APK
         working-directory: .
         run: gradle --no-daemon --stacktrace assembleDebug
@@ -236,6 +239,6 @@ jobs:
         if: success()
         uses: actions/upload-artifact@v4
         with:
-          name: iRetail-v0.5.83-debug-apk
+          name: iRetail-v0.5.84-debug-apk
           path: app/build/outputs/apk/debug/*.apk
           if-no-files-found: error

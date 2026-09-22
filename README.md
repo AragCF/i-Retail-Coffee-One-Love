@@ -1,6 +1,6 @@
 # i-Retail Coffee One Love
 
-Текущая рабочая версия: **0.5.83-fiscal-adapter-guard-fix**.
+Текущая рабочая версия: **0.5.84-fiscal-safe-install-smoke**.
 
 Android-проект теперь расположен непосредственно в корне репозитория. Дополнительный каталог
 `iRetail_Android_UI_v0.5.8_smartskypos_probe_source` больше не используется.
@@ -693,3 +693,18 @@ v0.5.82 корректно ввёл `FiscalGateway`, но исторически
 v0.5.83 обновляет только совместимость проверки: допустим как прямой DRY_RUN builder, так и безопасная цепочка `MainActivity -> FiscalGateway -> DryRunFiscalGateway -> FiscalizationDraftBuilder`.
 
 Фискальный сетевой вызов по-прежнему отсутствует.
+
+
+## v0.5.84 — безопасная установка на JL22
+
+`MAIN_24_FISCAL_SAFE_INSTALL_SMOKE.bat`:
+- сам находит JL22 по ADB-сигнатуре;
+- собирает и устанавливает текущий APK;
+- запускает i-Retail с `real_pos_enabled=false`;
+- не требует Kozen;
+- не выполняет оплату;
+- проверяет отсутствие Fiscal DRY_RUN без подтверждённой оплаты;
+- возвращает штатное Jetinno-приложение на экран;
+- при безопасном результате автоматически публикует ZIP в Git.
+
+Это первый живой smoke-test границы Fiscal adapter после v0.5.83.
