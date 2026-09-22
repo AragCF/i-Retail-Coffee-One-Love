@@ -53,6 +53,7 @@ class MainActivity : Activity() {
     private val orderGateway = LocalRetailOrderGateway()
     private val machineGateway = LocalMachineGateway()
     private val loyaltyGateway = LocalLoyaltyGateway()
+    private lateinit var fiscalGateway: FiscalGateway
     private lateinit var cardPaymentClient: KozenAoaPaymentClient
     private var machineModeConfig = MachineModeConfig(MachineModeStore.MODE_KIOSK, false)
     private var realPosEnabled = false
@@ -181,6 +182,7 @@ class MainActivity : Activity() {
         window.setFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN, WindowManager.LayoutParams.FLAG_FULLSCREEN)
         hideSystemUi()
         contentRepository = IretailContentRepository(this)
+        fiscalGateway = DryRunFiscalGateway(this)
         cardPaymentClient = KozenAoaPaymentClient(this)
         if (intent?.getBooleanExtra("tls_chain_probe", false) == true) {
             IretailTlsChainProbe.runAsync(this)
@@ -2101,16 +2103,15 @@ class MainActivity : Activity() {
                         val completed = orderGateway.markPaymentConfirmed()
                         if (completed == OperationResult.SUCCESS) {
                             try {
-                                val fiscalDraft = FiscalizationDraftBuilder(this@MainActivity).write(order)
+                                val fiscalResult = fiscalGateway.afterPaymentConfirmed(order)
                                 android.util.Log.i(
-                                    "FiscalDryRun",
-                                    "PAYMENT_CONFIRMED draft=${fiscalDraft.file.name} sendAllowed=${fiscalDraft.sendAllowed} " +
-                                        "unresolved=${fiscalDraft.unresolvedCount} grossMatch=${fiscalDraft.grossMatchesRuntime} " +
-                                        "payableMatch=${fiscalDraft.payableEquationMatches}"
+                                    "FiscalGateway",
+                                    "PAYMENT_CONFIRMED state=${fiscalResult.state} sendAllowed=${fiscalResult.sendAllowed} " +
+                                        "draft=${fiscalResult.draftFile?.name ?: "none"} receipt=${fiscalResult.receiptUrl ?: "none"}"
                                 )
                             } catch (e: Exception) {
                                 android.util.Log.e(
-                                    "FiscalDryRun",
+                                    "FiscalGateway",
                                     "DRAFT_ERROR ${e.javaClass.simpleName}: ${e.message}"
                                 )
                             }

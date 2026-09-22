@@ -225,6 +225,9 @@ jobs:
       - name: Verify S3 fiscal DRY_RUN v1
         run: python3 tools/verify_v0_5_81_fiscal_dry_run.py
 
+      - name: Verify fiscal adapter boundary
+        run: python3 tools/verify_v0_5_82_fiscal_adapter_boundary.py
+
       - name: Assemble debug APK
         working-directory: .
         run: gradle --no-daemon --stacktrace assembleDebug
@@ -233,6 +236,6 @@ jobs:
         if: success()
         uses: actions/upload-artifact@v4
         with:
-          name: iRetail-v0.5.81-debug-apk
+          name: iRetail-v0.5.82-debug-apk
           path: app/build/outputs/apk/debug/*.apk
           if-no-files-found: error
