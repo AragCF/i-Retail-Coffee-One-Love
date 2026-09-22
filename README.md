@@ -1,6 +1,6 @@
 # i-Retail Coffee One Love
 
-Текущая рабочая версия: **0.5.82-fiscal-adapter-boundary**.
+Текущая рабочая версия: **0.5.83-fiscal-adapter-guard-fix**.
 
 Android-проект теперь расположен непосредственно в корне репозитория. Дополнительный каталог
 `iRetail_Android_UI_v0.5.8_smartskypos_probe_source` больше не используется.
@@ -684,3 +684,12 @@ v0.5.82 отделяет фискализацию от POS/Retail/Device код�
 Текущий provider — только `DryRunFiscalGateway`. Он не делает сетевых вызовов и не объявляет чек сформированным.
 
 После подтверждения актуального Fiscal API можно добавить реального провайдера без переписывания платёжного контура.
+
+
+## Исправление v0.5.83
+
+v0.5.82 корректно ввёл `FiscalGateway`, но исторический guard v0.5.81 всё ещё требовал прямой вызов `FiscalizationDraftBuilder` из MainActivity.
+
+v0.5.83 обновляет только совместимость проверки: допустим как прямой DRY_RUN builder, так и безопасная цепочка `MainActivity -> FiscalGateway -> DryRunFiscalGateway -> FiscalizationDraftBuilder`.
+
+Фискальный сетевой вызов по-прежнему отсутствует.

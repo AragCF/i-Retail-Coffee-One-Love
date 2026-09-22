@@ -4,6 +4,8 @@ import re
 ROOT = Path(__file__).resolve().parents[1]
 fiscal = (ROOT / "app/src/main/java/com/coffeeonelove/iretail/ui/FiscalizationDraft.kt").read_text(encoding="utf-8")
 main = (ROOT / "app/src/main/java/com/coffeeonelove/iretail/ui/MainActivity.kt").read_text(encoding="utf-8")
+gateway_path = ROOT / "app/src/main/java/com/coffeeonelove/iretail/ui/FiscalGateway.kt"
+gateway = gateway_path.read_text(encoding="utf-8") if gateway_path.exists() else ""
 gradle = (ROOT / "app/build.gradle").read_text(encoding="utf-8")
 
 m = re.search(r"versionCode\s+(\d+)", gradle)
@@ -23,7 +25,15 @@ checks = {
     "no URL class": "URL(" not in fiscal and "java.net.URL" not in fiscal,
     "no HTTP connection": "HttpURLConnection" not in fiscal and "HttpsURLConnection" not in fiscal,
     "no socket": "Socket(" not in fiscal and "java.net.Socket" not in fiscal,
-    "builder wired after payment confirmation": main.find("markPaymentConfirmed()") >= 0 and main.find("FiscalizationDraftBuilder") > main.find("markPaymentConfirmed()"),
+    "builder wired after payment confirmation": (
+        main.find("markPaymentConfirmed()") >= 0 and (
+            main.find("FiscalizationDraftBuilder") > main.find("markPaymentConfirmed()") or (
+                main.find("fiscalGateway.afterPaymentConfirmed(order)") > main.find("markPaymentConfirmed()") and
+                "class DryRunFiscalGateway" in gateway and
+                "FiscalizationDraftBuilder" in gateway
+            )
+        )
+    ),
     "no success claim": "Фискальный чек пока не сформирован" in main,
 }
 
