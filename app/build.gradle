@@ -11,8 +11,8 @@ android {
         applicationId 'com.coffeeonelove.iretail'
         minSdk 23
         targetSdk 35
-        versionCode 76
-        versionName '0.5.76-s3-admin-auth-permission-audit'
+        versionCode 77
+        versionName '0.5.77-s3-admin-auth-result-analysis'
     }
 
     compileOptions {

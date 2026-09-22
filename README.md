@@ -1,6 +1,6 @@
 # i-Retail Coffee One Love
 
-Текущая рабочая версия: **0.5.76-s3-admin-auth-permission-audit**.
+Текущая рабочая версия: **0.5.77-s3-admin-auth-result-analysis**.
 
 Android-проект теперь расположен непосредственно в корне репозитория. Дополнительный каталог
 `iRetail_Android_UI_v0.5.8_smartskypos_probe_source` больше не используется.
@@ -611,3 +611,14 @@ Create/update/repeat-activation/remove/register/order/payment/shift mutation о�
 
 Запуск:
 `S3_24_AUDIT_ADMIN_AUTH_PERMISSION.bat`
+
+
+## S3 — анализ результата admin-auth
+
+v0.5.77 не выполняет новых запросов I-Retail. Она читает опубликованный ZIP v0.5.76 и выводит безопасные:
+- ordinary/admin auth outcomes;
+- ordinary/admin permission responses;
+- profile response;
+- причину пропуска admin/device/find.
+
+Никакие токены/пароли не выводятся.

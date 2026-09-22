@@ -8,6 +8,17 @@ on:
   pull_request:
 
 jobs:
+  s3-admin-auth-result-analysis:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Analyze committed admin-auth report
+        run: python3 tools/analyze_s3_admin_auth_permission_report.py
+
   s3-admin-permission-doc-analysis:
     runs-on: ubuntu-latest
     timeout-minutes: 5
@@ -219,6 +230,6 @@ jobs:
         if: success()
         uses: actions/upload-artifact@v4
         with:
-          name: iRetail-v0.5.76-debug-apk
+          name: iRetail-v0.5.77-debug-apk
           path: app/build/outputs/apk/debug/*.apk
           if-no-files-found: error

@@ -1,7 +1,7 @@
 @echo off
 setlocal EnableExtensions DisableDelayedExpansion
 
-rem i-Retail Android UI v0.5.76 S3 admin auth permission audit
+rem i-Retail Android UI v0.5.77 S3 admin auth result analysis
 rem Windows CLI debug APK build script.
 rem
 rem Important:
@@ -23,7 +23,7 @@ if errorlevel 1 (
     exit /b 9
 )
 
-set "SCRIPT_VERSION=0.5.76-s3-admin-auth-permission-audit"
+set "SCRIPT_VERSION=0.5.77-s3-admin-auth-result-analysis"
 set "DO_CLEAN=0"
 set "DO_HARD_CLEAN=0"
 
