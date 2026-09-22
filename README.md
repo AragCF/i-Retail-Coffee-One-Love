@@ -1,6 +1,6 @@
 # i-Retail Coffee One Love
 
-Текущая рабочая версия: **0.5.74-s3-admin-inventory-result-analysis**.
+Текущая рабочая версия: **0.5.75-s3-admin-permission-doc-analysis**.
 
 Android-проект теперь расположен непосредственно в корне репозитория. Дополнительный каталог
 `iRetail_Android_UI_v0.5.8_smartskypos_probe_source` больше не используется.
@@ -584,3 +584,12 @@ Create/update/repeat-activation/remove/register/order/payment/shift mutation н�
 - итоговый inventory и сетевые статусы.
 
 Цель — отличить реальный тип устройств от ошибки парсинга и отделить permission denied от фактического отсутствия объекта.
+
+
+## S3 — анализ прав административного API
+
+v0.5.74 доказал, что все проверенные `admin/device/*` вызовы возвращают `status=false`; предыдущие `found=True` были ошибкой парсинга error object.
+
+v0.5.75 делает только публичные GET-запросы к документации и ищет user/role/permission/authentication endpoints и описание прав, необходимых для административного device management.
+
+Рабочие API-вызовы и авторизация не выполняются.
