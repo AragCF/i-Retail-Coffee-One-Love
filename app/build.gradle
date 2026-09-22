@@ -11,8 +11,8 @@ android {
         applicationId 'com.coffeeonelove.iretail'
         minSdk 23
         targetSdk 35
-        versionCode 78
-        versionName '0.5.78-s3-admin-access-human-gate'
+        versionCode 79
+        versionName '0.5.79-s3-support-request-admin-device-provisioning'
     }
 
     compileOptions {

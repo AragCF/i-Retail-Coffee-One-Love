@@ -1,7 +1,7 @@
 @echo off
 setlocal EnableExtensions DisableDelayedExpansion
 
-rem i-Retail Android UI v0.5.78 S3 admin access human gate
+rem i-Retail Android UI v0.5.79 S3 support request admin device provisioning
 rem Windows CLI debug APK build script.
 rem
 rem Important:
@@ -23,7 +23,7 @@ if errorlevel 1 (
     exit /b 9
 )
 
-set "SCRIPT_VERSION=0.5.78-s3-admin-access-human-gate"
+set "SCRIPT_VERSION=0.5.79-s3-support-request-admin-device-provisioning"
 set "DO_CLEAN=0"
 set "DO_HARD_CLEAN=0"
 
