@@ -1,6 +1,6 @@
 # i-Retail Coffee One Love
 
-Текущая рабочая версия: **0.5.73-s3-admin-device-inventory-audit**.
+Текущая рабочая версия: **0.5.74-s3-admin-inventory-result-analysis**.
 
 Android-проект теперь расположен непосредственно в корне репозитория. Дополнительный каталог
 `iRetail_Android_UI_v0.5.8_smartskypos_probe_source` больше не используется.
@@ -572,3 +572,15 @@ v0.5.72 делает только публичные GET-запросы к `api/
 `S3_22_AUDIT_ADMIN_DEVICE_INVENTORY.bat`
 
 Create/update/repeat-activation/remove/register/order/payment/shift mutation не вызываются.
+
+
+## S3 — анализ результата admin device inventory
+
+Версия 0.5.74 не выполняет новых запросов I-Retail. Она читает опубликованный ZIP v0.5.73 и печатает безопасные ответы:
+- admin count;
+- admin find;
+- devices involved in orders;
+- direct admin get-device-info для 6287 и 3476;
+- итоговый inventory и сетевые статусы.
+
+Цель — отличить реальный тип устройств от ошибки парсинга и отделить permission denied от фактического отсутствия объекта.

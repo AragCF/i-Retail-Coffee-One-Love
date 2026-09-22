@@ -11,8 +11,8 @@ android {
         applicationId 'com.coffeeonelove.iretail'
         minSdk 23
         targetSdk 35
-        versionCode 73
-        versionName '0.5.73-s3-admin-device-inventory-audit'
+        versionCode 74
+        versionName '0.5.74-s3-admin-inventory-result-analysis'
     }
 
     compileOptions {

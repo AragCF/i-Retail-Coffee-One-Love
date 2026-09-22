@@ -1,7 +1,7 @@
 @echo off
 setlocal EnableExtensions DisableDelayedExpansion
 
-rem i-Retail Android UI v0.5.73 S3 admin device inventory audit
+rem i-Retail Android UI v0.5.74 S3 admin inventory result analysis
 rem Windows CLI debug APK build script.
 rem
 rem Important:
@@ -23,7 +23,7 @@ if errorlevel 1 (
     exit /b 9
 )
 
-set "SCRIPT_VERSION=0.5.73-s3-admin-device-inventory-audit"
+set "SCRIPT_VERSION=0.5.74-s3-admin-inventory-result-analysis"
 set "DO_CLEAN=0"
 set "DO_HARD_CLEAN=0"
 
