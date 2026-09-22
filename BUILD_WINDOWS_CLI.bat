@@ -1,7 +1,7 @@
 @echo off
 setlocal EnableExtensions DisableDelayedExpansion
 
-rem i-Retail Android UI v0.5.80 S3 fiscal API alternative analysis
+rem i-Retail Android UI v0.5.81 S3 fiscal dry run v1
 rem Windows CLI debug APK build script.
 rem
 rem Important:
@@ -23,7 +23,7 @@ if errorlevel 1 (
     exit /b 9
 )
 
-set "SCRIPT_VERSION=0.5.80-s3-fiscal-api-alternative-analysis"
+set "SCRIPT_VERSION=0.5.81-s3-fiscal-dry-run-v1"
 set "DO_CLEAN=0"
 set "DO_HARD_CLEAN=0"
 

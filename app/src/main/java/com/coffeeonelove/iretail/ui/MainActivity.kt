@@ -2100,6 +2100,20 @@ class MainActivity : Activity() {
                     result.isApproved() -> {
                         val completed = orderGateway.markPaymentConfirmed()
                         if (completed == OperationResult.SUCCESS) {
+                            try {
+                                val fiscalDraft = FiscalizationDraftBuilder(this@MainActivity).write(order)
+                                android.util.Log.i(
+                                    "FiscalDryRun",
+                                    "PAYMENT_CONFIRMED draft=${fiscalDraft.file.name} sendAllowed=${fiscalDraft.sendAllowed} " +
+                                        "unresolved=${fiscalDraft.unresolvedCount} grossMatch=${fiscalDraft.grossMatchesRuntime} " +
+                                        "payableMatch=${fiscalDraft.payableEquationMatches}"
+                                )
+                            } catch (e: Exception) {
+                                android.util.Log.e(
+                                    "FiscalDryRun",
+                                    "DRAFT_ERROR ${e.javaClass.simpleName}: ${e.message}"
+                                )
+                            }
                             toast("Оплата подтверждена Kozen / SmartSkyPOS. Фискальный чек пока не сформирован.")
                             openScreen("PAYMENT_COMPLETED")
                         } else {

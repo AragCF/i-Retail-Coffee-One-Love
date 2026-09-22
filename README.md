@@ -1,6 +1,6 @@
 # i-Retail Coffee One Love
 
-Текущая рабочая версия: **0.5.80-s3-fiscal-api-alternative-analysis**.
+Текущая рабочая версия: **0.5.81-s3-fiscal-dry-run-v1**.
 
 Android-проект теперь расположен непосредственно в корне репозитория. Дополнительный каталог
 `iRetail_Android_UI_v0.5.8_smartskypos_probe_source` больше не используется.
@@ -660,3 +660,18 @@ v0.5.77 не выполняет новых запросов I-Retail. Она ч�
 - `docs/S3_IRETAIL_SUPPORT_REQUEST_REVISED_v0.5.80.md`.
 
 Вывод: блокер `order/synchronize` не должен блокировать Fiscal adapter. Но старый cloud-fiscal API необходимо подтвердить, потому что документ 2019 года, а более новое ТЗ указывает сменяемый fiscal provider / Первого ОФД.
+
+
+## S3 — Fiscal DRY_RUN v1
+
+v0.5.81 добавляет отдельный локальный FiscalizationDraftBuilder.
+
+После достоверно подтверждённой карточной оплаты он:
+- строит форму по историческому cloud-fiscal контракту;
+- проверяет gross/payable суммы;
+- сохраняет только локальный DRY_RUN;
+- не делает HTTP-запросов;
+- не хранит fiscal credentials;
+- не объявляет чек сформированным.
+
+Боевая отправка остаётся заблокирована до подтверждения текущего fiscal provider и контракта.
