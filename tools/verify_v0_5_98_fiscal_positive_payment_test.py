@@ -12,7 +12,6 @@ assert_ps = (ROOT / "tools/Assert-FiscalPositivePayment1Rub.ps1").read_text(enco
 
 checks = {
     "versionCode 98+": bool(re.search(r"versionCode\s+(9[8-9]|[1-9]\d{2,})", gradle)),
-    "versionCode remains 98+": bool(re.search(r"versionCode\s+(9[8-9]|[1-9]\d{2,})", gradle)),
     "approved contract": "APPROVED_FOR_ONE_ATTEMPT" in contract,
     "exact one ruble": "100 копеек" in contract and "1,00 ₽" in contract,
     "test product isolated": 'id = "s3-fiscal-positive-test-1rub"' in main and "catalog = listOf(fiscalPositivePaymentTestProduct)" in main,
