@@ -62,7 +62,6 @@ public class AoaProductionBridgeAuditActivity extends Activity {
     private volatile boolean linkStarted;
 
     private String terminalId;
-    private boolean routeOnly;
     private UsbDeviceConnection linkConnection;
     private UsbInterface linkInterface;
 
@@ -87,7 +86,6 @@ public class AoaProductionBridgeAuditActivity extends Activity {
         terminalId = getIntent() == null ? null : getIntent().getStringExtra("terminal_id");
         if (terminalId == null || terminalId.trim().isEmpty()) terminalId = "12000679";
         terminalId = terminalId.trim();
-        routeOnly = getIntent() != null && getIntent().getBooleanExtra("route_only", false);
         buildUi();
 
         int flags = 0;
@@ -97,7 +95,7 @@ public class AoaProductionBridgeAuditActivity extends Activity {
         registerReceiver(permissionReceiver, new IntentFilter(ACTION_USB_PERMISSION));
 
         append("i-Retail PRODUCTION BRIDGE SAFE AUDIT");
-        append(routeOnly ? "Режим: только проверка платёжного маршрута" : "TID=" + terminalId);
+        append("TID=" + terminalId);
         append("Команды оплаты, отмены, возврата и сверки в этом клиенте отсутствуют.");
         append("Ожидание Kozen…");
         main.postDelayed(this::discoverAndStart, 400L);
@@ -281,13 +279,8 @@ public class AoaProductionBridgeAuditActivity extends Activity {
             append("RX: " + pong);
 
             bulkWrite(connection, out, "INFO 3002\n");
-            String info = waitForLine(connection, in, "INFO 3002", "paymentPolicy=EXPLICIT_SINGLE_NO_AUTO_RETRY", 15000L);
-            if (info == null ||
-                    !info.contains("protocol=4") ||
-                    !info.contains("bridge=0.5.2") ||
-                    !info.contains("role=kozen-payment-bridge")) {
-                throw new IllegalStateException("INFO_INCOMPATIBLE_BRIDGE");
-            }
+            String info = waitForLine(connection, in, "INFO 3002", "GET_LAST_TRANSACTION", 15000L);
+            if (info == null) throw new IllegalStateException("INFO_MISSING_RECOVERY_COMMANDS");
             append("RX: " + info);
 
             String state = requestUntil(connection, in, out, "GET_STATE 3003\n", "STATE 3003", 20);
@@ -303,12 +296,6 @@ public class AoaProductionBridgeAuditActivity extends Activity {
             }
             append("RX: " + terminalData);
             log("PROD_AUDIT_TERMINAL_DATA " + safe(terminalData));
-
-            if (routeOnly) {
-                log("PROD_BRIDGE_PREFLIGHT_OK bridge=0.5.2 protocol=4 paymentPolicy=EXPLICIT_SINGLE_NO_AUTO_RETRY financialCommandsSent=false transactionQueriesSent=false");
-                append("ГОТОВО: платёжный маршрут Kozen / SmartSkyPOS готов. Финансовых команд не отправлялось.");
-                return;
-            }
 
             String last = requestUntil(connection, in, out,
                     "GET_LAST_TRANSACTION 3005 terminalId=" + terminalId + "\n",
