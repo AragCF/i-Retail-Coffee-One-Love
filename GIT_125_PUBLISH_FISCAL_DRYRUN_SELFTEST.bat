@@ -2,7 +2,7 @@
 setlocal EnableExtensions DisableDelayedExpansion
 cd /d "%~dp0"
 
-set "EXPECTED_BRANCH=v0.5.95-fiscal-selftest-versionname-fix"
+set "EXPECTED_BRANCH=v0.5.96-fiscal-selftest-launch-fix"
 for /f "delims=" %%B in ('git branch --show-current') do if not defined GIT_BRANCH set "GIT_BRANCH=%%B"
 if /I not "%GIT_BRANCH%"=="%EXPECTED_BRANCH%" (
   echo [ERROR] Wrong branch: %GIT_BRANCH%
@@ -32,7 +32,7 @@ if not errorlevel 1 (
   exit /b 0
 )
 
-git commit -m "test: v0.5.95 fiscal positive dryrun selftest %LATEST%"
+git commit -m "test: v0.5.96 fiscal positive dryrun selftest %LATEST%"
 if errorlevel 1 exit /b 14
 git push origin HEAD
 if errorlevel 1 exit /b 15

@@ -3,12 +3,12 @@ setlocal EnableExtensions DisableDelayedExpansion
 cd /d "%~dp0"
 if errorlevel 1 exit /b 10
 
-set "EXPECTED_BRANCH=v0.5.95-fiscal-selftest-versionname-fix"
-set "EXPECTED_VERSION=0.5.95-fiscal-selftest-versionname-fix"
+set "EXPECTED_BRANCH=v0.5.96-fiscal-selftest-launch-fix"
+set "EXPECTED_VERSION=0.5.96-fiscal-selftest-launch-fix"
 set "JL22="
 
 echo ============================================================
-echo i-Retail v0.5.95 - FISCAL POSITIVE DRY_RUN SELF-TEST
+echo i-Retail v0.5.96 - FISCAL POSITIVE DRY_RUN SELF-TEST
 echo ============================================================
 echo.
 echo NO FINANCIAL OPERATION:
@@ -98,6 +98,8 @@ if errorlevel 1 (
 timeout /t 1 /nobreak >nul
 
 echo [4/7] Clearing previous self-test evidence and running positive FiscalGateway DRY_RUN...
+adb -s "%JL22%" shell am force-stop com.coffeeonelove.iretail >nul 2>nul
+timeout /t 1 /nobreak >nul
 adb -s "%JL22%" logcat -c
 adb -s "%JL22%" shell run-as com.coffeeonelove.iretail rm -f files/fiscalization_dry_run.json >nul 2>nul
 adb -s "%JL22%" shell am start -W -n com.coffeeonelove.iretail/.ui.MainActivity --ez fiscal_dry_run_self_test true >nul
