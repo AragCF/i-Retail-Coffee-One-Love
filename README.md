@@ -1,6 +1,6 @@
 # i-Retail Coffee One Love
 
-Текущая рабочая версия: **0.5.89-standalone-safe-smoke**.
+Текущая рабочая версия: **0.5.90-fiscal-positive-payment-contract**.
 
 Android-проект теперь расположен непосредственно в корне репозитория. Дополнительный каталог
 `iRetail_Android_UI_v0.5.8_smartskypos_probe_source` больше не используется.
@@ -762,3 +762,14 @@ Windows-прогон показал одновременно USB JL22 в сос�
 - следующий платёжный тест включит real POS отдельным контролируемым шагом.
 
 Smoke-test дополнительно проверяет сохранённый `standalone` в SharedPreferences.
+
+
+## v0.5.90 — proposed contract положительной проверки FiscalGateway
+
+Добавлен только контракт:
+`docs/S3_FISCAL_POSITIVE_PAYMENT_CONTRACT_v1.0.0.md`.
+
+Статус: `PROPOSED_NOT_APPROVED`.
+
+Исполняемого сценария реальной оплаты в этом выпуске нет.
+Следующий этап требует отдельного явного разрешения на одну реальную карточную оплату.
