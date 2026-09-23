@@ -258,6 +258,18 @@ jobs:
       - name: Verify v0.5.98 controlled positive payment test
         run: python3 tools/verify_v0_5_98_fiscal_positive_payment_test.py
 
+      - name: Verify v0.5.98 PowerShell syntax
+        shell: pwsh
+        run: |
+          $files = @(
+            "tools/Assert-FiscalPositivePayment1Rub.ps1",
+            "tools/Sanitize-FiscalPositivePaymentReport.ps1"
+          )
+          foreach ($file in $files) {
+            [void][scriptblock]::Create((Get-Content -Raw -LiteralPath $file))
+            Write-Host "[OK] $file"
+          }
+
       - name: Assemble debug APK
         working-directory: .
         run: gradle --no-daemon --stacktrace assembleDebug
