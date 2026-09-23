@@ -1,6 +1,6 @@
 # i-Retail Coffee One Love
 
-Текущая рабочая версия: **0.5.91-fiscal-positive-dryrun-selftest**.
+Текущая рабочая версия: **0.5.92-fiscal-selftest-guard-fix**.
 
 Android-проект теперь расположен непосредственно в корне репозитория. Дополнительный каталог
 `iRetail_Android_UI_v0.5.8_smartskypos_probe_source` больше не используется.
@@ -797,3 +797,13 @@ Smoke-test дополнительно проверяет сохранённый 
 
 Запуск:
 `MAIN_25_FISCAL_DRYRUN_SELFTEST.bat`.
+
+
+## Исправление v0.5.92
+
+v0.5.91 был остановлен историческим guard v0.5.81: после появления debug self-test первый вызов FiscalGateway в файле MainActivity больше не принадлежал боевому платёжному пути.
+
+v0.5.92 не меняет FiscalGateway или финансовое поведение. Исправлена только проверка:
+- боевой порядок `markPaymentConfirmed() -> fiscalGateway.afterPaymentConfirmed(order)` проверяется внутри `startRealCardPayment()`;
+- debug self-test проверяется отдельно;
+- номер v0.5.91 не переиспользуется.

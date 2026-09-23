@@ -26,12 +26,25 @@ checks = {
     "no HTTP connection": "HttpURLConnection" not in fiscal and "HttpsURLConnection" not in fiscal,
     "no socket": "Socket(" not in fiscal and "java.net.Socket" not in fiscal,
     "builder wired after payment confirmation": (
-        main.find("markPaymentConfirmed()") >= 0 and (
-            main.find("FiscalizationDraftBuilder") > main.find("markPaymentConfirmed()") or (
-                main.find("fiscalGateway.afterPaymentConfirmed(order)") > main.find("markPaymentConfirmed()") and
-                "class DryRunFiscalGateway" in gateway and
-                "FiscalizationDraftBuilder" in gateway
+        (lambda start, end: (
+            start >= 0 and end > start and
+            "markPaymentConfirmed()" in main[start:end] and
+            (
+                (
+                    "FiscalizationDraftBuilder" in main[start:end] and
+                    main[start:end].find("FiscalizationDraftBuilder") >
+                    main[start:end].find("markPaymentConfirmed()")
+                ) or (
+                    "fiscalGateway.afterPaymentConfirmed(order)" in main[start:end] and
+                    main[start:end].find("fiscalGateway.afterPaymentConfirmed(order)") >
+                    main[start:end].find("markPaymentConfirmed()") and
+                    "class DryRunFiscalGateway" in gateway and
+                    "FiscalizationDraftBuilder" in gateway
+                )
             )
+        ))(
+            main.find("private fun startRealCardPayment()"),
+            main.find("private fun finishPayment()", main.find("private fun startRealCardPayment()"))
         )
     ),
     "no success claim": "Фискальный чек пока не сформирован" in main,
