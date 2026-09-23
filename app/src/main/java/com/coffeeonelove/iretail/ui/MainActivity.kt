@@ -91,6 +91,7 @@ class MainActivity : Activity() {
     private var languagePopupVisible = false
     private var currentLanguage = "RU"
     private var fiscalPositivePaymentTestMode = false
+    private var fiscalPositivePaymentPreflightReady = false
 
     private val fiscalPositivePaymentTestProduct = Product(
         id = "s3-fiscal-positive-test-1rub",
@@ -228,11 +229,12 @@ class MainActivity : Activity() {
 
         if (fiscalPositivePaymentTestMode) {
             val persistedPos = MachineModeStore.load(this).realPosEnabled
-            android.util.Log.w(
+            android.util.Log.i(
                 "FiscalPositivePaymentTest",
-                "TEST_MODE_READY productId=${fiscalPositivePaymentTestProduct.id} amountMinor=100 " +
+                "TEST_MODE_INITIALIZED productId=${fiscalPositivePaymentTestProduct.id} amountMinor=100 " +
                     "realPos=$realPosEnabled persistedRealPos=$persistedPos"
             )
+            startFiscalPositivePaymentPreflight()
         } else {
             refreshCatalogFromIretail()
         }
@@ -277,6 +279,51 @@ class MainActivity : Activity() {
     override fun onStop() {
         MainUiVisibility.started = false
         super.onStop()
+    }
+
+    private fun startFiscalPositivePaymentPreflight() {
+        if (!fiscalPositivePaymentTestMode) return
+
+        fiscalPositivePaymentPreflightReady = false
+        if (cardPaymentClient.hasUnresolvedPayment()) {
+            realPosEnabled = false
+            android.util.Log.e(
+                "FiscalPositivePaymentTest",
+                "TEST_PREFLIGHT_FAILED code=PREVIOUS_UNRESOLVED noPaymentSent=true"
+            )
+            toast("Есть незавершённая предыдущая оплата. Тестовый платёж запрещён.")
+            return
+        }
+
+        android.util.Log.i(
+            "FiscalPositivePaymentTest",
+            "TEST_PREFLIGHT_START commands=PING,INFO,GET_STATE,GET_TERMINAL_DATA noPaymentSent=true"
+        )
+
+        cardPaymentClient.preflight(object : KozenAoaPaymentClient.PreflightListener {
+            override fun onResult(ready: Boolean, code: String, message: String) {
+                if (!fiscalPositivePaymentTestMode) return
+                fiscalPositivePaymentPreflightReady = ready
+
+                if (ready) {
+                    val persistedPos = MachineModeStore.load(this@MainActivity).realPosEnabled
+                    android.util.Log.w(
+                        "FiscalPositivePaymentTest",
+                        "TEST_MODE_READY productId=${fiscalPositivePaymentTestProduct.id} amountMinor=100 " +
+                            "realPos=$realPosEnabled persistedRealPos=$persistedPos bridgeReady=true noPaymentSent=true"
+                    )
+                    toast("Kozen / SmartSkyPOS готов. Разрешена одна тестовая оплата 1 ₽.")
+                } else {
+                    realPosEnabled = false
+                    machineModeConfig = MachineModeConfig(MachineModeStore.MODE_STANDALONE, false)
+                    android.util.Log.e(
+                        "FiscalPositivePaymentTest",
+                        "TEST_PREFLIGHT_FAILED code=$code noPaymentSent=true"
+                    )
+                    toast("$message. Финансовая попытка не начиналась.")
+                }
+            }
+        })
     }
 
     private fun maybeRunFiscalDryRunSelfTest(intent: android.content.Intent?, source: String) {
@@ -2511,6 +2558,7 @@ class MainActivity : Activity() {
 
     private fun fiscalPositivePaymentTestBlockReason(): String? {
         if (!fiscalPositivePaymentTestMode) return null
+        if (!fiscalPositivePaymentPreflightReady) return "Платёжный маршрут Kozen ещё не проверен"
         val line = cart.singleOrNull() ?: return "В тесте S3 должен быть ровно один товар"
         if (line.product.id != fiscalPositivePaymentTestProduct.id) return "Разрешён только тестовый товар S3"
         if (line.product.priceMinor != 100L) return "Цена тестового товара должна быть ровно 1 ₽"
@@ -2571,6 +2619,7 @@ class MainActivity : Activity() {
         realPosEnabled = false
         machineModeConfig = MachineModeConfig(MachineModeStore.MODE_STANDALONE, false)
         fiscalPositivePaymentTestMode = false
+        fiscalPositivePaymentPreflightReady = false
         android.util.Log.w(
             "FiscalPositivePaymentTest",
             "TEST_RUNTIME_POS_DISABLED status=$status persistedRealPos=${MachineModeStore.load(this).realPosEnabled}"
