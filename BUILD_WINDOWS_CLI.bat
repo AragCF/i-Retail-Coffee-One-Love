@@ -1,7 +1,7 @@
 @echo off
 setlocal EnableExtensions DisableDelayedExpansion
 
-rem i-Retail Android UI v0.5.95 fiscal selftest versionName fix
+rem i-Retail Android UI v0.5.96 fiscal selftest intent fix
 rem Windows CLI debug APK build script.
 rem
 rem Important:
@@ -23,7 +23,7 @@ if errorlevel 1 (
     exit /b 9
 )
 
-set "SCRIPT_VERSION=0.5.95-fiscal-selftest-versionname-fix"
+set "SCRIPT_VERSION=0.5.96-fiscal-selftest-intent-fix"
 set "DO_CLEAN=0"
 set "DO_HARD_CLEAN=0"
 

@@ -192,9 +192,7 @@ class MainActivity : Activity() {
         paymentMethods = contentRepository.loadPaymentMethods()
         buildRootView()
         openScreen("SCREEN_SAVER_COFFEE", remember = false)
-        if (intent?.getBooleanExtra("fiscal_dry_run_self_test", false) == true) {
-            runFiscalDryRunSelfTest()
-        }
+        maybeRunFiscalDryRunSelfTest(intent, "onCreate")
         refreshCatalogFromIretail()
     }
 
@@ -205,7 +203,13 @@ class MainActivity : Activity() {
         realPosEnabled = machineModeConfig.realPosEnabled
         applyMachineModeRuntime(machineModeConfig)
         android.util.Log.i("IretailMachineMode", "NEW_INTENT mode=${machineModeConfig.mode} realPos=$realPosEnabled")
-        if (intent?.getBooleanExtra("configure_only", false) == true) finishAndRemoveTask()
+        if (intent?.getBooleanExtra("configure_only", false) == true) {
+            finishAndRemoveTask()
+            return
+        }
+        if (::fiscalGateway.isInitialized) {
+            maybeRunFiscalDryRunSelfTest(intent, "onNewIntent")
+        }
     }
 
     override fun onStart() {
@@ -217,6 +221,16 @@ class MainActivity : Activity() {
     override fun onStop() {
         MainUiVisibility.started = false
         super.onStop()
+    }
+
+    private fun maybeRunFiscalDryRunSelfTest(intent: android.content.Intent?, source: String) {
+        if (intent?.getBooleanExtra("fiscal_dry_run_self_test", false) != true) return
+        android.util.Log.i(
+            "FiscalGatewaySelfTest",
+            "SELF_TEST_TRIGGER source=$source realPos=$realPosEnabled"
+        )
+        intent.removeExtra("fiscal_dry_run_self_test")
+        runFiscalDryRunSelfTest()
     }
 
     private fun runFiscalDryRunSelfTest() {
