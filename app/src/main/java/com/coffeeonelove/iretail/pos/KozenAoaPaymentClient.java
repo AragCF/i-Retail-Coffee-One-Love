@@ -95,6 +95,10 @@ public final class KozenAoaPaymentClient {
         void onResult(PaymentResult result);
     }
 
+    public interface PreflightListener {
+        void onResult(boolean ready, String code, String message);
+    }
+
     public static final class PaymentResult {
         public final String requestId;
         public final String status;
@@ -179,6 +183,72 @@ public final class KozenAoaPaymentClient {
                 flags
         );
         registerPermissionReceiver();
+    }
+
+    /**
+     * Read-only readiness check for the controlled payment test.
+     *
+     * It opens and keeps the same AOA link that the following payment can reuse.
+     * Only PING, INFO, GET_STATE and GET_TERMINAL_DATA are sent.
+     * PAYMENT is never sent from this method.
+     */
+    public void preflight(PreflightListener listener) {
+        if (listener == null) return;
+        if (shutdown) {
+            main.post(() -> listener.onResult(false, "CLIENT_SHUTDOWN", "Платёжный клиент остановлен"));
+            return;
+        }
+        if (hasUnresolvedPayment()) {
+            main.post(() -> listener.onResult(false, "PREVIOUS_UNRESOLVED", "Есть незавершённая предыдущая оплата"));
+            return;
+        }
+        if (!busy.compareAndSet(false, true)) {
+            main.post(() -> listener.onResult(false, "LOCAL_BUSY", "Платёжный клиент занят"));
+            return;
+        }
+
+        executor.execute(() -> {
+            boolean ready = false;
+            String code = "UNKNOWN";
+            String message = "Платёжный маршрут не готов";
+            try {
+                ensureLink();
+                verifyBridge();
+
+                String state = requestResponse("GET_STATE " + nextWireId(), "STATE ", 12000L);
+                if (!"0".equals(value(state, "code")) || !"0".equals(value(state, "state"))) {
+                    throw new IOException("STATE_NOT_READY");
+                }
+
+                String terminalData = requestResponse("GET_TERMINAL_DATA " + nextWireId(), "TERMINAL_DATA ", 15000L);
+                String tid = value(terminalData, "paymentTid");
+                boolean routeOk = "0".equals(value(terminalData, "code")) &&
+                        "true".equalsIgnoreCase(value(terminalData, "payment")) &&
+                        "00".equals(value(terminalData, "paymentType")) &&
+                        "payment".equalsIgnoreCase(value(terminalData, "transactionType")) &&
+                        containsCsvValue(value(terminalData, "currencies"), CURRENCY) &&
+                        tid != null && !tid.isEmpty() && !"-".equals(tid);
+                if (!routeOk) throw new IOException("FRESH_ROUTE_NOT_FOUND");
+
+                ready = true;
+                code = "READY";
+                message = "Kozen / SmartSkyPOS готов к одной оплате";
+                Log.i(TAG,
+                        "PREFLIGHT_OK bridge=0.5.2 protocol=4 state=0 payment=true currency643=true " +
+                        "tidPresent=true noPaymentSent=true linkKeptOpen=true");
+            } catch (Exception e) {
+                code = safe(e.getMessage());
+                message = "Платёжный маршрут Kozen не готов";
+                Log.e(TAG, "PREFLIGHT_FAILED code=" + code + " noPaymentSent=true");
+                closeLink();
+            }
+
+            busy.set(false);
+            final boolean resultReady = ready;
+            final String resultCode = code;
+            final String resultMessage = message;
+            main.post(() -> listener.onResult(resultReady, resultCode, resultMessage));
+        });
     }
 
     /**
@@ -356,6 +426,7 @@ public final class KozenAoaPaymentClient {
         String infoId = nextWireId();
         String info = requestResponse("INFO " + infoId, "INFO " + infoId, 12000L);
         if (!"4".equals(value(info, "protocol")) ||
+                !"0.5.2".equals(value(info, "bridge")) ||
                 !"EXPLICIT_SINGLE_NO_AUTO_RETRY".equals(value(info, "paymentPolicy")) ||
                 !info.contains("PAYMENT")) {
             throw new IOException("INCOMPATIBLE_BRIDGE");
