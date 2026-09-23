@@ -8,7 +8,7 @@ main26 = (ROOT / "MAIN_26_FISCAL_POSITIVE_PAYMENT_1RUB_TEST.bat").read_text(enco
 pub = (ROOT / "GIT_126_PUBLISH_FISCAL_POSITIVE_PAYMENT_1RUB.bat").read_text(encoding="utf-8")
 
 checks = {
-    "versionCode 100+": bool(re.search(r"versionCode\s+(100|[1-9]\d{3,})", gradle)),
+    "versionCode 100+": bool(re.search(r"versionCode\s+(1\d\d|[2-9]\d{2,})", gradle)),
     "versionName present": bool(re.search(r"versionName\s+'[^']+'", gradle)),
     "disk cleanup threshold": 'DISK_CLEANUP_THRESHOLD_MB=2048' in build,
     "disk minimum": 'DISK_MINIMUM_MB=1024' in build,
