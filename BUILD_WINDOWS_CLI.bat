@@ -1,7 +1,7 @@
 @echo off
 setlocal EnableExtensions DisableDelayedExpansion
 
-rem i-Retail Android UI v0.5.99 fiscal positive payment no-kozen-adb
+rem i-Retail Android UI v0.5.100 windows disk preflight
 rem Windows CLI debug APK build script.
 rem
 rem Important:
@@ -23,7 +23,7 @@ if errorlevel 1 (
     exit /b 9
 )
 
-set "SCRIPT_VERSION=0.5.99-fiscal-positive-payment-no-kozen-adb"
+set "SCRIPT_VERSION=0.5.100-windows-disk-preflight"
 set "DO_CLEAN=0"
 set "DO_HARD_CLEAN=0"
 
@@ -122,6 +122,23 @@ echo.
 echo [BUILD] Stopping existing Gradle daemons, if any...
 call "%GRADLE_CMD%" --stop >nul 2>nul
 
+set "DISK_CLEANUP_THRESHOLD_MB=2048"
+set "DISK_MINIMUM_MB=1024"
+call :ReadFreeSpace
+echo [DISK] Free space before build: %FREE_MB% MB
+
+if %FREE_MB% LSS %DISK_CLEANUP_THRESHOLD_MB% call :LowDiskProjectCleanup
+
+call :ReadFreeSpace
+echo [DISK] Free space after project cleanup: %FREE_MB% MB
+if %FREE_MB% LSS %DISK_MINIMUM_MB% (
+    echo [ERROR] Not enough free disk space for a reliable Android build.
+    echo [ERROR] Free: %FREE_MB% MB. Required: at least %DISK_MINIMUM_MB% MB.
+    echo [INFO] Only project build folders were cleaned automatically.
+    echo [INFO] Free additional space on the drive containing this project and run again.
+    exit /b 16
+)
+
 echo [BUILD] Removing obsolete source files from old unpacked folders, if any...
 call :RemoveObsoleteSources
 
@@ -134,7 +151,7 @@ if "%DO_HARD_CLEAN%"=="1" (
 if "%DO_CLEAN%"=="1" (
     echo.
     echo [BUILD] Running Gradle clean...
-    call "%GRADLE_CMD%" --no-daemon --stacktrace :app:clean
+    call "%GRADLE_CMD%" --no-daemon --no-build-cache --stacktrace :app:clean
     if errorlevel 1 (
         echo.
         echo [WARN] Gradle clean failed, most likely because Windows locked app\build.
@@ -149,7 +166,7 @@ if "%DO_CLEAN%"=="1" (
 
 echo.
 echo [BUILD] Assembling debug APK...
-call "%GRADLE_CMD%" --no-daemon --stacktrace :app:assembleDebug
+call "%GRADLE_CMD%" --no-daemon --no-build-cache --stacktrace :app:assembleDebug
 if errorlevel 1 (
     echo [ERROR] Debug APK build failed.
     echo [HINT] If the error mentions a locked APK or app\build folder, close any program
@@ -198,6 +215,23 @@ echo %CD%\%APK_TARGET%
 if exist "%APK_LATEST%" echo Latest: %CD%\%APK_LATEST%
 echo ============================================================
 
+exit /b 0
+
+:ReadFreeSpace
+set "FREE_MB="
+for /f "delims=" %%F in ('powershell -NoProfile -Command "$r=[System.IO.Path]::GetPathRoot((Get-Location).Path); $d=Get-PSDrive -Name $r.Substring(0,1); [math]::Floor($d.Free/1MB)" 2^>nul') do if not defined FREE_MB set "FREE_MB=%%F"
+if not defined FREE_MB set "FREE_MB=0"
+exit /b 0
+
+:LowDiskProjectCleanup
+echo [DISK] Low free space detected. Cleaning only temporary build folders in this repository...
+call "%GRADLE_CMD%" --stop >nul 2>nul
+if exist ".gradle" rmdir /S /Q ".gradle" 2>nul
+for /d %%D in (*) do (
+    if exist "%%D\build" rmdir /S /Q "%%D\build" 2>nul
+)
+if exist "build" rmdir /S /Q "build" 2>nul
+echo [DISK] Project-only cleanup completed. Global Gradle caches were not touched.
 exit /b 0
 
 :HardCleanBuildFolders
