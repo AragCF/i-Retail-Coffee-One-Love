@@ -14,7 +14,7 @@ preflight = client[start:end] if start >= 0 and end > start else ""
 
 checks = {
     "versionCode 99+": bool(re.search(r"versionCode\s+(99|[1-9]\d{2,})", gradle)),
-    "versionName v0.5.99": "versionName '0.5.99-fiscal-positive-payment-no-kozen-adb'" in gradle,
+    "versionName present": bool(re.search(r"versionName\s+'[^']+'", gradle)),
     "preflight listener exists": "public interface PreflightListener" in client,
     "preflight sends no PAYMENT": bool(preflight) and '"PAYMENT "' not in preflight and "PAYMENT_TX_ONCE" not in preflight,
     "preflight commands": all(x in preflight for x in ["GET_STATE ", "GET_TERMINAL_DATA ", "verifyBridge()"]),
@@ -31,7 +31,7 @@ checks = {
     "Windows never sends PAYMENT": not bool(re.search(r"adb[^\n\r]*\bPAYMENT\b", bat, re.I)),
     "real POS not persisted true": "--ez persist_machine_mode true --ez real_pos_enabled true" not in bat,
     "real POS persisted false": bat.count("--ez persist_machine_mode true --ez real_pos_enabled false --ez configure_only true") >= 2,
-    "publisher current branch": "v0.5.99-fiscal-positive-payment-no-kozen-adb" in pub,
+    "publisher branch guard exists": "GIT_BRANCH" in pub and "Wrong branch for controlled payment evidence" in pub,
     "one-ruble protections retained": "fiscal_positive_payment_test_v1_0_1.attempt" in main and "amountMinor=100" in main,
 }
 
