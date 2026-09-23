@@ -139,9 +139,15 @@ set "APP_APK=app\build\outputs\apk\debug\app-debug.apk"
 set "KOZEN_APK=kozenBridge\build\outputs\apk\debug\kozenBridge-debug.apk"
 if not exist "%APP_APK%" exit /b 23
 
+set "KOZEN_CACHE_ARG="
+set "FREE_MB="
+for /f "delims=" %%F in ('powershell -NoProfile -Command "$r=[System.IO.Path]::GetPathRoot((Get-Location).Path); $d=Get-PSDrive -Name $r.Substring(0,1); [math]::Floor($d.Free/1MB)" 2^>nul') do if not defined FREE_MB set "FREE_MB=%%F"
+if not defined FREE_MB set "FREE_MB=0"
+if %FREE_MB% LSS 2048 set "KOZEN_CACHE_ARG=--no-build-cache"
+
 echo [2/10] Preparing Kozen bridge...
 if "%KOZEN_ADB_AVAILABLE%"=="1" (
-  call "%GRADLE_CMD%" --no-daemon --no-build-cache --stacktrace :kozenBridge:assembleDebug
+  call "%GRADLE_CMD%" --no-daemon %KOZEN_CACHE_ARG% --stacktrace :kozenBridge:assembleDebug
   if errorlevel 1 (
     echo [ERROR] Kozen bridge build failed.
     pause
