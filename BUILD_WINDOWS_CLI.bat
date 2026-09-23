@@ -1,7 +1,7 @@
 @echo off
 setlocal EnableExtensions DisableDelayedExpansion
 
-rem i-Retail Android UI v0.5.100 windows disk preflight
+rem i-Retail Android UI v0.5.101 script flow low-disk cache
 rem Windows CLI debug APK build script.
 rem
 rem Important:
@@ -23,7 +23,7 @@ if errorlevel 1 (
     exit /b 9
 )
 
-set "SCRIPT_VERSION=0.5.100-windows-disk-preflight"
+set "SCRIPT_VERSION=0.5.101-script-flow-low-disk-cache"
 set "DO_CLEAN=0"
 set "DO_HARD_CLEAN=0"
 
@@ -124,17 +124,23 @@ call "%GRADLE_CMD%" --stop >nul 2>nul
 
 set "DISK_CLEANUP_THRESHOLD_MB=2048"
 set "DISK_MINIMUM_MB=1024"
+set "GRADLE_CACHE_ARG="
 call :ReadFreeSpace
 echo [DISK] Free space before build: %FREE_MB% MB
 
-if %FREE_MB% LSS %DISK_CLEANUP_THRESHOLD_MB% call :LowDiskProjectCleanup
+if %FREE_MB% LSS %DISK_CLEANUP_THRESHOLD_MB% (
+    set "GRADLE_CACHE_ARG=--no-build-cache"
+    call :LowDiskCacheCleanup
+) else (
+    echo [DISK] At least 2 GB is free. No cache cleanup; Gradle cache remains enabled.
+)
 
 call :ReadFreeSpace
-echo [DISK] Free space after project cleanup: %FREE_MB% MB
+echo [DISK] Free space before Gradle tasks: %FREE_MB% MB
 if %FREE_MB% LSS %DISK_MINIMUM_MB% (
     echo [ERROR] Not enough free disk space for a reliable Android build.
     echo [ERROR] Free: %FREE_MB% MB. Required: at least %DISK_MINIMUM_MB% MB.
-    echo [INFO] Only project build folders were cleaned automatically.
+    echo [INFO] Recoverable caches were cleaned because free space was below 2 GB.
     echo [INFO] Free additional space on the drive containing this project and run again.
     exit /b 16
 )
@@ -151,7 +157,7 @@ if "%DO_HARD_CLEAN%"=="1" (
 if "%DO_CLEAN%"=="1" (
     echo.
     echo [BUILD] Running Gradle clean...
-    call "%GRADLE_CMD%" --no-daemon --no-build-cache --stacktrace :app:clean
+    call "%GRADLE_CMD%" --no-daemon %GRADLE_CACHE_ARG% --stacktrace :app:clean
     if errorlevel 1 (
         echo.
         echo [WARN] Gradle clean failed, most likely because Windows locked app\build.
@@ -166,7 +172,7 @@ if "%DO_CLEAN%"=="1" (
 
 echo.
 echo [BUILD] Assembling debug APK...
-call "%GRADLE_CMD%" --no-daemon --no-build-cache --stacktrace :app:assembleDebug
+call "%GRADLE_CMD%" --no-daemon %GRADLE_CACHE_ARG% --stacktrace :app:assembleDebug
 if errorlevel 1 (
     echo [ERROR] Debug APK build failed.
     echo [HINT] If the error mentions a locked APK or app\build folder, close any program
@@ -223,15 +229,39 @@ for /f "delims=" %%F in ('powershell -NoProfile -Command "$r=[System.IO.Path]::G
 if not defined FREE_MB set "FREE_MB=0"
 exit /b 0
 
-:LowDiskProjectCleanup
-echo [DISK] Low free space detected. Cleaning only temporary build folders in this repository...
+:LowDiskCacheCleanup
+echo [DISK] Less than 2 GB is free. Cleaning recoverable development caches...
 call "%GRADLE_CMD%" --stop >nul 2>nul
+
+echo [DISK] Project caches and build outputs...
 if exist ".gradle" rmdir /S /Q ".gradle" 2>nul
+if exist "build" rmdir /S /Q "build" 2>nul
 for /d %%D in (*) do (
     if exist "%%D\build" rmdir /S /Q "%%D\build" 2>nul
 )
-if exist "build" rmdir /S /Q "build" 2>nul
-echo [DISK] Project-only cleanup completed. Global Gradle caches were not touched.
+
+echo [DISK] Temporary Gradle and Kotlin caches...
+if exist "%USERPROFILE%\.gradle\.tmp" rmdir /S /Q "%USERPROFILE%\.gradle\.tmp" 2>nul
+if exist "%USERPROFILE%\.gradle\daemon" rmdir /S /Q "%USERPROFILE%\.gradle\daemon" 2>nul
+for /d %%D in ("%USERPROFILE%\.gradle\caches\build-cache-*") do if exist "%%~fD" rmdir /S /Q "%%~fD" 2>nul
+for /d %%D in ("%USERPROFILE%\.gradle\caches\transforms-*") do if exist "%%~fD" rmdir /S /Q "%%~fD" 2>nul
+for /d %%D in ("%USERPROFILE%\.gradle\caches\jars-*") do if exist "%%~fD" rmdir /S /Q "%%~fD" 2>nul
+if exist "%USERPROFILE%\.kotlin\daemon" rmdir /S /Q "%USERPROFILE%\.kotlin\daemon" 2>nul
+if exist "%LOCALAPPDATA%\kotlin\daemon" rmdir /S /Q "%LOCALAPPDATA%\kotlin\daemon" 2>nul
+if exist "%USERPROFILE%\.android\cache" rmdir /S /Q "%USERPROFILE%\.android\cache" 2>nul
+
+echo [DISK] Temporary files with Gradle/Kotlin/Android prefixes...
+for /d %%D in ("%TEMP%\gradle*") do if exist "%%~fD" rmdir /S /Q "%%~fD" 2>nul
+for /d %%D in ("%TEMP%\kotlin*") do if exist "%%~fD" rmdir /S /Q "%%~fD" 2>nul
+for /d %%D in ("%TEMP%\android*") do if exist "%%~fD" rmdir /S /Q "%%~fD" 2>nul
+
+call :ReadFreeSpace
+if %FREE_MB% LSS %DISK_CLEANUP_THRESHOLD_MB% (
+    echo [DISK] Still below 2 GB. Clearing Gradle dependency cache; dependencies may be downloaded again.
+    if exist "%USERPROFILE%\.gradle\caches\modules-2" rmdir /S /Q "%USERPROFILE%\.gradle\caches\modules-2" 2>nul
+)
+
+echo [DISK] Low-space cache cleanup completed. Source files and Android SDK packages were not touched.
 exit /b 0
 
 :HardCleanBuildFolders
