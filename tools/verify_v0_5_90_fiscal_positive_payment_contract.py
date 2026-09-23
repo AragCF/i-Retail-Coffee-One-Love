@@ -17,9 +17,8 @@ checks={
     "order sync forbidden": "iretail/order/synchronize" in contract and "Жёстко запрещено" in contract,
     "standalone retained": "machine_mode" in contract and "standalone" in contract,
     "real POS restored false": "real_pos_enabled" in contract and "false" in contract,
-    "no executable positive script yet": not (ROOT/"MAIN_25_FISCAL_POSITIVE_PAYMENT_TEST.bat").exists(),
 }
 failed=[k for k,v in checks.items() if not v]
 for k,v in checks.items(): print(("[OK] " if v else "[FAIL] ")+k)
 if failed: raise SystemExit("v0.5.90 contract guard failed: "+", ".join(failed))
-print(f"[OK] v0.5.90 contract guard: {len(checks)} checks passed")
+print(f"[OK] v0.5.90 historical contract guard: {len(checks)} checks passed")
