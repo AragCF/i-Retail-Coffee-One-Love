@@ -6,7 +6,7 @@ if errorlevel 1 exit /b 10
 set "EXPECTED_VERSION="
 for /f "tokens=2" %%V in ('findstr /C:"versionName " "app\build.gradle"') do if not defined EXPECTED_VERSION set "EXPECTED_VERSION=%%V"
 set "EXPECTED_VERSION=%EXPECTED_VERSION:'=%"
-if /I not "%EXPECTED_VERSION%"=="0.5.98-fiscal-positive-payment-test" (
+if /I not "%EXPECTED_VERSION%"=="0.5.99-fiscal-positive-payment-no-kozen-adb" (
   echo [ERROR] Wrong project version: %EXPECTED_VERSION%
   pause
   exit /b 11
@@ -58,32 +58,49 @@ if not defined JL22 (
 )
 
 set "KOZEN=%~1"
+set "KOZEN_ADB_AVAILABLE=0"
+
+if defined KOZEN (
+  adb -s "%KOZEN%" get-state >nul 2>nul
+  if not errorlevel 1 (
+    adb -s "%KOZEN%" shell pm path com.skytech.smartskypos 2>nul | findstr /C:"package:" >nul
+    if not errorlevel 1 set "KOZEN_ADB_AVAILABLE=1"
+  )
+  if "%KOZEN_ADB_AVAILABLE%"=="0" (
+    echo [WARN] Supplied Kozen ADB target is unavailable: %KOZEN%
+    set "KOZEN="
+  )
+)
+
 if not defined KOZEN (
   adb connect 192.168.31.134:5555 >nul 2>nul
-  adb -s "192.168.31.134:5555" shell pm path com.skytech.smartskypos 2>nul | findstr /C:"package:" >nul
-  if not errorlevel 1 set "KOZEN=192.168.31.134:5555"
+  adb -s "192.168.31.134:5555" get-state >nul 2>nul
+  if not errorlevel 1 (
+    adb -s "192.168.31.134:5555" shell pm path com.skytech.smartskypos 2>nul | findstr /C:"package:" >nul
+    if not errorlevel 1 (
+      set "KOZEN=192.168.31.134:5555"
+      set "KOZEN_ADB_AVAILABLE=1"
+    )
+  )
 )
+
 if not defined KOZEN (
   for /f "tokens=1,2,*" %%A in ('adb devices -l') do (
     if /I "%%B"=="device" if /I not "%%A"=="%JL22%" if not defined KOZEN (
       adb -s "%%A" shell pm path com.skytech.smartskypos 2>nul | findstr /C:"package:" >nul
-      if not errorlevel 1 set "KOZEN=%%A"
+      if not errorlevel 1 (
+        set "KOZEN=%%A"
+        set "KOZEN_ADB_AVAILABLE=1"
+      )
     )
   )
 )
-if not defined KOZEN (
-  echo [ERROR] Kozen P12 ADB target not found.
-  echo [HINT] Run this script with Kozen ADB serial/address as the first argument.
-  adb devices -l
-  pause
-  exit /b 16
-)
 
-adb -s "%KOZEN%" get-state >nul 2>nul
-if errorlevel 1 (
-  echo [ERROR] Kozen is not online: %KOZEN%
-  pause
-  exit /b 17
+if "%KOZEN_ADB_AVAILABLE%"=="1" (
+  echo [KOZEN ADB] %KOZEN%
+) else (
+  echo [KOZEN ADB] not available - this is allowed.
+  echo [INFO] JL22 will verify the already installed Kozen bridge directly over USB/AOA.
 )
 
 set "LOCAL_CONSUMED=fiscal_positive_payment_logs\FISCAL_POSITIVE_PAYMENT_v1_0_1_CONSUMED.marker"
@@ -94,8 +111,7 @@ if exist "%LOCAL_CONSUMED%" (
   exit /b 18
 )
 
-echo [JL22] detected
-echo [KOZEN] detected
+echo [JL22] %JL22%
 
 echo [1/10] Building current debug APK...
 call "%~dp0BUILD_WINDOWS_CLI.bat"
@@ -115,24 +131,33 @@ if not defined GRADLE_CMD (
   exit /b 21
 )
 
-echo [2/10] Building Kozen production bridge...
-call "%GRADLE_CMD%" --no-daemon --stacktrace :kozenBridge:assembleDebug
-if errorlevel 1 (
-  echo [ERROR] Kozen bridge build failed.
-  pause
-  exit /b 22
+set "APP_APK=app\build\outputs\apk\debug\app-debug.apk"
+if not exist "%APP_APK%" exit /b 23
+
+echo [2/10] Preparing Kozen bridge...
+if "%KOZEN_ADB_AVAILABLE%"=="1" (
+  call "%GRADLE_CMD%" --no-daemon --stacktrace :kozenBridge:assembleDebug
+  if errorlevel 1 (
+    echo [ERROR] Kozen bridge build failed.
+    pause
+    exit /b 22
+  )
+  set "KOZEN_APK=kozenBridge\build\outputs\apk\debug\kozenBridge-debug.apk"
+  if not exist "%KOZEN_APK%" exit /b 24
+) else (
+  echo [INFO] Kozen bridge rebuild/install skipped because Windows ADB is unavailable.
+  echo [INFO] Compatibility will be proven over USB/AOA before any payment marker is created.
 )
 
-set "APP_APK=app\build\outputs\apk\debug\app-debug.apk"
-set "KOZEN_APK=kozenBridge\build\outputs\apk\debug\kozenBridge-debug.apk"
-if not exist "%APP_APK%" exit /b 23
-if not exist "%KOZEN_APK%" exit /b 24
-
-echo [3/10] Installing APKs...
+echo [3/10] Installing i-Retail APK on JL22...
 adb -s "%JL22%" install -r "%APP_APK%"
 if errorlevel 1 exit /b 25
-adb -s "%KOZEN%" install -r "%KOZEN_APK%"
-if errorlevel 1 exit /b 26
+
+if "%KOZEN_ADB_AVAILABLE%"=="1" (
+  echo [INFO] Installing current hardened bridge on Kozen...
+  adb -s "%KOZEN%" install -r "%KOZEN_APK%"
+  if errorlevel 1 exit /b 26
+)
 
 set "CHECK_FILE=%TEMP%\iretail_positive_payment_check.txt"
 adb -s "%JL22%" shell run-as com.coffeeonelove.iretail ls files/fiscal_positive_payment_test_v1_0_1.attempt > "%CHECK_FILE%" 2>nul
@@ -158,12 +183,14 @@ adb -s "%JL22%" shell am start -W -n com.coffeeonelove.iretail/.ui.MainActivity 
 if errorlevel 1 exit /b 29
 timeout /t 1 /nobreak >nul
 
-echo [5/10] Starting Kozen bridge and clearing old evidence...
-adb -s "%KOZEN%" shell am force-stop com.coffeeonelove.iretail.kozenbridge >nul 2>nul
-adb -s "%KOZEN%" shell am start -W -n com.coffeeonelove.iretail.kozenbridge/.BridgeActivity >nul
-if errorlevel 1 exit /b 30
+echo [5/10] Preparing USB/AOA evidence channel...
+if "%KOZEN_ADB_AVAILABLE%"=="1" (
+  adb -s "%KOZEN%" shell am force-stop com.coffeeonelove.iretail.kozenbridge >nul 2>nul
+  adb -s "%KOZEN%" shell am start -W -n com.coffeeonelove.iretail.kozenbridge/.BridgeActivity >nul
+  if errorlevel 1 exit /b 30
+  adb -s "%KOZEN%" logcat -c
+)
 adb -s "%JL22%" logcat -c
-adb -s "%KOZEN%" logcat -c
 adb -s "%JL22%" shell run-as com.coffeeonelove.iretail rm -f files/fiscalization_dry_run.json >nul 2>nul
 
 echo [6/10] Starting controlled 1.00 RUB test UI...
@@ -174,13 +201,30 @@ if errorlevel 1 goto FAIL_SAFE
 
 set "WAIT_LOG=%TEMP%\iretail_positive_payment_wait.log"
 set "READY=0"
-for /l %%S in (1,1,20) do (
-  adb -s "%JL22%" logcat -d -v brief FiscalPositivePaymentTest:I *:S > "%WAIT_LOG%" 2>&1
-  findstr /C:"TEST_MODE_READY productId=s3-fiscal-positive-test-1rub amountMinor=100 realPos=true persistedRealPos=false" "%WAIT_LOG%" >nul 2>nul
+echo [INFO] Read-only preflight is running inside i-Retail: PING, INFO, GET_STATE, GET_TERMINAL_DATA.
+echo [INFO] No PAYMENT is sent during this preflight.
+echo [INFO] If JL22 asks for USB permission, allow it.
+for /l %%S in (1,1,180) do (
+  adb -s "%JL22%" logcat -d -v brief FiscalPositivePaymentTest:I IretailKozenClient:I IretailKozenClient:E *:S > "%WAIT_LOG%" 2>&1
+  findstr /C:"TEST_MODE_READY productId=s3-fiscal-positive-test-1rub amountMinor=100 realPos=true persistedRealPos=false bridgeReady=true noPaymentSent=true" "%WAIT_LOG%" >nul 2>nul
   if not errorlevel 1 goto TEST_READY
+  findstr /C:"TEST_PREFLIGHT_FAILED" "%WAIT_LOG%" >nul 2>nul
+  if not errorlevel 1 goto PREFLIGHT_FAILED
   timeout /t 1 /nobreak >nul
 )
-goto FAIL_SAFE
+goto PREFLIGHT_TIMEOUT
+
+:PREFLIGHT_FAILED
+set "OUTCOME=TEST_PREFLIGHT_FAILED"
+echo [ERROR] Kozen / SmartSkyPOS preflight failed.
+echo [INFO] Authorized financial attempt remains UNUSED. No payment marker was created.
+goto DISABLE_POS
+
+:PREFLIGHT_TIMEOUT
+set "OUTCOME=TEST_PREFLIGHT_TIMEOUT"
+echo [ERROR] Kozen / SmartSkyPOS preflight did not finish in time.
+echo [INFO] Authorized financial attempt remains UNUSED. No payment marker was created.
+goto DISABLE_POS
 
 :TEST_READY
 set "READY=1"
@@ -265,6 +309,7 @@ goto DISABLE_POS
 :FAIL_SAFE
 set "OUTCOME=TEST_SETUP_FAILED"
 echo [ERROR] Controlled test mode did not become ready.
+echo [INFO] If ATTEMPT_CLAIMED was not printed, the authorized financial attempt remains UNUSED.
 
 :DISABLE_POS
 echo [8/10] Forcing persisted STANDALONE + real POS FALSE...
@@ -286,6 +331,7 @@ echo [9/10] Collecting and sanitizing evidence...
   echo test_amount_minor=100
   echo test_product_id=s3-fiscal-positive-test-1rub
   echo windows_sends_payment=false
+  echo kozen_adb_available=%KOZEN_ADB_AVAILABLE%
   echo cloud_fiscal_sent=false
   echo order_sync_sent=false
   echo brewing_started=false
@@ -295,7 +341,12 @@ adb -s "%JL22%" shell dumpsys package com.coffeeonelove.iretail 2>nul | findstr 
 adb -s "%JL22%" shell run-as com.coffeeonelove.iretail cat shared_prefs/iretail_machine_mode_v1.xml > "%OUT%\03_machine_mode.txt" 2>&1
 adb -s "%JL22%" shell run-as com.coffeeonelove.iretail cat files/fiscal_positive_payment_test_v1_0_1.attempt > "%OUT%\04_attempt_marker.txt" 2>nul
 adb -s "%JL22%" logcat -d -v threadtime FiscalPositivePaymentTest:I IretailKozenClient:I IretailKozenClient:W IretailKozenClient:E FiscalGateway:I FiscalGateway:E IretailMachineMode:I AndroidRuntime:E *:S > "%OUT%\RAW_jl22_logcat.txt" 2>&1
-adb -s "%KOZEN%" logcat -d -v threadtime IretailKozenBridge:I IretailKozenBridge:W IretailKozenBridge:E AndroidRuntime:E *:S > "%OUT%\RAW_kozen_logcat.txt" 2>&1
+if "%KOZEN_ADB_AVAILABLE%"=="1" (
+  adb -s "%KOZEN%" logcat -d -v threadtime IretailKozenBridge:I IretailKozenBridge:W IretailKozenBridge:E AndroidRuntime:E *:S > "%OUT%\RAW_kozen_logcat.txt" 2>&1
+) else (
+  > "%OUT%\RAW_kozen_logcat.txt" echo KOZEN_ADB_NOT_AVAILABLE
+  >> "%OUT%\RAW_kozen_logcat.txt" echo Bridge compatibility was verified from JL22 over USB/AOA before payment.
+)
 adb -s "%JL22%" shell run-as com.coffeeonelove.iretail cat files/fiscalization_dry_run.json > "%OUT%\07_fiscalization_dry_run.json" 2>nul
 (
   echo ===== OUTCOME =====
