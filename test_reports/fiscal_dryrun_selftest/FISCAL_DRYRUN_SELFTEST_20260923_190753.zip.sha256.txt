@@ -1,0 +1,3 @@
+SHA256 hash of test_reports\fiscal_dryrun_selftest\FISCAL_DRYRUN_SELFTEST_20260923_190753.zip:
+9fffae135e76027e032ca78e74ff08943bca0efc2429940062fad4e51dbd28d2
+CertUtil: -hashfile command completed successfully.
