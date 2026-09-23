@@ -11,8 +11,8 @@ android {
         applicationId 'com.coffeeonelove.iretail'
         minSdk 23
         targetSdk 35
-        versionCode 99
-        versionName '0.5.99-fiscal-positive-payment-no-kozen-adb'
+        versionCode 100
+        versionName '0.5.100-windows-disk-preflight'
     }
 
     compileOptions {
