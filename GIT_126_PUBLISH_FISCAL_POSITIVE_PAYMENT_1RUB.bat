@@ -4,7 +4,7 @@ cd /d "%~dp0"
 
 set "GIT_BRANCH="
 for /f "delims=" %%B in ('git branch --show-current') do if not defined GIT_BRANCH set "GIT_BRANCH=%%B"
-if /I not "%GIT_BRANCH%"=="v0.5.100-windows-disk-preflight" (
+if /I not "%GIT_BRANCH%"=="v0.5.101-script-flow-low-disk-cache" (
   echo [ERROR] Wrong branch for controlled payment evidence: %GIT_BRANCH%
   exit /b 10
 )
