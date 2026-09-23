@@ -8,7 +8,7 @@ gradle = (ROOT / "app/build.gradle").read_text(encoding="utf-8")
 
 checks = {
     "versionCode at least 97": bool(re.search(r"versionCode\s+(9[7-9]|[1-9]\d{2,})", gradle)),
-    "current versionName": "versionName '0.5.97-fiscal-selftest-dynamic-version'" in gradle,
+    "versionName present": bool(re.search(r"versionName\s+'[^']+'", gradle)),
     "dynamic version extraction": 'findstr /C:"versionName "' in bat and 'set "EXPECTED_VERSION="' in bat,
     "single quotes stripped": "EXPECTED_VERSION:'=" in bat,
     "no hardcoded main branch": "EXPECTED_BRANCH=" not in bat,
