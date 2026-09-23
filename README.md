@@ -1,6 +1,6 @@
 # i-Retail Coffee One Love
 
-Текущая рабочая версия: **0.5.93-fiscal-selftest-build-fix**.
+Текущая рабочая версия: **0.5.94-fiscal-selftest-script-version-fix**.
 
 Android-проект теперь расположен непосредственно в корне репозитория. Дополнительный каталог
 `iRetail_Android_UI_v0.5.8_smartskypos_probe_source` больше не используется.
@@ -817,3 +817,14 @@ v0.5.93:
 - не включает дополнительную генерацию BuildConfig;
 - debug-only self-test проверяет стандартный Android-флаг `ApplicationInfo.FLAG_DEBUGGABLE`;
 - финансовая логика, FiscalGateway и wire-протоколы не меняются.
+
+
+## Исправление v0.5.94
+
+Живой запуск v0.5.93 показал, что MAIN_25 и его publisher сохранили жёсткую привязку к ветке v0.5.91.
+
+v0.5.94:
+- синхронизирует EXPECTED_BRANCH/EXPECTED_VERSION с текущим versionName;
+- обновляет publisher;
+- добавляет CI guard против повторного рассинхрона имени ветки и версии;
+- не меняет FiscalGateway и финансовую логику.

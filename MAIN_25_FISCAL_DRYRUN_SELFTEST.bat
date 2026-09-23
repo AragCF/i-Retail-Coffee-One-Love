@@ -3,12 +3,12 @@ setlocal EnableExtensions DisableDelayedExpansion
 cd /d "%~dp0"
 if errorlevel 1 exit /b 10
 
-set "EXPECTED_BRANCH=v0.5.91-fiscal-positive-dryrun-selftest"
+set "EXPECTED_BRANCH=v0.5.94-fiscal-selftest-script-version-fix"
 set "EXPECTED_VERSION=0.5.91-fiscal-positive-dryrun-selftest"
 set "JL22="
 
 echo ============================================================
-echo i-Retail v0.5.91 - FISCAL POSITIVE DRY_RUN SELF-TEST
+echo i-Retail v0.5.94 - FISCAL POSITIVE DRY_RUN SELF-TEST
 echo ============================================================
 echo.
 echo NO FINANCIAL OPERATION:
