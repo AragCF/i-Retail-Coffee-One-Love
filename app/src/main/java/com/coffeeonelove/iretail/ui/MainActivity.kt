@@ -1,7 +1,6 @@
 package com.coffeeonelove.iretail.ui
 
 import android.app.Activity
-import com.coffeeonelove.iretail.BuildConfig
 import com.coffeeonelove.iretail.pos.KozenAoaPaymentClient
 import android.graphics.Color
 import android.graphics.Bitmap
@@ -12,6 +11,7 @@ import android.graphics.Path
 import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
 import android.graphics.drawable.ColorDrawable
+import android.content.pm.ApplicationInfo
 import android.content.res.Configuration
 import android.os.Bundle
 import android.os.Handler
@@ -220,7 +220,8 @@ class MainActivity : Activity() {
     }
 
     private fun runFiscalDryRunSelfTest() {
-        if (!BuildConfig.DEBUG) {
+        val debuggable = (applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE) != 0
+        if (!debuggable) {
             android.util.Log.e("FiscalGatewaySelfTest", "SELF_TEST_REJECTED reason=NOT_DEBUG_BUILD")
             return
         }

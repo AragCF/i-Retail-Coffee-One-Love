@@ -1,6 +1,6 @@
 # i-Retail Coffee One Love
 
-Текущая рабочая версия: **0.5.92-fiscal-selftest-guard-fix**.
+Текущая рабочая версия: **0.5.93-fiscal-selftest-build-fix**.
 
 Android-проект теперь расположен непосредственно в корне репозитория. Дополнительный каталог
 `iRetail_Android_UI_v0.5.8_smartskypos_probe_source` больше не используется.
@@ -807,3 +807,13 @@ v0.5.92 не меняет FiscalGateway или финансовое поведе
 - боевой порядок `markPaymentConfirmed() -> fiscalGateway.afterPaymentConfirmed(order)` проверяется внутри `startRealCardPayment()`;
 - debug self-test проверяется отдельно;
 - номер v0.5.91 не переиспользуется.
+
+
+## Исправление v0.5.93
+
+v0.5.92 прошёл все статические проверки, но Android-сборка остановилась: в текущей AGP-конфигурации `BuildConfig` не генерируется.
+
+v0.5.93:
+- не включает дополнительную генерацию BuildConfig;
+- debug-only self-test проверяет стандартный Android-флаг `ApplicationInfo.FLAG_DEBUGGABLE`;
+- финансовая логика, FiscalGateway и wire-протоколы не меняются.

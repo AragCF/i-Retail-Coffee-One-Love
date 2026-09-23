@@ -10,7 +10,7 @@ gradle=(ROOT/"app/build.gradle").read_text(encoding="utf-8")
 m=re.search(r"versionCode\s+(\d+)",gradle)
 checks={
     "versionCode at least 91": bool(m) and int(m.group(1))>=91,
-    "debug guard": "BuildConfig.DEBUG" in main,
+    "debug guard": "ApplicationInfo.FLAG_DEBUGGABLE" in main and "NOT_DEBUG_BUILD" in main,
     "explicit self-test extra": "fiscal_dry_run_self_test" in main and "fiscal_dry_run_self_test" in bat,
     "synthetic paid order": "OrderStatus.PAID" in main and "PaymentMethod.CARD" in main,
     "synthetic exact amount": "amountMinor = 1000L" in main and "grossAmountMinor = 1000L" in main,
