@@ -261,6 +261,9 @@ jobs:
       - name: Verify v0.5.99 no-Kozen-ADB payment test
         run: python3 tools/verify_v0_5_99_fiscal_positive_payment_no_kozen_adb.py
 
+      - name: Verify v0.5.100 Windows disk preflight
+        run: python3 tools/verify_v0_5_100_windows_disk_preflight.py
+
       - name: Verify controlled-payment PowerShell syntax
         shell: pwsh
         run: |
@@ -281,6 +284,6 @@ jobs:
         if: success()
         uses: actions/upload-artifact@v4
         with:
-          name: iRetail-v0.5.99-debug-apk
+          name: iRetail-v0.5.100-debug-apk
           path: app/build/outputs/apk/debug/*.apk
           if-no-files-found: error
