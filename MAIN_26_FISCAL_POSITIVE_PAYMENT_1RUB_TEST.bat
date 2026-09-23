@@ -6,7 +6,7 @@ if errorlevel 1 exit /b 10
 set "EXPECTED_VERSION="
 for /f "tokens=2" %%V in ('findstr /C:"versionName " "app\build.gradle"') do if not defined EXPECTED_VERSION set "EXPECTED_VERSION=%%V"
 set "EXPECTED_VERSION=%EXPECTED_VERSION:'=%"
-if /I not "%EXPECTED_VERSION%"=="0.5.100-windows-disk-preflight" (
+if /I not "%EXPECTED_VERSION%"=="0.5.101-script-flow-low-disk-cache" (
   echo [ERROR] Wrong project version: %EXPECTED_VERSION%
   pause
   exit /b 11
@@ -136,6 +136,7 @@ if not defined GRADLE_CMD (
 )
 
 set "APP_APK=app\build\outputs\apk\debug\app-debug.apk"
+set "KOZEN_APK=kozenBridge\build\outputs\apk\debug\kozenBridge-debug.apk"
 if not exist "%APP_APK%" exit /b 23
 
 echo [2/10] Preparing Kozen bridge...
@@ -146,7 +147,6 @@ if "%KOZEN_ADB_AVAILABLE%"=="1" (
     pause
     exit /b 22
   )
-  set "KOZEN_APK=kozenBridge\build\outputs\apk\debug\kozenBridge-debug.apk"
   if not exist "%KOZEN_APK%" exit /b 24
 ) else (
   echo [INFO] Kozen bridge rebuild/install skipped because Windows ADB is unavailable.
