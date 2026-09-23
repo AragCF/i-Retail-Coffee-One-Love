@@ -264,6 +264,9 @@ jobs:
       - name: Verify v0.5.100 Windows disk preflight
         run: python3 tools/verify_v0_5_100_windows_disk_preflight.py
 
+      - name: Verify v0.5.101 script/cache policy
+        run: python3 tools/verify_v0_5_101_script_flow_low_disk_cache.py
+
       - name: Verify controlled-payment PowerShell syntax
         shell: pwsh
         run: |
@@ -284,6 +287,6 @@ jobs:
         if: success()
         uses: actions/upload-artifact@v4
         with:
-          name: iRetail-v0.5.100-debug-apk
+          name: iRetail-v0.5.101-debug-apk
           path: app/build/outputs/apk/debug/*.apk
           if-no-files-found: error
