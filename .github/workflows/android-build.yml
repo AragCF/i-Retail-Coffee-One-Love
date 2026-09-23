@@ -234,6 +234,9 @@ jobs:
       - name: Verify v0.5.90 fiscal positive payment contract
         run: python3 tools/verify_v0_5_90_fiscal_positive_payment_contract.py
 
+      - name: Verify v0.5.91 fiscal positive DRY_RUN self-test
+        run: python3 tools/verify_v0_5_91_fiscal_dryrun_selftest.py
+
       - name: Assemble debug APK
         working-directory: .
         run: gradle --no-daemon --stacktrace assembleDebug
@@ -242,6 +245,6 @@ jobs:
         if: success()
         uses: actions/upload-artifact@v4
         with:
-          name: iRetail-v0.5.90-debug-apk
+          name: iRetail-v0.5.91-debug-apk
           path: app/build/outputs/apk/debug/*.apk
           if-no-files-found: error

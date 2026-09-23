@@ -1,6 +1,6 @@
 # i-Retail Coffee One Love
 
-Текущая рабочая версия: **0.5.90-fiscal-positive-payment-contract**.
+Текущая рабочая версия: **0.5.91-fiscal-positive-dryrun-selftest**.
 
 Android-проект теперь расположен непосредственно в корне репозитория. Дополнительный каталог
 `iRetail_Android_UI_v0.5.8_smartskypos_probe_source` больше не используется.
@@ -773,3 +773,27 @@ Smoke-test дополнительно проверяет сохранённый 
 
 Исполняемого сценария реальной оплаты в этом выпуске нет.
 Следующий этап требует отдельного явного разрешения на одну реальную карточную оплату.
+
+
+## v0.5.91 — положительный FiscalGateway без финансовой операции
+
+Добавлен debug-only self-test на живой JL22.
+
+Он создаёт синтетический уже оплаченный RuntimeOrder:
+- 1 позиция;
+- 10.00 ₽;
+- CARD;
+- PAID;
+- без скидки и модификаторов.
+
+Заказ передаётся в тот же `FiscalGateway -> DryRunFiscalGateway`, который вызывается после реального APPROVED.
+
+Тест принципиально:
+- оставляет `real_pos_enabled=false`;
+- не использует Kozen;
+- не отправляет PAYMENT;
+- не обращается к Fiscal API;
+- не вызывает `order/synchronize`.
+
+Запуск:
+`MAIN_25_FISCAL_DRYRUN_SELFTEST.bat`.

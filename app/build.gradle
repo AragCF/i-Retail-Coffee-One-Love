@@ -11,8 +11,8 @@ android {
         applicationId 'com.coffeeonelove.iretail'
         minSdk 23
         targetSdk 35
-        versionCode 90
-        versionName '0.5.90-fiscal-positive-payment-contract'
+        versionCode 91
+        versionName '0.5.91-fiscal-positive-dryrun-selftest'
     }
 
     compileOptions {

@@ -1,6 +1,7 @@
 package com.coffeeonelove.iretail.ui
 
 import android.app.Activity
+import com.coffeeonelove.iretail.BuildConfig
 import com.coffeeonelove.iretail.pos.KozenAoaPaymentClient
 import android.graphics.Color
 import android.graphics.Bitmap
@@ -191,6 +192,9 @@ class MainActivity : Activity() {
         paymentMethods = contentRepository.loadPaymentMethods()
         buildRootView()
         openScreen("SCREEN_SAVER_COFFEE", remember = false)
+        if (intent?.getBooleanExtra("fiscal_dry_run_self_test", false) == true) {
+            runFiscalDryRunSelfTest()
+        }
         refreshCatalogFromIretail()
     }
 
@@ -213,6 +217,57 @@ class MainActivity : Activity() {
     override fun onStop() {
         MainUiVisibility.started = false
         super.onStop()
+    }
+
+    private fun runFiscalDryRunSelfTest() {
+        if (!BuildConfig.DEBUG) {
+            android.util.Log.e("FiscalGatewaySelfTest", "SELF_TEST_REJECTED reason=NOT_DEBUG_BUILD")
+            return
+        }
+        if (realPosEnabled) {
+            android.util.Log.e("FiscalGatewaySelfTest", "SELF_TEST_REJECTED reason=REAL_POS_ENABLED")
+            return
+        }
+
+        val product = Product(
+            id = "fiscal-selftest-product",
+            offerId = "fiscal-selftest-product",
+            name = "Fiscal DRY_RUN Self Test",
+            volume = "1 шт.",
+            price = 10,
+            category = "coffee",
+            available = true,
+            priceMinor = 1000L,
+            basePriceMinor = 1000L
+        )
+        val order = RuntimeOrder(
+            localId = "fiscal-selftest",
+            externalNumber = "FISCAL-SELFTEST-" + System.currentTimeMillis(),
+            amount = 10,
+            items = listOf(CartLine(product = product, quantity = 1)),
+            grossAmount = 10,
+            ibonusDiscountSum = 0,
+            status = OrderStatus.PAID,
+            paymentMethod = PaymentMethod.CARD,
+            amountMinor = 1000L,
+            grossAmountMinor = 1000L,
+            ibonusDiscountMinor = 0L
+        )
+
+        try {
+            val result = fiscalGateway.afterPaymentConfirmed(order)
+            android.util.Log.i(
+                "FiscalGatewaySelfTest",
+                "SELF_TEST_RESULT state=${result.state} sendAllowed=${result.sendAllowed} " +
+                    "draft=${result.draftFile?.name ?: "none"} receipt=${result.receiptUrl ?: "none"} " +
+                    "amountMinor=${order.amountMinor} products=${order.items.size} realPos=false"
+            )
+        } catch (e: Exception) {
+            android.util.Log.e(
+                "FiscalGatewaySelfTest",
+                "SELF_TEST_ERROR type=${e.javaClass.simpleName} message=${e.message}"
+            )
+        }
     }
 
     private fun refreshCatalogFromIretail() {
