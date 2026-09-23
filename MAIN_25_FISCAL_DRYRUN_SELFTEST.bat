@@ -3,12 +3,18 @@ setlocal EnableExtensions DisableDelayedExpansion
 cd /d "%~dp0"
 if errorlevel 1 exit /b 10
 
-set "EXPECTED_BRANCH=v0.5.96-fiscal-selftest-intent-fix"
-set "EXPECTED_VERSION=0.5.95-fiscal-selftest-versionname-fix"
+set "EXPECTED_VERSION="
 set "JL22="
+for /f "tokens=2" %%V in ('findstr /C:"versionName " "app\build.gradle"') do if not defined EXPECTED_VERSION set "EXPECTED_VERSION=%%V"
+set "EXPECTED_VERSION=%EXPECTED_VERSION:'=%"
+if not defined EXPECTED_VERSION (
+  echo [ERROR] Could not read versionName from app\build.gradle.
+  pause
+  exit /b 11
+)
 
 echo ============================================================
-echo i-Retail v0.5.96 - FISCAL POSITIVE DRY_RUN SELF-TEST
+echo i-Retail %EXPECTED_VERSION% - FISCAL POSITIVE DRY_RUN SELF-TEST
 echo ============================================================
 echo.
 echo NO FINANCIAL OPERATION:
@@ -20,14 +26,6 @@ echo   - no order/synchronize request is sent;
 echo   - a synthetic PAID order is passed only to DryRunFiscalGateway.
 echo ============================================================
 echo.
-
-for /f "delims=" %%B in ('git branch --show-current') do if not defined GIT_BRANCH set "GIT_BRANCH=%%B"
-if /I not "%GIT_BRANCH%"=="%EXPECTED_BRANCH%" (
-  echo [ERROR] Wrong branch: %GIT_BRANCH%
-  echo [ERROR] Expected: %EXPECTED_BRANCH%
-  pause
-  exit /b 11
-)
 
 git diff --quiet
 if errorlevel 1 (
@@ -139,27 +137,40 @@ adb -s "%JL22%" logcat -d -v threadtime FiscalGatewaySelfTest:I FiscalGateway:I 
 adb -s "%JL22%" shell run-as com.coffeeonelove.iretail cat files/fiscalization_dry_run.json > "%OUT%\05_fiscalization_dry_run.json" 2>&1
 
 echo [6/7] Validating positive DRY_RUN invariants...
+set "VALIDATION_OK=1"
 powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0tools\Assert-FiscalDryRunSelfTest.ps1" -ReportDir "%CD%\%OUT%" -ExpectedVersion "%EXPECTED_VERSION%"
-if errorlevel 1 (
-  echo [ERROR] Fiscal DRY_RUN self-test validation failed.
-  echo [ERROR] No report will be published automatically.
-  pause
-  exit /b 30
-)
+if errorlevel 1 set "VALIDATION_OK=0"
 
-(
-  echo ===== OUTCOME =====
-  echo FISCAL_DRYRUN_SELFTEST_OK
-  echo.
-  echo machine_mode=standalone
-  echo real_pos_enabled=false
-  echo payment_sent=false
-  echo fiscal_network_sent=false
-  echo order_sync_sent=false
-  echo synthetic_amount=10.00
-  echo products=1
-  echo fiscal_gateway_state=DRAFT_READY
-) > "%OUT%\SUMMARY.txt"
+if "%VALIDATION_OK%"=="1" (
+  (
+    echo ===== OUTCOME =====
+    echo FISCAL_DRYRUN_SELFTEST_OK
+    echo.
+    echo expected_version=%EXPECTED_VERSION%
+    echo selftest_wait_ready=%SELFTEST_READY%
+    echo machine_mode=standalone
+    echo real_pos_enabled=false
+    echo payment_sent=false
+    echo fiscal_network_sent=false
+    echo order_sync_sent=false
+    echo synthetic_amount=10.00
+    echo products=1
+    echo fiscal_gateway_state=DRAFT_READY
+  ) > "%OUT%\SUMMARY.txt"
+) else (
+  (
+    echo ===== OUTCOME =====
+    echo FISCAL_DRYRUN_SELFTEST_VALIDATION_FAILED
+    echo.
+    echo expected_version=%EXPECTED_VERSION%
+    echo selftest_wait_ready=%SELFTEST_READY%
+    echo machine_mode=standalone
+    echo real_pos_enabled=false
+    echo payment_sent=false
+    echo fiscal_network_sent=false
+    echo order_sync_sent=false
+  ) > "%OUT%\SUMMARY.txt"
+)
 
 powershell -NoProfile -ExecutionPolicy Bypass -Command "$p=Resolve-Path '%OUT%'; $z=$p.Path+'.zip'; Compress-Archive -Path ($p.Path+'\*') -DestinationPath $z -Force; Write-Host ('[REPORT] '+$z)"
 if errorlevel 1 (
@@ -171,9 +182,16 @@ if errorlevel 1 (
 echo [7/7] Publishing safe report to Git...
 call "%~dp0GIT_125_PUBLISH_FISCAL_DRYRUN_SELFTEST.bat"
 if errorlevel 1 (
-  echo [ERROR] Self-test passed, but publication failed.
+  echo [ERROR] Report exists, but publication failed.
   pause
   exit /b 32
+)
+
+if "%VALIDATION_OK%"=="0" (
+  echo [ERROR] Fiscal DRY_RUN self-test validation failed.
+  echo [INFO] Diagnostic ZIP was published for analysis.
+  pause
+  exit /b 30
 )
 
 echo.

@@ -2,10 +2,10 @@
 setlocal EnableExtensions DisableDelayedExpansion
 cd /d "%~dp0"
 
-set "EXPECTED_BRANCH=v0.5.96-fiscal-selftest-intent-fix"
+set "GIT_BRANCH="
 for /f "delims=" %%B in ('git branch --show-current') do if not defined GIT_BRANCH set "GIT_BRANCH=%%B"
-if /I not "%GIT_BRANCH%"=="%EXPECTED_BRANCH%" (
-  echo [ERROR] Wrong branch: %GIT_BRANCH%
+if not defined GIT_BRANCH (
+  echo [ERROR] Detached HEAD is not supported for report publication.
   exit /b 10
 )
 
@@ -32,7 +32,7 @@ if not errorlevel 1 (
   exit /b 0
 )
 
-git commit -m "test: v0.5.96 fiscal positive dryrun selftest %LATEST%"
+git commit -m "test: fiscal positive dryrun selftest %LATEST%"
 if errorlevel 1 exit /b 14
 git push origin HEAD
 if errorlevel 1 exit /b 15

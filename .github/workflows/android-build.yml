@@ -252,6 +252,9 @@ jobs:
       - name: Verify v0.5.96 fiscal self-test intent fix
         run: python3 tools/verify_v0_5_96_fiscal_selftest_intent_fix.py
 
+      - name: Verify v0.5.97 fiscal self-test dynamic version
+        run: python3 tools/verify_v0_5_97_fiscal_selftest_dynamic_version.py
+
       - name: Assemble debug APK
         working-directory: .
         run: gradle --no-daemon --stacktrace assembleDebug
@@ -260,6 +263,6 @@ jobs:
         if: success()
         uses: actions/upload-artifact@v4
         with:
-          name: iRetail-v0.5.96-debug-apk
+          name: iRetail-v0.5.97-debug-apk
           path: app/build/outputs/apk/debug/*.apk
           if-no-files-found: error

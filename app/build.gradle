@@ -11,8 +11,8 @@ android {
         applicationId 'com.coffeeonelove.iretail'
         minSdk 23
         targetSdk 35
-        versionCode 96
-        versionName '0.5.96-fiscal-selftest-intent-fix'
+        versionCode 97
+        versionName '0.5.97-fiscal-selftest-dynamic-version'
     }
 
     compileOptions {
