@@ -11,8 +11,8 @@ android {
         applicationId 'com.coffeeonelove.iretail'
         minSdk 23
         targetSdk 35
-        versionCode 98
-        versionName '0.5.98-fiscal-positive-payment-test'
+        versionCode 99
+        versionName '0.5.99-fiscal-positive-payment-no-kozen-adb'
     }
 
     compileOptions {
