@@ -32,6 +32,7 @@ import kotlin.math.max
 import java.util.Locale
 import java.net.URL
 import java.net.HttpURLConnection
+import java.io.File
 
 class MainActivity : Activity() {
     private val green = 0xFF59BC48.toInt()
@@ -89,6 +90,19 @@ class MainActivity : Activity() {
     private var recommendationsHidden = false
     private var languagePopupVisible = false
     private var currentLanguage = "RU"
+    private var fiscalPositivePaymentTestMode = false
+
+    private val fiscalPositivePaymentTestProduct = Product(
+        id = "s3-fiscal-positive-test-1rub",
+        offerId = "s3-fiscal-positive-test-1rub",
+        name = "S3 TEST PRODUCT 1 RUB",
+        volume = "1 pc",
+        price = 1,
+        category = "coffee",
+        available = true,
+        priceMinor = 100L,
+        basePriceMinor = 100L
+    )
 
     private val screenDrawables = mapOf(
         "SCREEN_SAVER_COFFEE" to "screen_saver_coffee",
@@ -174,6 +188,17 @@ class MainActivity : Activity() {
         realPosEnabled = machineModeConfig.realPosEnabled
         applyMachineModeRuntime(machineModeConfig)
 
+        val positiveTestRequested = intent?.getBooleanExtra("fiscal_positive_payment_test", false) == true
+        val debuggable = (applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE) != 0
+        fiscalPositivePaymentTestMode =
+            positiveTestRequested && debuggable && machineModeConfig.standalone && realPosEnabled
+        if (positiveTestRequested && !fiscalPositivePaymentTestMode) {
+            android.util.Log.e(
+                "FiscalPositivePaymentTest",
+                "TEST_MODE_REJECTED debuggable=$debuggable standalone=${machineModeConfig.standalone} realPos=$realPosEnabled"
+            )
+        }
+
         if (intent?.getBooleanExtra("configure_only", false) == true) {
             android.util.Log.i("IretailMachineMode", "CONFIGURE_ONLY mode=${machineModeConfig.mode} realPos=$realPosEnabled")
             finishAndRemoveTask()
@@ -188,22 +213,53 @@ class MainActivity : Activity() {
         if (intent?.getBooleanExtra("tls_chain_probe", false) == true) {
             IretailTlsChainProbe.runAsync(this)
         }
-        catalog = contentRepository.loadProducts()
+
+        if (fiscalPositivePaymentTestMode) {
+            catalog = listOf(fiscalPositivePaymentTestProduct)
+            catalogDataSource = "S3 controlled test"
+            catalogMessage = "One product, 1.00 RUB, one card attempt"
+        } else {
+            catalog = contentRepository.loadProducts()
+        }
         paymentMethods = contentRepository.loadPaymentMethods()
         buildRootView()
-        openScreen("SCREEN_SAVER_COFFEE", remember = false)
+        openScreen(if (fiscalPositivePaymentTestMode) "CATALOG_DEFAULT" else "SCREEN_SAVER_COFFEE", remember = false)
         maybeRunFiscalDryRunSelfTest(intent, "onCreate")
-        refreshCatalogFromIretail()
+
+        if (fiscalPositivePaymentTestMode) {
+            val persistedPos = MachineModeStore.load(this).realPosEnabled
+            android.util.Log.w(
+                "FiscalPositivePaymentTest",
+                "TEST_MODE_READY productId=${fiscalPositivePaymentTestProduct.id} amountMinor=100 " +
+                    "realPos=$realPosEnabled persistedRealPos=$persistedPos"
+            )
+        } else {
+            refreshCatalogFromIretail()
+        }
     }
 
     override fun onNewIntent(intent: android.content.Intent?) {
         super.onNewIntent(intent)
         setIntent(intent)
-        machineModeConfig = MachineModeStore.resolve(this, intent)
-        realPosEnabled = machineModeConfig.realPosEnabled
-        applyMachineModeRuntime(machineModeConfig)
+
+        val configureOnly = intent?.getBooleanExtra("configure_only", false) == true
+        val preserveControlledRuntime =
+            fiscalPositivePaymentTestMode && !configureOnly && intent?.hasExtra("real_pos_enabled") != true
+
+        if (!preserveControlledRuntime) {
+            machineModeConfig = MachineModeStore.resolve(this, intent)
+            realPosEnabled = machineModeConfig.realPosEnabled
+            applyMachineModeRuntime(machineModeConfig)
+        } else {
+            android.util.Log.i(
+                "FiscalPositivePaymentTest",
+                "RUNTIME_POS_PRESERVED source=newIntent realPos=$realPosEnabled persistedRealPos=${MachineModeStore.load(this).realPosEnabled}"
+            )
+        }
+
         android.util.Log.i("IretailMachineMode", "NEW_INTENT mode=${machineModeConfig.mode} realPos=$realPosEnabled")
-        if (intent?.getBooleanExtra("configure_only", false) == true) {
+        if (configureOnly) {
+            fiscalPositivePaymentTestMode = false
             finishAndRemoveTask()
             return
         }
@@ -1828,17 +1884,25 @@ class MainActivity : Activity() {
         else -> listOf(area("Назад", 0, 0, 1080, 1920) { goBackSafely() })
     }
 
-    private fun itemAddHotspots(): List<Hotspot> = listOf(
-        area("Закрыть добавление товара", 910, 120, 150, 150) { openCatalogByCart() },
-        area("Переключить свой стакан", 310, 730, 460, 130) { pendingOwnCup = !pendingOwnCup; rerenderCurrentScreen() },
-        area("Добавить сироп ваниль", 350, 970, 420, 90) { addSyrup("Ваниль") },
-        area("Добавить сироп карамель", 350, 1065, 420, 90) { addSyrup("Карамель") },
-        area("Добавить сироп кокос", 350, 1160, 420, 90) { addSyrup("Кокос") },
-        area("Добавить сахар", 350, 1255, 420, 90) { addSyrup("Сахар") },
-        area("Удалить сироп", 625, 960, 250, 390) { if (pendingSyrup) { pendingSyrup = false; pendingSyrupName = null; rerenderCurrentScreen() } },
-        area("Добавить товар в корзину", 160, 1460, 760, 160) { addPendingProductToCart() },
-        area("Оплатить со скидкой", 40, 1690, 1000, 160) { addPendingProductToCart(openLoyalty = true) }
-    )
+    private fun itemAddHotspots(): List<Hotspot> {
+        if (fiscalPositivePaymentTestMode) {
+            return listOf(
+                area("Закрыть добавление товара", 910, 120, 150, 150) { openCatalogByCart() },
+                area("Добавить тестовый товар в корзину", 160, 1460, 760, 160) { addPendingProductToCart() }
+            )
+        }
+        return listOf(
+            area("Закрыть добавление товара", 910, 120, 150, 150) { openCatalogByCart() },
+            area("Переключить свой стакан", 310, 730, 460, 130) { pendingOwnCup = !pendingOwnCup; rerenderCurrentScreen() },
+            area("Добавить сироп ваниль", 350, 970, 420, 90) { addSyrup("Ваниль") },
+            area("Добавить сироп карамель", 350, 1065, 420, 90) { addSyrup("Карамель") },
+            area("Добавить сироп кокос", 350, 1160, 420, 90) { addSyrup("Кокос") },
+            area("Добавить сахар", 350, 1255, 420, 90) { addSyrup("Сахар") },
+            area("Удалить сироп", 625, 960, 250, 390) { if (pendingSyrup) { pendingSyrup = false; pendingSyrupName = null; rerenderCurrentScreen() } },
+            area("Добавить товар в корзину", 160, 1460, 760, 160) { addPendingProductToCart() },
+            area("Оплатить со скидкой", 40, 1690, 1000, 160) { addPendingProductToCart(openLoyalty = true) }
+        )
+    }
 
     private fun itemEditHotspots(): List<Hotspot> = listOf(
         area("Закрыть редактирование", 910, 120, 150, 150) { openOrderOrCatalog() },
@@ -1898,6 +1962,14 @@ class MainActivity : Activity() {
     }
 
     private fun orderHotspots(): List<Hotspot> {
+        if (fiscalPositivePaymentTestMode) {
+            return listOf(
+                area("Назад к каталогу", 70, 1400, 240, 90) { openCatalogByCart() },
+                area("Очистить заказ", 340, 1400, 240, 90) { clearOrder() },
+                area("Оплатить тестовый заказ", 610, 1400, 380, 90) { goToPaymentMethod() },
+                area("Назад верх", 0, 0, 170, 150) { openCatalogByCart() }
+            )
+        }
         val items = mutableListOf<Hotspot>()
         items.add(area("Назад к каталогу", 70, 1400, 240, 90) { openCatalogByCart() })
         items.add(area("Очистить заказ", 340, 1400, 240, 90) { clearOrder() })
@@ -2012,6 +2084,10 @@ class MainActivity : Activity() {
     }
 
     private fun addSyrup(name: String = "Ваниль") {
+        if (fiscalPositivePaymentTestMode) {
+            toast("В тесте S3 модификаторы запрещены")
+            return
+        }
         pendingSyrup = true
         pendingSyrupName = name
         toast("Сироп добавлен")
@@ -2024,8 +2100,34 @@ class MainActivity : Activity() {
             toast("Каталог пуст")
             return
         }
-        val existing = cart.firstOrNull { it.product.id == product.id && it.ownCup == pendingOwnCup && it.syrupAdded == pendingSyrup && it.syrupName == pendingSyrupName }
-        if (existing == null) cart.add(CartLine(product, 1, pendingOwnCup, pendingSyrup, pendingSyrupName)) else existing.quantity++
+
+        if (fiscalPositivePaymentTestMode) {
+            if (product.id != fiscalPositivePaymentTestProduct.id || product.priceMinor != 100L) {
+                toast("Разрешён только тестовый товар за 1 ₽")
+                return
+            }
+            if (cart.isNotEmpty()) {
+                toast("В тесте S3 разрешена ровно одна позиция")
+                return
+            }
+            pendingOwnCup = false
+            pendingSyrup = false
+            pendingSyrupName = null
+            cart.add(CartLine(product, 1, false, false, null))
+        } else {
+            val existing = cart.firstOrNull {
+                it.product.id == product.id &&
+                    it.ownCup == pendingOwnCup &&
+                    it.syrupAdded == pendingSyrup &&
+                    it.syrupName == pendingSyrupName
+            }
+            if (existing == null) {
+                cart.add(CartLine(product, 1, pendingOwnCup, pendingSyrup, pendingSyrupName))
+            } else {
+                existing.quantity++
+            }
+        }
+
         toast("Добавлено: ${product.name}")
         if (openPayment) goToPaymentMethod() else if (openLoyalty) openScreen("LOYALTY_LOGIN") else openCatalogByCart()
     }
@@ -2039,6 +2141,10 @@ class MainActivity : Activity() {
     }
 
     private fun editLine(index: Int) {
+        if (fiscalPositivePaymentTestMode) {
+            toast("В тесте S3 редактирование товара запрещено")
+            return
+        }
         val line = cart.getOrNull(index)
         if (line == null) {
             toast("В заказе нет позиции для редактирования")
@@ -2053,6 +2159,10 @@ class MainActivity : Activity() {
     }
 
     private fun increaseLine(index: Int) {
+        if (fiscalPositivePaymentTestMode) {
+            toast("В тесте S3 количество зафиксировано: 1")
+            return
+        }
         cart.getOrNull(index)?.quantity = (cart.getOrNull(index)?.quantity ?: 0) + 1
         rerenderCurrentScreen()
     }
@@ -2095,6 +2205,11 @@ class MainActivity : Activity() {
             toast("Нельзя оплатить пустой заказ")
             return
         }
+        fiscalPositivePaymentTestBlockReason()?.let { reason ->
+            android.util.Log.e("FiscalPositivePaymentTest", "TEST_BLOCKED stage=checkout reason=$reason")
+            toast(reason)
+            return
+        }
         val order = orderGateway.createOrder(cart, cartGrossTotalMinor(), orderDiscountMinor(), loyaltyGateway)
         try {
             val draft = OrderSyncDraftBuilder(this).write(order)
@@ -2111,6 +2226,11 @@ class MainActivity : Activity() {
     private fun startPayment(method: PaymentMethod) {
         if (cart.isEmpty()) {
             toast("Нельзя оплатить пустой заказ")
+            return
+        }
+        fiscalPositivePaymentTestBlockReason()?.let { reason ->
+            android.util.Log.e("FiscalPositivePaymentTest", "TEST_BLOCKED stage=payment_method reason=$reason")
+            toast(reason)
             return
         }
         if (method == PaymentMethod.CARD && !realPosEnabled) {
@@ -2150,6 +2270,24 @@ class MainActivity : Activity() {
             return
         }
 
+        if (fiscalPositivePaymentTestMode) {
+            val orderReason = fiscalPositivePaymentTestOrderBlockReason(order)
+            if (orderReason != null) {
+                android.util.Log.e("FiscalPositivePaymentTest", "TEST_BLOCKED stage=runtime_order reason=$orderReason")
+                toast(orderReason)
+                return
+            }
+            if (cardPaymentClient.hasUnresolvedPayment()) {
+                android.util.Log.e("FiscalPositivePaymentTest", "TEST_BLOCKED stage=preflight reason=PREVIOUS_UNRESOLVED")
+                toast("Есть незавершённая предыдущая оплата. Новый платёж запрещён.")
+                return
+            }
+            if (!claimFiscalPositivePaymentTestAttempt()) {
+                disableFiscalPositivePaymentTestRuntime("ATTEMPT_NOT_AVAILABLE")
+                return
+            }
+        }
+
         val amount = paymentAmount(order.amountMinor)
         cardPaymentBusy = true
         cardPaymentStatus = if (cardPaymentClient.hasUnresolvedPayment()) {
@@ -2168,6 +2306,15 @@ class MainActivity : Activity() {
             override fun onResult(result: KozenAoaPaymentClient.PaymentResult) {
                 cardPaymentBusy = false
                 cardPaymentStatus = result.userMessage()
+                val controlledTest = fiscalPositivePaymentTestMode
+                if (controlledTest) {
+                    android.util.Log.w(
+                        "FiscalPositivePaymentTest",
+                        "TEST_RESULT status=${result.status} code=${result.code} amount=${result.amount} noAutoRetry=true"
+                    )
+                    disableFiscalPositivePaymentTestRuntime(result.status)
+                }
+
                 when {
                     result.isApproved() -> {
                         val completed = orderGateway.markPaymentConfirmed()
@@ -2179,11 +2326,18 @@ class MainActivity : Activity() {
                                     "PAYMENT_CONFIRMED state=${fiscalResult.state} sendAllowed=${fiscalResult.sendAllowed} " +
                                         "draft=${fiscalResult.draftFile?.name ?: "none"} receipt=${fiscalResult.receiptUrl ?: "none"}"
                                 )
+                                if (controlledTest) {
+                                    android.util.Log.i(
+                                        "FiscalPositivePaymentTest",
+                                        "FISCAL_RESULT state=${fiscalResult.state} sendAllowed=${fiscalResult.sendAllowed} " +
+                                            "amountMinor=${order.amountMinor} productId=${order.items.singleOrNull()?.product?.id ?: "invalid"}"
+                                    )
+                                }
                             } catch (e: Exception) {
-                                android.util.Log.e(
-                                    "FiscalGateway",
-                                    "DRAFT_ERROR ${e.javaClass.simpleName}: ${e.message}"
-                                )
+                                android.util.Log.e("FiscalGateway", "DRAFT_ERROR ${e.javaClass.simpleName}: ${e.message}")
+                                if (controlledTest) {
+                                    android.util.Log.e("FiscalPositivePaymentTest", "FISCAL_RESULT_ERROR type=${e.javaClass.simpleName}")
+                                }
                             }
                             toast("Оплата подтверждена Kozen / SmartSkyPOS. Фискальный чек пока не сформирован.")
                             openScreen("PAYMENT_COMPLETED")
@@ -2353,6 +2507,74 @@ class MainActivity : Activity() {
         languagePopupVisible = false
         screenHistory.clear()
         openScreen("SCREEN_SAVER_COFFEE", remember = false)
+    }
+
+    private fun fiscalPositivePaymentTestBlockReason(): String? {
+        if (!fiscalPositivePaymentTestMode) return null
+        val line = cart.singleOrNull() ?: return "В тесте S3 должен быть ровно один товар"
+        if (line.product.id != fiscalPositivePaymentTestProduct.id) return "Разрешён только тестовый товар S3"
+        if (line.product.priceMinor != 100L) return "Цена тестового товара должна быть ровно 1 ₽"
+        if (line.quantity != 1) return "Количество тестового товара должно быть ровно 1"
+        if (line.ownCup || line.syrupAdded) return "В тесте S3 запрещены модификаторы"
+        if (couponApplied) return "В тесте S3 купон запрещён"
+        if (loyaltyGateway.attachedToOrder || orderDiscountMinor() != 0L) return "В тесте S3 лояльность и бонусы запрещены"
+        if (cartGrossTotalMinor() != 100L || cartTotalMinor() != 100L) return "Сумма тестового заказа должна быть ровно 1 ₽"
+        return null
+    }
+
+    private fun fiscalPositivePaymentTestOrderBlockReason(order: RuntimeOrder): String? {
+        if (!fiscalPositivePaymentTestMode) return null
+        if (order.items.size != 1) return "RuntimeOrder должен содержать ровно один товар"
+        val line = order.items.single()
+        if (line.product.id != fiscalPositivePaymentTestProduct.id) return "RuntimeOrder содержит неверный тестовый товар"
+        if (line.quantity != 1 || line.ownCup || line.syrupAdded) return "RuntimeOrder содержит запрещённые модификаторы или количество"
+        if (order.grossAmountMinor != 100L || order.amountMinor != 100L || order.ibonusDiscountMinor != 0L) {
+            return "RuntimeOrder должен быть ровно на 1 ₽ без скидки"
+        }
+        return null
+    }
+
+    private fun claimFiscalPositivePaymentTestAttempt(): Boolean {
+        if (!fiscalPositivePaymentTestMode) return true
+        val marker = File(filesDir, "fiscal_positive_payment_test_v1_0_1.attempt")
+        if (marker.exists()) {
+            android.util.Log.e("FiscalPositivePaymentTest", "TEST_BLOCKED stage=claim reason=ATTEMPT_ALREADY_CLAIMED")
+            toast("Разрешённая тестовая попытка уже использована. Повтор запрещён.")
+            return false
+        }
+        return try {
+            if (!marker.createNewFile()) {
+                false
+            } else {
+                marker.writeText(
+                    "contract=S3_FISCAL_POSITIVE_PAYMENT_CONTRACT_v1.0.1\n" +
+                        "amount_minor=100\n" +
+                        "product_id=${fiscalPositivePaymentTestProduct.id}\n" +
+                        "claimed=true\n",
+                    Charsets.UTF_8
+                )
+                android.util.Log.w(
+                    "FiscalPositivePaymentTest",
+                    "ATTEMPT_CLAIMED amountMinor=100 productId=${fiscalPositivePaymentTestProduct.id} noAutoRetry=true"
+                )
+                true
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("FiscalPositivePaymentTest", "TEST_BLOCKED stage=claim reason=MARKER_ERROR type=${e.javaClass.simpleName}")
+            toast("Не удалось создать одноразовый маркер теста. Оплата запрещена.")
+            false
+        }
+    }
+
+    private fun disableFiscalPositivePaymentTestRuntime(status: String) {
+        if (!fiscalPositivePaymentTestMode) return
+        realPosEnabled = false
+        machineModeConfig = MachineModeConfig(MachineModeStore.MODE_STANDALONE, false)
+        fiscalPositivePaymentTestMode = false
+        android.util.Log.w(
+            "FiscalPositivePaymentTest",
+            "TEST_RUNTIME_POS_DISABLED status=$status persistedRealPos=${MachineModeStore.load(this).realPosEnabled}"
+        )
     }
 
     private fun cartGrossTotalMinor(): Long =
