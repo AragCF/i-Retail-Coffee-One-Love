@@ -62,13 +62,17 @@ set "KOZEN_ADB_AVAILABLE=0"
 
 if defined KOZEN (
   adb -s "%KOZEN%" get-state >nul 2>nul
-  if not errorlevel 1 (
-    adb -s "%KOZEN%" shell pm path com.skytech.smartskypos 2>nul | findstr /C:"package:" >nul
-    if not errorlevel 1 set "KOZEN_ADB_AVAILABLE=1"
-  )
-  if "%KOZEN_ADB_AVAILABLE%"=="0" (
+  if errorlevel 1 (
     echo [WARN] Supplied Kozen ADB target is unavailable: %KOZEN%
     set "KOZEN="
+  ) else (
+    adb -s "%KOZEN%" shell pm path com.skytech.smartskypos 2>nul | findstr /C:"package:" >nul
+    if errorlevel 1 (
+      echo [WARN] Supplied ADB target is not a Kozen SmartSkyPOS terminal: %KOZEN%
+      set "KOZEN="
+    ) else (
+      set "KOZEN_ADB_AVAILABLE=1"
+    )
   )
 )
 
