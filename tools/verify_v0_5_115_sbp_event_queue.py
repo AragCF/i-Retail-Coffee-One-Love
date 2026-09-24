@@ -19,7 +19,7 @@ event_section = main[event_start:wire_start]
 wire_section = main[wire_start:route_start]
 
 checks = {
-    "app version 0.5.115+": ("versionName '0.5.115-sbp-event-queue'" in gradle or "versionName '0.5.116-sbp-dual-mode-bridge-upgrade'" in gradle),
+    "app version 0.5.115+": ("versionName '0.5.115-sbp-event-queue'" in gradle or "versionName '0.5.116-sbp-dual-mode-bridge-upgrade'" in gradle or "versionName '0.5.117-jl22-wait-loop'" in gradle),
     "event contract constants": 'EVENT_BRIDGE_VERSION = "0.5.6"' in contract and 'EVENT_CONTRACT = "QR_EVENT_PEEK_ACK_V1"' in contract,
     "live call remains disabled": "LIVE_CALL_ENABLED = false" in contract and "LIVE_QR_PAYMENT_ENABLED = false" in bridge,
     "bridge source version 0.5.6": 'BRIDGE_VERSION = "0.5.6"' in bridge,
@@ -45,7 +45,7 @@ checks = {
     "store raw limited to synthetic dryrun": 'record.sessionId.startsWith("sbp-dryrun-") && !record.realPaymentSent' in store,
     "live QR command remains blocked": '"QR_PAYMENT".equals(command)) return qrPaymentBlocked(id)' in bridge,
     "no live Binder QR transact": "binder.transact(TX_QR_PAYMENT" not in bridge,
-    "runner current app version": ("0.5.115-sbp-event-queue" in runner or "0.5.116-sbp-dual-mode-bridge-upgrade" in runner),
+    "runner current app version": ("0.5.115-sbp-event-queue" in runner or "0.5.116-sbp-dual-mode-bridge-upgrade" in runner or "0.5.117-jl22-wait-loop" in runner),
     "runner requests event test": "--ez sbp_event_queue_synthetic_test true" in runner,
     "runner keeps real POS false": "--ez real_pos_enabled true" not in runner,
     "runner sends no financial adb command": not bool(re.search(r"adb[^\n\r]*\b(?:PAYMENT|QR_PAYMENT|QRPAYMENT|REFUND|RECONCILIATION)\b", runner, re.I)),
