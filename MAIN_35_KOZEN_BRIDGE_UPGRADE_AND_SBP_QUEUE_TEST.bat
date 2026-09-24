@@ -67,7 +67,7 @@ if not defined GRADLE_CMD (
 )
 
 echo.
-echo [1/6] Building Kozen Bridge 0.5.6...
+echo [1/7] Building Kozen Bridge 0.5.6...
 call "%GRADLE_CMD%" --no-daemon --stacktrace :kozenBridge:assembleDebug
 if errorlevel 1 (
   echo [ERROR] Kozen Bridge build failed.
@@ -84,7 +84,7 @@ if not exist "%KOZEN_APK%" (
 )
 
 echo.
-echo [2/6] Installing Kozen Bridge 0.5.6...
+echo [2/7] Installing Kozen Bridge 0.5.6...
 adb -s "%KOZEN%" install -r "%KOZEN_APK%"
 if errorlevel 1 (
   echo [ERROR] Kozen Bridge installation failed.
@@ -103,7 +103,7 @@ if errorlevel 1 (
 echo [OK] Installed bridge: %EXPECTED_BRIDGE_VERSION%
 
 echo.
-echo [3/6] Preparing optional network ADB for Kozen...
+echo [3/7] Preparing optional network ADB for Kozen...
 adb -s "%KOZEN%" shell ip route > "%TEMP%\iretail_kozen_ip_route.txt" 2>&1
 for /f "delims=" %%I in ('powershell -NoProfile -Command "$t=Get-Content -Raw -LiteralPath '%TEMP%\iretail_kozen_ip_route.txt'; if($t -match '\bsrc\s+(\d{1,3}(?:\.\d{1,3}){3})\b'){ $matches[1] }" 2^>nul') do if not defined KOZEN_IP set "KOZEN_IP=%%I"
 
@@ -124,7 +124,7 @@ if defined KOZEN_IP (
 )
 
 echo.
-echo [4/6] Return Kozen to JL22.
+echo [4/7] Return Kozen to JL22.
 echo ------------------------------------------------------------
 echo Disconnect Kozen from this Windows PC and connect the same
 echo Kozen device-side USB port back to the JL22 USB HOST port.
