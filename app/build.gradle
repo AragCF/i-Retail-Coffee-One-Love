@@ -11,8 +11,8 @@ android {
         applicationId 'com.coffeeonelove.iretail'
         minSdk 23
         targetSdk 35
-        versionCode 105
-        versionName '0.5.105-kozen-bridge-retrigger'
+        versionCode 106
+        versionName '0.5.106-aoa-preflight-warmup'
     }
 
     compileOptions {
