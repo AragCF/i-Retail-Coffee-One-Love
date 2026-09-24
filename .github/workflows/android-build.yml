@@ -300,6 +300,13 @@ jobs:
       - name: Verify v0.5.113 SBP callback contract
         run: python3 tools/verify_v0_5_113_sbp_callback_contract.py
 
+      - name: Verify v0.5.114 SBP wire sanitizer
+        run: python3 tools/verify_v0_5_114_sbp_wire_sanitizer.py
+
+      - name: Verify SBP wire sanitizer runtime
+        shell: pwsh
+        run: ./tools/Verify-SbpWireSanitizerRuntime.ps1
+
       - name: Verify marker audit sanitizer runtime
         shell: pwsh
         run: ./tools/Verify-FiscalPaymentMarkerAuditRuntime.ps1
@@ -311,14 +318,16 @@ jobs:
             "tools/Assert-FiscalPositivePayment1Rub.ps1",
             "tools/Sanitize-FiscalPositivePaymentReport.ps1",
             "tools/Analyze-FiscalPaymentMarkerAudit.ps1",
-            "tools/Verify-FiscalPaymentMarkerAuditRuntime.ps1"
+            "tools/Verify-FiscalPaymentMarkerAuditRuntime.ps1",
+            "tools/Sanitize-SbpWireReport.ps1",
+            "tools/Verify-SbpWireSanitizerRuntime.ps1"
           )
           foreach ($file in $files) {
             [void][scriptblock]::Create((Get-Content -Raw -LiteralPath $file))
             Write-Host "[OK] $file"
           }
 
-      - name: Assemble Kozen bridge 0.5.4
+      - name: Assemble Kozen bridge 0.5.5
         working-directory: .
         run: gradle --no-daemon --stacktrace :kozenBridge:assembleDebug
 
@@ -330,7 +339,7 @@ jobs:
         if: success()
         uses: actions/upload-artifact@v4
         with:
-          name: KozenBridge-v0.5.4-debug-apk
+          name: KozenBridge-v0.5.5-debug-apk
           path: kozenBridge/build/outputs/apk/debug/*.apk
           if-no-files-found: error
 
@@ -338,6 +347,6 @@ jobs:
         if: success()
         uses: actions/upload-artifact@v4
         with:
-          name: iRetail-v0.5.113-debug-apk
+          name: iRetail-v0.5.114-debug-apk
           path: app/build/outputs/apk/debug/*.apk
           if-no-files-found: error
