@@ -18,7 +18,7 @@ checks = {
     "preflight listener exists": "public interface PreflightListener" in client,
     "preflight sends no PAYMENT": bool(preflight) and '"PAYMENT "' not in preflight and "PAYMENT_TX_ONCE" not in preflight,
     "preflight commands": all(x in preflight for x in ["GET_STATE ", "GET_TERMINAL_DATA ", "verifyBridge()"]),
-    "bridge 0.5.2 required": '!"0.5.2".equals(value(info, "bridge"))' in client,
+    "compatible production bridge required": "isCompatibleBridgeVersion" in client and '"0.5.2".equals(version)' in client,
     "preflight keeps link": "linkKeptOpen=true" in client,
     "main gates on preflight": "fiscalPositivePaymentPreflightReady" in main and "TEST_PREFLIGHT_START" in main,
     "ready marker": "bridgeReady=true noPaymentSent=true" in main,
