@@ -24,7 +24,11 @@ checks={
     "normal online payment still blocked": 'if (method != PaymentMethod.CARD)' in main,
     "no qrPayment call in main UI": ".qrPayment(" not in main,
     "no qrPayment call in SmartSkyPosGateway": ".qrPayment(" not in gateway,
-    "no QR_PAYMENT command in production bridge": "QR_PAYMENT" not in bridge and "qrPayment(" not in bridge,
+    "production bridge cannot execute live QR payment": (
+        "binder.transact(TX_QR_PAYMENT" not in bridge and
+        "LIVE_QR_PAYMENT_ENABLED = false" in bridge and
+        "LIVE_QR_PAYMENT_NOT_APPROVED" in bridge
+    ),
     "runner keeps real POS false": "--ez real_pos_enabled true" not in runner,
     "runner starts dry-run intent": "--ez sbp_dry_run_self_test true" in runner,
     "runner sends no financial adb command": not bool(re.search(r"adb[^\n\r]*\b(?:PAYMENT|QRPAYMENT|QR_PAYMENT|REFUND|CANCEL)\b",runner,re.I)),
