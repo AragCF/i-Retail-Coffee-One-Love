@@ -11,8 +11,8 @@ android {
         applicationId 'com.coffeeonelove.iretail'
         minSdk 23
         targetSdk 35
-        versionCode 108
-        versionName '0.5.108-acquirer-readonly-diagnostics'
+        versionCode 110
+        versionName '0.5.110-sbp-dryrun-ui'
     }
 
     compileOptions {
