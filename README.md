@@ -1,6 +1,6 @@
 # i-Retail Coffee One Love
 
-Текущая рабочая версия: **0.5.108-acquirer-readonly-diagnostics**.
+Текущая рабочая версия: **0.5.110-sbp-dryrun-ui**.
 
 Android-проект теперь расположен непосредственно в корне репозитория. Дополнительный каталог
 `iRetail_Android_UI_v0.5.8_smartskypos_probe_source` больше не используется.
@@ -924,3 +924,8 @@ v0.5.95:
 ## v0.5.108 — текущий read-only снимок acquiring-конфигурации
 
 После подтверждённого `approved=false / rc=99` добавлен безопасный снимок текущего SmartSkyPOS через уже установленный Kozen production bridge 0.5.2. JL22 читает только PING/INFO/GET_STATE/GET_TERMINAL_DATA; real POS остаётся false. Снимок фиксирует bridge/smartsky readiness, код TerminalData, наличие payment route и текст конфигурации TMS (после санитизации), без нового платежа.
+
+
+## v0.5.110 — СБП DRY_RUN UI
+
+Добавлен безопасный СБП dry-run: синтетическая QR-сессия, переходы PAYMENT_ONLINE_QR → PAYMENT_ONLINE_CONFIRM, идемпотентность и диагностический smoke-test. Реальный SmartSkyPOS qrPayment не вызывается и остаётся запрещён до отдельного финансового разрешения.
