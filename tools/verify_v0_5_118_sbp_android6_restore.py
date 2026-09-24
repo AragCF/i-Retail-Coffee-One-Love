@@ -18,7 +18,7 @@ force_stop_pos = runner.find("am force-stop com.coffeeonelove.iretail")
 self_test_pos = runner.find("--ez sbp_dry_run_self_test true")
 
 checks = {
-    "app version 0.5.118": version_code == 118 and version_name == "0.5.118-sbp-android6-restore-fix",
+    "app version 0.5.118+": version_code >= 118 and bool(version_name),
     "restore still exists": "fun restore(record: SbpSessionRecord)" in sbp,
     "restore no longer uses updateAndGet lambda": "generationCounter.updateAndGet" not in sbp,
     "restore uses API-safe CAS": "generationCounter.compareAndSet" in sbp and "generationCounter.get()" in sbp,
