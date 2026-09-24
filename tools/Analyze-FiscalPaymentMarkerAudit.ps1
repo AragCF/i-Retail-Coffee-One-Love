@@ -116,7 +116,8 @@ if ($recent.Count -eq 0) {
 $summary.Add("")
 $summary.Add("IMPORTANT: this audit does not delete the marker, does not clear payment state, and does not authorize another payment.")
 
-Set-Content -LiteralPath (Join-Path $ReportDir "SUMMARY.txt") -Value $summary -Encoding UTF8
+$summaryText = ($summary -join [Environment]::NewLine)
+Set-Content -LiteralPath (Join-Path $ReportDir "SUMMARY.txt") -Value (Redact $summaryText) -Encoding UTF8
 
 $rawFiles = @(
     "03_marker_raw.txt",
@@ -133,6 +134,14 @@ foreach ($name in $rawFiles) {
     $text = Get-Content -Raw -LiteralPath $src -ErrorAction SilentlyContinue
     Set-Content -LiteralPath $safePath -Value (Redact $text) -Encoding UTF8
     Remove-Item -LiteralPath $src -Force -ErrorAction SilentlyContinue
+}
+
+$draftRaw = Join-Path $ReportDir "07_fiscalization_dry_run.txt"
+if (Test-Path -LiteralPath $draftRaw) {
+    $draftSafe = Join-Path $ReportDir "07_fiscalization_dry_run_safe.txt"
+    $draftText = Get-Content -Raw -LiteralPath $draftRaw -ErrorAction SilentlyContinue
+    Set-Content -LiteralPath $draftSafe -Value (Redact $draftText) -Encoding UTF8
+    Remove-Item -LiteralPath $draftRaw -Force -ErrorAction SilentlyContinue
 }
 
 $forbidden = @(
