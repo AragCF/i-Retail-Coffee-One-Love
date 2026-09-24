@@ -279,6 +279,9 @@ jobs:
       - name: Verify v0.5.105 Kozen bridge retrigger
         run: python3 tools/verify_v0_5_105_kozen_bridge_retrigger.py
 
+      - name: Verify v0.5.106 AOA preflight warmup
+        run: python3 tools/verify_v0_5_106_aoa_preflight_warmup.py
+
       - name: Verify marker audit sanitizer runtime
         shell: pwsh
         run: ./tools/Verify-FiscalPaymentMarkerAuditRuntime.ps1
@@ -305,6 +308,6 @@ jobs:
         if: success()
         uses: actions/upload-artifact@v4
         with:
-          name: iRetail-v0.5.105-debug-apk
+          name: iRetail-v0.5.106-debug-apk
           path: app/build/outputs/apk/debug/*.apk
           if-no-files-found: error
