@@ -101,6 +101,7 @@ enum class PaymentMethod {
     CARD,
     CASH,
     ONLINE,
+    SBP,
     SBER_SPASIBO
 }
 
