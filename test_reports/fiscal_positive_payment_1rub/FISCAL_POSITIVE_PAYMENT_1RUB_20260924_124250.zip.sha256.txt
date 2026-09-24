@@ -1,0 +1,3 @@
+SHA256 hash of test_reports\fiscal_positive_payment_1rub\FISCAL_POSITIVE_PAYMENT_1RUB_20260924_124250.zip:
+bcbd8dd70ed81812cb911e3c8dbd9b876132cc4d40bcd9dc9295c3a78b1b6c53
+CertUtil: -hashfile command completed successfully.
