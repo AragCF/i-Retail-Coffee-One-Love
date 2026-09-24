@@ -1,6 +1,6 @@
 # i-Retail Coffee One Love
 
-Текущая рабочая версия: **0.5.113-sbp-callback-contract**.
+Текущая рабочая версия: **0.5.114-sbp-wire-sanitizer**.
 
 Android-проект теперь расположен непосредственно в корне репозитория. Дополнительный каталог
 `iRetail_Android_UI_v0.5.8_smartskypos_probe_source` больше не используется.
@@ -944,3 +944,8 @@ Production bridge 0.5.3 получает безопасную команду GET
 ## v0.5.113 — контракт callback СБП
 
 Kozen bridge получает отдельный безопасный capture-контракт для TransactionCallback.onQrReading: сырой qrId/payload живёт только в памяти процесса, а в журнал выводятся только SHA-256 отпечатки и длина. Bridge version 0.5.4 остаётся fail-closed: live qrPayment выключен и Binder transaction #19 не вызывается.
+
+
+## v0.5.114 — безопасный AOA-транспорт СБП payload
+
+Добавляется synthetic-only wire-контракт СБП: Base64URL payload проходит по AOA, но RX/TX журналы bridge и JL22 обязаны редактировать payload-поля. Новый диагностический round-trip доказывает точную передачу payload без SmartSkyPOS qrPayment, без PAID и без финансовых команд.
