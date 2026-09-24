@@ -226,6 +226,7 @@ class MainActivity : Activity() {
         buildRootView()
         openScreen(if (fiscalPositivePaymentTestMode) "CATALOG_DEFAULT" else "SCREEN_SAVER_COFFEE", remember = false)
         maybeRunFiscalDryRunSelfTest(intent, "onCreate")
+        maybeRunDeclinedPaymentRecovery(intent, "onCreate")
 
         if (fiscalPositivePaymentTestMode) {
             val persistedPos = MachineModeStore.load(this).realPosEnabled
@@ -267,6 +268,7 @@ class MainActivity : Activity() {
         }
         if (::fiscalGateway.isInitialized) {
             maybeRunFiscalDryRunSelfTest(intent, "onNewIntent")
+            maybeRunDeclinedPaymentRecovery(intent, "onNewIntent")
         }
     }
 
