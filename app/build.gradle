@@ -11,8 +11,8 @@ android {
         applicationId 'com.coffeeonelove.iretail'
         minSdk 23
         targetSdk 35
-        versionCode 113
-        versionName '0.5.113-sbp-callback-contract'
+        versionCode 114
+        versionName '0.5.114-sbp-wire-sanitizer'
     }
 
     compileOptions {
