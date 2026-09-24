@@ -7,6 +7,8 @@ data class StoredSbpSession(
     val state: SbpPaymentState,
     val amountMinor: Long,
     val generation: Int,
+    val createdAtMs: Long,
+    val expiresAtMs: Long,
     val adapterId: String,
     val realPaymentSent: Boolean,
     val updatedAtMs: Long
@@ -28,6 +30,8 @@ class SbpSessionStore(context: Context) {
             .putString(KEY_STATE, snapshot.state.name)
             .putLong(KEY_AMOUNT_MINOR, snapshot.amountMinor)
             .putInt(KEY_GENERATION, snapshot.generation)
+            .putLong(KEY_CREATED_AT, snapshot.createdAtMs)
+            .putLong(KEY_EXPIRES_AT, snapshot.expiresAtMs)
             .putString(KEY_ADAPTER_ID, snapshot.adapterId)
             .putBoolean(KEY_REAL_PAYMENT_SENT, snapshot.realPaymentSent)
             .putLong(KEY_UPDATED_AT, System.currentTimeMillis())
@@ -47,6 +51,8 @@ class SbpSessionStore(context: Context) {
             state = state,
             amountMinor = amountMinor,
             generation = generation,
+            createdAtMs = prefs.getLong(KEY_CREATED_AT, 0L),
+            expiresAtMs = prefs.getLong(KEY_EXPIRES_AT, 0L),
             adapterId = adapterId,
             realPaymentSent = prefs.getBoolean(KEY_REAL_PAYMENT_SENT, false),
             updatedAtMs = prefs.getLong(KEY_UPDATED_AT, 0L)
@@ -63,6 +69,8 @@ class SbpSessionStore(context: Context) {
         private const val KEY_STATE = "state"
         private const val KEY_AMOUNT_MINOR = "amount_minor"
         private const val KEY_GENERATION = "generation"
+        private const val KEY_CREATED_AT = "created_at_ms"
+        private const val KEY_EXPIRES_AT = "expires_at_ms"
         private const val KEY_ADAPTER_ID = "adapter_id"
         private const val KEY_REAL_PAYMENT_SENT = "real_payment_sent"
         private const val KEY_UPDATED_AT = "updated_at_ms"
