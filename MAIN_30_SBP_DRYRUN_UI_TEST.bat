@@ -5,7 +5,7 @@ cd /d "%~dp0"
 set "EXPECTED_VERSION="
 for /f "tokens=2" %%V in ('findstr /C:"versionName " "app\build.gradle"') do if not defined EXPECTED_VERSION set "EXPECTED_VERSION=%%V"
 set "EXPECTED_VERSION=%EXPECTED_VERSION:'=%"
-if /I not "%EXPECTED_VERSION%"=="0.5.110-sbp-dryrun-ui" (
+if /I not "%EXPECTED_VERSION%"=="0.5.116-sbp-dual-mode-bridge-upgrade" (
   echo [ERROR] Wrong project version: %EXPECTED_VERSION%
   pause
   exit /b 11
@@ -63,10 +63,12 @@ if errorlevel 1 exit /b 23
 echo.
 echo ============================================================
 echo USE THE COFFEE-MACHINE SCREEN NOW
-echo 1. Confirm that the screen clearly says SBP DRY RUN.
-echo 2. Tap the large synthetic QR area once.
-echo 3. On the confirmation screen tap the large confirmation area once.
-echo No money and no bank app are needed.
+echo 1. Confirm that a square QR code is visible on the JL22 screen.
+echo 2. Scan it with any QR scanner/camera. It is synthetic and must NOT charge money.
+echo 3. The decoded text should begin with SBP-DRY-RUN.
+echo 4. Tap the large QR area once.
+echo 5. On the confirmation screen tap the large confirmation area once.
+echo No payment and no bank authorization are needed.
 echo ============================================================
 echo.
 
