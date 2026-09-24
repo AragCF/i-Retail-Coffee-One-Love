@@ -31,6 +31,7 @@ interface SbpPaymentAdapter {
     val liveFinancialEnabled: Boolean
 
     fun current(): SbpPaymentSnapshot?
+    fun recover(): SbpPaymentSnapshot?
     fun start(amountMinor: Long, externalNumber: String): SbpPaymentSnapshot
     fun markWaiting(): SbpPaymentSnapshot?
     fun confirmSynthetic(): SbpPaymentSnapshot?
@@ -46,7 +47,9 @@ interface SbpPaymentAdapter {
  * realPaymentSent в true. Production-реализация будет отдельным классом и
  * отдельным финансовым контрактом.
  */
-class DryRunSbpPaymentAdapter : SbpPaymentAdapter {
+class DryRunSbpPaymentAdapter(
+    private val store: SbpSessionStore? = null
+) : SbpPaymentAdapter {
     override val adapterId: String = "dry-run"
     override val liveFinancialEnabled: Boolean = false
 
@@ -55,8 +58,35 @@ class DryRunSbpPaymentAdapter : SbpPaymentAdapter {
 
     override fun current(): SbpPaymentSnapshot? = current
 
+    override fun recover(): SbpPaymentSnapshot? {
+        current?.let { return it }
+        val stored = store?.load() ?: return null
+        generationCounter.set(maxOf(generationCounter.get(), stored.generation))
+
+        val recoveredState = if (stored.unresolved) SbpPaymentState.UNCERTAIN else stored.state
+        return SbpPaymentSnapshot(
+            sessionId = stored.sessionId,
+            state = recoveredState,
+            amountMinor = stored.amountMinor,
+            qrId = null,
+            qrPayload = null,
+            generation = stored.generation,
+            adapterId = adapterId,
+            liveFinancialEnabled = false,
+            realPaymentSent = stored.realPaymentSent
+        ).also {
+            current = it
+            store?.save(it)
+        }
+    }
+
     override fun start(amountMinor: Long, externalNumber: String): SbpPaymentSnapshot {
         require(amountMinor > 0L)
+
+        val recovered = recover()
+        if (recovered != null && recovered.state == SbpPaymentState.UNCERTAIN) {
+            return recovered
+        }
 
         val existing = current
         if (existing != null &&
@@ -98,6 +128,7 @@ class DryRunSbpPaymentAdapter : SbpPaymentAdapter {
 
     override fun reset() {
         current = null
+        store?.clear()
     }
 
     private fun updateState(state: SbpPaymentState): SbpPaymentSnapshot? {
@@ -109,6 +140,7 @@ class DryRunSbpPaymentAdapter : SbpPaymentAdapter {
             realPaymentSent = false
         )
         current = updated
+        store?.save(updated)
         return updated
     }
 }
