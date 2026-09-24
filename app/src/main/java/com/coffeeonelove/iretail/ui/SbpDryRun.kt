@@ -19,8 +19,31 @@ data class SbpDryRunSnapshot(
     val qrId: String?,
     val qrPayload: String?,
     val generation: Int,
+    val createdAtMs: Long,
+    val updatedAtMs: Long,
     val realPaymentSent: Boolean = false
-)
+) {
+    fun toSessionRecord(): SbpSessionRecord =
+        SbpSessionRecord(
+            sessionId = sessionId,
+            state = when (state) {
+                SbpDryRunState.IDLE -> SbpPaymentState.IDLE
+                SbpDryRunState.QR_READY -> SbpPaymentState.QR_READY
+                SbpDryRunState.WAITING_CONFIRMATION -> SbpPaymentState.WAITING
+                SbpDryRunState.CONFIRMED -> SbpPaymentState.PAID
+                SbpDryRunState.EXPIRED -> SbpPaymentState.EXPIRED
+                SbpDryRunState.CANCELLED -> SbpPaymentState.CANCELLED
+                SbpDryRunState.ERROR -> SbpPaymentState.ERROR
+            },
+            amountMinor = amountMinor,
+            qrId = qrId,
+            qrPayload = qrPayload,
+            generation = generation,
+            createdAtMs = createdAtMs,
+            updatedAtMs = updatedAtMs,
+            realPaymentSent = false
+        )
+}
 
 class SbpDryRunSession {
     private val generationCounter = AtomicInteger(0)
@@ -39,6 +62,7 @@ class SbpDryRunSession {
         val sessionId = "sbp-dryrun-$generation-$safeExternal"
         val qrId = "dry-$generation"
         val payload = "SBP-DRY-RUN|session=$sessionId|amountMinor=$amountMinor|generation=$generation"
+        val now = System.currentTimeMillis()
         return SbpDryRunSnapshot(
             sessionId = sessionId,
             state = SbpDryRunState.QR_READY,
@@ -46,6 +70,8 @@ class SbpDryRunSession {
             qrId = qrId,
             qrPayload = payload,
             generation = generation,
+            createdAtMs = now,
+            updatedAtMs = now,
             realPaymentSent = false
         ).also { current = it }
     }
@@ -58,13 +84,42 @@ class SbpDryRunSession {
 
     fun cancel(): SbpDryRunSnapshot? = updateState(SbpDryRunState.CANCELLED)
 
+    fun restore(record: SbpSessionRecord): SbpDryRunSnapshot {
+        generationCounter.updateAndGet { old -> maxOf(old, record.generation) }
+        val restored = SbpDryRunSnapshot(
+            sessionId = record.sessionId,
+            state = when (record.state) {
+                SbpPaymentState.IDLE -> SbpDryRunState.IDLE
+                SbpPaymentState.QR_READY -> SbpDryRunState.QR_READY
+                SbpPaymentState.WAITING -> SbpDryRunState.WAITING_CONFIRMATION
+                SbpPaymentState.PAID -> SbpDryRunState.CONFIRMED
+                SbpPaymentState.EXPIRED -> SbpDryRunState.EXPIRED
+                SbpPaymentState.CANCELLED -> SbpDryRunState.CANCELLED
+                SbpPaymentState.DECLINED, SbpPaymentState.UNCERTAIN, SbpPaymentState.ERROR -> SbpDryRunState.ERROR
+            },
+            amountMinor = record.amountMinor,
+            qrId = record.qrId,
+            qrPayload = record.qrPayload,
+            generation = record.generation,
+            createdAtMs = record.createdAtMs,
+            updatedAtMs = record.updatedAtMs,
+            realPaymentSent = false
+        )
+        current = restored
+        return restored
+    }
+
     fun reset() {
         current = null
     }
 
     private fun updateState(state: SbpDryRunState): SbpDryRunSnapshot? {
         val value = current ?: return null
-        val updated = value.copy(state = state, realPaymentSent = false)
+        val updated = value.copy(
+            state = state,
+            updatedAtMs = System.currentTimeMillis(),
+            realPaymentSent = false
+        )
         current = updated
         return updated
     }
