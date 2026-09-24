@@ -211,33 +211,56 @@ public final class KozenAoaPaymentClient {
             boolean ready = false;
             String code = "UNKNOWN";
             String message = "Платёжный маршрут не готов";
-            try {
-                ensureLink();
-                verifyBridge();
+            Exception lastError = null;
 
-                String state = requestResponse("GET_STATE " + nextWireId(), "STATE ", 12000L);
-                if (!"0".equals(value(state, "code")) || !"0".equals(value(state, "state"))) {
-                    throw new IOException("STATE_NOT_READY");
+            for (int attempt = 1; attempt <= 6 && !shutdown; attempt++) {
+                try {
+                    ensureLink();
+                    verifyBridge();
+
+                    String state = requestResponse("GET_STATE " + nextWireId(), "STATE ", 12000L);
+                    if (!"0".equals(value(state, "code")) || !"0".equals(value(state, "state"))) {
+                        throw new IOException("STATE_NOT_READY");
+                    }
+
+                    String terminalData = requestResponse("GET_TERMINAL_DATA " + nextWireId(), "TERMINAL_DATA ", 15000L);
+                    String tid = value(terminalData, "paymentTid");
+                    boolean routeOk = "0".equals(value(terminalData, "code")) &&
+                            "true".equalsIgnoreCase(value(terminalData, "payment")) &&
+                            "00".equals(value(terminalData, "paymentType")) &&
+                            "payment".equalsIgnoreCase(value(terminalData, "transactionType")) &&
+                            containsCsvValue(value(terminalData, "currencies"), CURRENCY) &&
+                            tid != null && !tid.isEmpty() && !"-".equals(tid);
+                    if (!routeOk) throw new IOException("FRESH_ROUTE_NOT_FOUND");
+
+                    ready = true;
+                    code = "READY";
+                    message = "Kozen / SmartSkyPOS готов к одной оплате";
+                    Log.i(TAG,
+                            "PREFLIGHT_OK attempt=" + attempt +
+                            " bridge=0.5.2 protocol=4 state=0 payment=true currency643=true " +
+                            "tidPresent=true noPaymentSent=true linkKeptOpen=true");
+                    break;
+                } catch (Exception e) {
+                    lastError = e;
+                    code = safe(e.getMessage());
+                    Log.w(TAG,
+                            "PREFLIGHT_WARMUP_RETRY attempt=" + attempt +
+                            " code=" + code + " noPaymentSent=true");
+                    if (attempt >= 6 || !isPreflightWarmupRetryable(code)) break;
+                    try {
+                        Thread.sleep(1200L);
+                    } catch (InterruptedException interrupted) {
+                        Thread.currentThread().interrupt();
+                        lastError = interrupted;
+                        code = "INTERRUPTED";
+                        break;
+                    }
                 }
+            }
 
-                String terminalData = requestResponse("GET_TERMINAL_DATA " + nextWireId(), "TERMINAL_DATA ", 15000L);
-                String tid = value(terminalData, "paymentTid");
-                boolean routeOk = "0".equals(value(terminalData, "code")) &&
-                        "true".equalsIgnoreCase(value(terminalData, "payment")) &&
-                        "00".equals(value(terminalData, "paymentType")) &&
-                        "payment".equalsIgnoreCase(value(terminalData, "transactionType")) &&
-                        containsCsvValue(value(terminalData, "currencies"), CURRENCY) &&
-                        tid != null && !tid.isEmpty() && !"-".equals(tid);
-                if (!routeOk) throw new IOException("FRESH_ROUTE_NOT_FOUND");
-
-                ready = true;
-                code = "READY";
-                message = "Kozen / SmartSkyPOS готов к одной оплате";
-                Log.i(TAG,
-                        "PREFLIGHT_OK bridge=0.5.2 protocol=4 state=0 payment=true currency643=true " +
-                        "tidPresent=true noPaymentSent=true linkKeptOpen=true");
-            } catch (Exception e) {
-                code = safe(e.getMessage());
+            if (!ready) {
+                if (lastError != null) code = safe(lastError.getMessage());
                 message = "Платёжный маршрут Kozen не готов";
                 Log.e(TAG, "PREFLIGHT_FAILED code=" + code + " noPaymentSent=true");
                 closeLink();
@@ -249,6 +272,17 @@ public final class KozenAoaPaymentClient {
             final String resultMessage = message;
             main.post(() -> listener.onResult(resultReady, resultCode, resultMessage));
         });
+    }
+
+    private static boolean isPreflightWarmupRetryable(String code) {
+        if (code == null) return false;
+        return code.startsWith("WRITE_INCOMPLETE_PING_") ||
+                code.startsWith("TIMEOUT_PING") ||
+                code.startsWith("BAD_PONG") ||
+                code.startsWith("LINK_NOT_OPEN") ||
+                code.startsWith("AOA_") ||
+                code.startsWith("USB_PERMISSION_") ||
+                code.startsWith("KOZEN_NOT_FOUND");
     }
 
     /**
