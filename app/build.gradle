@@ -11,8 +11,8 @@ android {
         applicationId 'com.coffeeonelove.iretail'
         minSdk 23
         targetSdk 35
-        versionCode 116
-        versionName '0.5.116-sbp-dual-mode-bridge-upgrade'
+        versionCode 117
+        versionName '0.5.117-jl22-wait-loop'
     }
 
     compileOptions {
