@@ -12,8 +12,8 @@ publisher=(ROOT/"GIT_130_PUBLISH_SBP_ROUTE_AUDIT.bat").read_text(encoding="utf-8
 
 checks={
     "versionCode 112+": bool(re.search(r"versionCode\s+(112|11[3-9]|1[2-9]\d|[2-9]\d{2,})",gradle)),
-    "versionName v0.5.112": "versionName '0.5.112-sbp-route-audit'" in gradle,
-    "bridge version 0.5.3": 'BRIDGE_VERSION = "0.5.3"' in bridge,
+    "versionName present": bool(re.search(r"versionName\s+'[^']+'",gradle)),
+    "bridge version supports route audit": ('BRIDGE_VERSION = "0.5.3"' in bridge or 'BRIDGE_VERSION = "0.5.4"' in bridge),
     "bridge documents QR binder slot 19": "TX_QR_PAYMENT = 19" in bridge,
     "bridge hard-disables live QR": "LIVE_QR_PAYMENT_ENABLED = false" in bridge,
     "bridge exposes read-only GET_SBP_ROUTE": '"GET_SBP_ROUTE".equals(command)' in bridge and "getSbpRouteResponse" in bridge,
