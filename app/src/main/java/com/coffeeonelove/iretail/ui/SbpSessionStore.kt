@@ -6,18 +6,39 @@ import java.security.MessageDigest
 class SbpSessionStore(context: Context) {
     private val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
 
+    init {
+        val oldSessionId = prefs.getString(KEY_SESSION_ID, null)
+        if (oldSessionId != null && !oldSessionId.startsWith("sbp-dryrun-")) {
+            prefs.edit()
+                .remove(KEY_QR_ID)
+                .remove(KEY_QR_PAYLOAD)
+                .apply()
+        }
+    }
+
     fun save(record: SbpSessionRecord) {
-        prefs.edit()
+        val keepSyntheticDryRunPayload =
+            record.sessionId.startsWith("sbp-dryrun-") && !record.realPaymentSent
+
+        val editor = prefs.edit()
             .putString(KEY_SESSION_ID, record.sessionId)
             .putString(KEY_STATE, record.state.name)
             .putLong(KEY_AMOUNT_MINOR, record.amountMinor)
-            .putString(KEY_QR_ID, record.qrId)
-            .putString(KEY_QR_PAYLOAD, record.qrPayload)
             .putInt(KEY_GENERATION, record.generation)
             .putLong(KEY_CREATED_AT, record.createdAtMs)
             .putLong(KEY_UPDATED_AT, record.updatedAtMs)
             .putBoolean(KEY_REAL_PAYMENT_SENT, record.realPaymentSent)
-            .apply()
+
+        if (keepSyntheticDryRunPayload) {
+            editor
+                .putString(KEY_QR_ID, record.qrId)
+                .putString(KEY_QR_PAYLOAD, record.qrPayload)
+        } else {
+            editor
+                .remove(KEY_QR_ID)
+                .remove(KEY_QR_PAYLOAD)
+        }
+        editor.apply()
     }
 
     fun load(): SbpSessionRecord? {
@@ -25,17 +46,20 @@ class SbpSessionStore(context: Context) {
         val state = runCatching {
             SbpPaymentState.valueOf(prefs.getString(KEY_STATE, SbpPaymentState.ERROR.name) ?: SbpPaymentState.ERROR.name)
         }.getOrDefault(SbpPaymentState.ERROR)
+        val realPaymentSent = prefs.getBoolean(KEY_REAL_PAYMENT_SENT, false)
+        val canLoadSyntheticRaw =
+            sessionId.startsWith("sbp-dryrun-") && !realPaymentSent
 
         return SbpSessionRecord(
             sessionId = sessionId,
             state = state,
             amountMinor = prefs.getLong(KEY_AMOUNT_MINOR, 0L),
-            qrId = prefs.getString(KEY_QR_ID, null),
-            qrPayload = prefs.getString(KEY_QR_PAYLOAD, null),
+            qrId = if (canLoadSyntheticRaw) prefs.getString(KEY_QR_ID, null) else null,
+            qrPayload = if (canLoadSyntheticRaw) prefs.getString(KEY_QR_PAYLOAD, null) else null,
             generation = prefs.getInt(KEY_GENERATION, 0),
             createdAtMs = prefs.getLong(KEY_CREATED_AT, 0L),
             updatedAtMs = prefs.getLong(KEY_UPDATED_AT, 0L),
-            realPaymentSent = prefs.getBoolean(KEY_REAL_PAYMENT_SENT, false)
+            realPaymentSent = realPaymentSent
         )
     }
 

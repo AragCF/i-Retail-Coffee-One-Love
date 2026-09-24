@@ -115,6 +115,46 @@ public final class KozenAoaPaymentClient {
         void onResult(SbpWireRoundTripResult result);
     }
 
+    public interface SbpQrEventListener {
+        void onResult(SbpQrEventResult result);
+    }
+
+    public static final class SbpQrEventResult {
+        public final boolean ok;
+        public final String code;
+        public final String bridgeVersion;
+        public final long sequence;
+        public final String qrId;
+        public final String payload;
+        public final String payloadHash;
+        public final int payloadLength;
+        public final String source;
+        public final int queueSize;
+        public final long dropped;
+        public final boolean acked;
+
+        private SbpQrEventResult(boolean ok, String code, String bridgeVersion, long sequence,
+                                 String qrId, String payload, String payloadHash, int payloadLength,
+                                 String source, int queueSize, long dropped, boolean acked) {
+            this.ok = ok;
+            this.code = tokenOrDash(code);
+            this.bridgeVersion = tokenOrDash(bridgeVersion);
+            this.sequence = sequence;
+            this.qrId = qrId;
+            this.payload = payload;
+            this.payloadHash = tokenOrDash(payloadHash);
+            this.payloadLength = payloadLength;
+            this.source = tokenOrDash(source);
+            this.queueSize = queueSize;
+            this.dropped = dropped;
+            this.acked = acked;
+        }
+
+        static SbpQrEventResult failed(String code, String bridgeVersion) {
+            return new SbpQrEventResult(false, code, bridgeVersion, 0L, null, null, "-", 0, "-", 0, 0L, false);
+        }
+    }
+
     public static final class SbpWireRoundTripResult {
         public final boolean ok;
         public final String code;
@@ -451,8 +491,8 @@ public final class KozenAoaPaymentClient {
 
     /**
      * Synthetic-only SBP payload round-trip through AOA.
-     * Raw qrId/payload are returned to the caller for private in-app persistence,
-     * but never logged. No SmartSkyPOS financial method is invoked.
+     * Raw qrId/payload exist in memory only and are never logged or required to be persisted.
+     * No SmartSkyPOS financial method is invoked.
      */
     public void runSyntheticSbpWireRoundTrip(String payload, SbpWireRoundTripListener listener) {
         if (listener == null) return;
@@ -491,7 +531,7 @@ public final class KozenAoaPaymentClient {
                         throw new IOException("INCOMPATIBLE_BRIDGE");
                     }
 
-                    if (!"0.5.5".equals(bridgeVersion)) {
+                    if (!"0.5.5".equals(bridgeVersion) && !"0.5.6".equals(bridgeVersion)) {
                         result = SbpWireRoundTripResult.failed("BRIDGE_UPGRADE_REQUIRED", bridgeVersion);
                         Log.w(TAG,
                                 "SBP_WIRE_PENDING bridge=" + bridgeVersion +
@@ -575,6 +615,153 @@ public final class KozenAoaPaymentClient {
             final SbpWireRoundTripResult finalResult = result;
             main.post(() -> listener.onResult(finalResult));
         });
+    }
+
+    /**
+     * Read the oldest queued SBP QR event without removing it, verify integrity,
+     * then acknowledge the exact sequence. ACK is idempotent on bridge 0.5.6.
+     * No SmartSkyPOS financial command is sent by this method.
+     */
+    public void readNextSbpQrEvent(SbpQrEventListener listener) {
+        if (listener == null) return;
+        if (shutdown) {
+            main.post(() -> listener.onResult(SbpQrEventResult.failed("CLIENT_SHUTDOWN", "-")));
+            return;
+        }
+        if (!busy.compareAndSet(false, true)) {
+            main.post(() -> listener.onResult(SbpQrEventResult.failed("LOCAL_BUSY", "-")));
+            return;
+        }
+
+        executor.execute(() -> {
+            SbpQrEventResult result = null;
+            String bridgeVersion = "-";
+            try {
+                ensureLink();
+
+                String pingId = nextWireId();
+                String pong = requestResponse("PING " + pingId, "PONG " + pingId, 12000L);
+                if (pong == null || !"kozen-payment-bridge".equals(value(pong, "role"))) {
+                    throw new IOException("BAD_PONG");
+                }
+
+                String infoId = nextWireId();
+                String info = requestResponse("INFO " + infoId, "INFO " + infoId, 12000L);
+                bridgeVersion = tokenOrDash(value(info, "bridge"));
+                if (!"4".equals(value(info, "protocol")) || !isSupportedBridgeVersion(bridgeVersion)) {
+                    throw new IOException("INCOMPATIBLE_BRIDGE");
+                }
+
+                if (!"0.5.6".equals(bridgeVersion)) {
+                    result = SbpQrEventResult.failed("BRIDGE_UPGRADE_REQUIRED", bridgeVersion);
+                } else if (!"QR_EVENT_PEEK_ACK_V1".equals(value(info, "sbpEventContract"))) {
+                    result = SbpQrEventResult.failed("EVENT_CONTRACT_MISMATCH", bridgeVersion);
+                } else {
+                    String eventId = nextWireId();
+                    String line = requestResponse(
+                            "GET_SBP_QR_EVENT " + eventId,
+                            "SBP_EVENT " + eventId,
+                            12000L
+                    );
+                    String code = tokenOrDash(value(line, "code"));
+                    if ("EMPTY".equals(code)) {
+                        result = SbpQrEventResult.failed("EMPTY", bridgeVersion);
+                    } else if (!"0".equals(code)) {
+                        throw new IOException("SBP_EVENT_" + code);
+                    } else if (!"QR_EVENT_PEEK_ACK_V1".equals(value(line, "eventContract"))) {
+                        throw new IOException("SBP_EVENT_CONTRACT");
+                    } else {
+                        long sequence = Long.parseLong(tokenOrDash(value(line, "sequence")));
+                        String payload = SbpWireCodec.decode(value(line, "payloadB64"));
+                        String qrId = SbpWireCodec.decode(value(line, "qrIdB64"));
+                        String payloadHash = tokenOrDash(value(line, "payloadHash"));
+                        int payloadLength = Integer.parseInt(tokenOrDash(value(line, "payloadLength")));
+                        String source = tokenOrDash(value(line, "source"));
+                        int queueSize = Integer.parseInt(tokenOrDash(value(line, "queueSize")));
+                        long dropped = Long.parseLong(tokenOrDash(value(line, "dropped")));
+
+                        boolean integrityOk =
+                                payloadLength == payload.length() &&
+                                payloadHash.equals(WireProtocolSanitizer.shortHash(payload));
+                        if (!integrityOk) throw new IOException("SBP_EVENT_INTEGRITY");
+
+                        boolean acked = acknowledgeSbpQrEvent(sequence);
+                        result = new SbpQrEventResult(
+                                acked,
+                                acked ? "OK" : "ACK_REJECTED",
+                                bridgeVersion,
+                                sequence,
+                                qrId,
+                                payload,
+                                payloadHash,
+                                payloadLength,
+                                source,
+                                queueSize,
+                                dropped,
+                                acked
+                        );
+
+                        Log.i(TAG,
+                                "SBP_EVENT_OK bridge=" + bridgeVersion +
+                                " sequence=" + sequence +
+                                " payloadHash=" + payloadHash +
+                                " payloadLength=" + payloadLength +
+                                " qrIdHash=" + WireProtocolSanitizer.shortHash(qrId) +
+                                " source=" + source +
+                                " queueSize=" + queueSize +
+                                " dropped=" + dropped +
+                                " acked=" + acked +
+                                " rawPayloadLogged=false noFinancialCommands=true");
+                    }
+                }
+            } catch (Exception e) {
+                String code = safe(e.getMessage());
+                result = SbpQrEventResult.failed(code, bridgeVersion);
+                Log.e(TAG, "SBP_EVENT_FAILED code=" + code +
+                        " bridge=" + bridgeVersion + " noFinancialCommands=true");
+            }
+
+            busy.set(false);
+            final SbpQrEventResult finalResult = result == null
+                    ? SbpQrEventResult.failed("UNKNOWN", bridgeVersion)
+                    : result;
+            main.post(() -> listener.onResult(finalResult));
+        });
+    }
+
+    private boolean acknowledgeSbpQrEvent(long sequence) throws Exception {
+        Exception lastError = null;
+        for (int attempt = 1; attempt <= 3; attempt++) {
+            try {
+                String ackId = nextWireId();
+                String line = requestResponse(
+                        "ACK_SBP_QR_EVENT " + ackId + " sequence=" + sequence,
+                        "SBP_ACK " + ackId,
+                        10000L
+                );
+                String code = tokenOrDash(value(line, "code"));
+                String status = tokenOrDash(value(line, "status"));
+                if ("0".equals(code) && ("ACKED".equals(status) || "ALREADY_ACKED".equals(status))) return true;
+                throw new IOException("SBP_ACK_" + code + "_" + status);
+            } catch (Exception e) {
+                lastError = e;
+                Log.w(TAG, "SBP_EVENT_ACK_RETRY attempt=" + attempt +
+                        " sequence=" + sequence +
+                        " code=" + safe(e.getMessage()) +
+                        " noFinancialCommands=true");
+                if (attempt >= 3) break;
+                closeLink();
+                try {
+                    Thread.sleep(300L);
+                } catch (InterruptedException interrupted) {
+                    Thread.currentThread().interrupt();
+                    throw interrupted;
+                }
+                ensureLink();
+            }
+        }
+        if (lastError != null) throw lastError;
+        return false;
     }
 
     /**
@@ -1094,7 +1281,8 @@ public final class KozenAoaPaymentClient {
 
     private static boolean isSupportedBridgeVersion(String version) {
         return "0.5.2".equals(version) || "0.5.3".equals(version) ||
-                "0.5.4".equals(version) || "0.5.5".equals(version);
+                "0.5.4".equals(version) || "0.5.5".equals(version) ||
+                "0.5.6".equals(version);
     }
 
     private PaymentResult queryPaymentStatus(String requestId) throws Exception {

@@ -303,6 +303,9 @@ jobs:
       - name: Verify v0.5.114 SBP wire sanitizer
         run: python3 tools/verify_v0_5_114_sbp_wire_sanitizer.py
 
+      - name: Verify v0.5.115 SBP event queue
+        run: python3 tools/verify_v0_5_115_sbp_event_queue.py
+
       - name: Verify SBP wire sanitizer runtime
         shell: pwsh
         run: ./tools/Verify-SbpWireSanitizerRuntime.ps1
@@ -327,7 +330,7 @@ jobs:
             Write-Host "[OK] $file"
           }
 
-      - name: Assemble Kozen bridge 0.5.5
+      - name: Assemble Kozen bridge 0.5.6
         working-directory: .
         run: gradle --no-daemon --stacktrace :kozenBridge:assembleDebug
 
@@ -339,7 +342,7 @@ jobs:
         if: success()
         uses: actions/upload-artifact@v4
         with:
-          name: KozenBridge-v0.5.5-debug-apk
+          name: KozenBridge-v0.5.6-debug-apk
           path: kozenBridge/build/outputs/apk/debug/*.apk
           if-no-files-found: error
 

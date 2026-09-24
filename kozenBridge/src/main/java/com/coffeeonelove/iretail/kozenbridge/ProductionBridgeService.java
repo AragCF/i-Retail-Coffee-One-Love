@@ -47,7 +47,7 @@ import java.util.Set;
  */
 public class ProductionBridgeService extends Service {
     private static final String TAG = "IretailKozenBridge";
-    private static final String BRIDGE_VERSION = "0.5.5";
+    private static final String BRIDGE_VERSION = "0.5.6";
 
     private static final String SMARTSKY_ACTION = "com.skytech.smartskypos.ISmartSkyPos";
     private static final String SMARTSKY_PACKAGE = "com.skytech.smartskypos";
@@ -234,14 +234,17 @@ public class ProductionBridgeService extends Service {
         if ("INFO".equals(command)) {
             return "INFO " + id + " protocol=4 transport=AOA role=kozen-payment-bridge bridge=" + BRIDGE_VERSION +
                     " smartsky=" + (isSmartSkyReady() ? "bound" : "not_bound") +
-                    " commands=PING,INFO,GET_STATE,GET_TERMINAL_DATA,GET_SBP_ROUTE,SBP_ECHO_QR,PAYMENT,QR_PAYMENT_BLOCKED,GET_PAYMENT_STATUS,GET_LAST_TRANSACTION,GET_TRANSACTION" +
+                    " commands=PING,INFO,GET_STATE,GET_TERMINAL_DATA,GET_SBP_ROUTE,SBP_ECHO_QR,GET_SBP_QR_EVENT,ACK_SBP_QR_EVENT,PAYMENT,QR_PAYMENT_BLOCKED,GET_PAYMENT_STATUS,GET_LAST_TRANSACTION,GET_TRANSACTION" +
                     " paymentPolicy=EXPLICIT_SINGLE_NO_AUTO_RETRY sbpLiveEnabled=" + LIVE_QR_PAYMENT_ENABLED +
-                    " sbpCallbackContract=CAPTURE_HASHED_V1 sbpWireContract=BASE64URL_REDACTED_V1";
+                    " sbpCallbackContract=CAPTURE_HASHED_V1 sbpWireContract=BASE64URL_REDACTED_V1" +
+                    " sbpEventContract=QR_EVENT_PEEK_ACK_V1";
         }
         if ("GET_STATE".equals(command)) return getStateResponse(id);
         if ("GET_TERMINAL_DATA".equals(command)) return getTerminalDataResponse(id);
         if ("GET_SBP_ROUTE".equals(command)) return getSbpRouteResponse(id);
         if ("SBP_ECHO_QR".equals(command)) return sbpEchoQr(id, args);
+        if ("GET_SBP_QR_EVENT".equals(command)) return getSbpQrEvent(id);
+        if ("ACK_SBP_QR_EVENT".equals(command)) return ackSbpQrEvent(id, args);
         if ("PAYMENT".equals(command)) return payment(id, args);
         if ("QR_PAYMENT".equals(command)) return qrPaymentBlocked(id);
         if ("GET_PAYMENT_STATUS".equals(command)) return getPaymentStatus(id);
@@ -357,31 +360,73 @@ public class ProductionBridgeService extends Service {
     }
 
     private String sbpEchoQr(String id, String args) {
-        if (!validRequestId(id)) {
-            return "SBP_QR " + token(id) + " code=BAD_REQUEST_ID synthetic=true liveEnabled=false";
-        }
+        if (!validRequestId(id)) return "SBP_QR " + token(id) + " code=BAD_REQUEST_ID synthetic=true liveEnabled=false";
         String payloadB64 = arg(args, "payloadB64");
-        if (!SbpWireCodec.validEncoded(payloadB64)) {
-            return "SBP_QR " + token(id) + " code=BAD_PAYLOAD synthetic=true liveEnabled=false";
-        }
+        if (!SbpWireCodec.validEncoded(payloadB64)) return "SBP_QR " + token(id) + " code=BAD_PAYLOAD synthetic=true liveEnabled=false";
         try {
             String payload = SbpWireCodec.decode(payloadB64);
             String qrId = "synthetic-" + id;
-            SbpQrCapture.Event event = sbpQrCapture.capture(qrId, payload);
+            SbpQrCapture.Event event = sbpQrCapture.capture(qrId, payload, "synthetic");
             SbpQrCapture.SafeSummary safe = event.safeSummary();
-            String qrIdB64 = SbpWireCodec.encode(qrId);
             return "SBP_QR " + id +
-                    " code=0 qrIdB64=" + qrIdB64 +
+                    " code=0 qrIdB64=" + SbpWireCodec.encode(qrId) +
                     " payloadB64=" + payloadB64 +
                     " payloadHash=" + safe.payloadHash +
                     " payloadLength=" + safe.payloadLength +
+                    " eventSequence=" + event.sequence +
+                    " queueSize=" + sbpQrCapture.size() +
+                    " dropped=" + sbpQrCapture.droppedCount() +
                     " synthetic=true liveEnabled=" + LIVE_QR_PAYMENT_ENABLED +
                     " wireContract=BASE64URL_REDACTED_V1";
-        } catch (Exception e) {
-            return "SBP_QR " + token(id) + " code=EXCEPTION type=" +
-                    token(e.getClass().getSimpleName()) +
-                    " synthetic=true liveEnabled=false";
+        } catch (Exception ex) {
+            return "SBP_QR " + token(id) + " code=EXCEPTION type=" + token(ex.getClass().getSimpleName()) + " synthetic=true liveEnabled=false";
         }
+    }
+
+    private String getSbpQrEvent(String id) {
+        if (!validRequestId(id)) return "SBP_EVENT " + token(id) + " code=BAD_REQUEST_ID eventContract=QR_EVENT_PEEK_ACK_V1 noFinancialCommand=true";
+        SbpQrCapture.Event event = sbpQrCapture.peek();
+        if (event == null) {
+            return "SBP_EVENT " + id + " code=EMPTY queueSize=0 dropped=" + sbpQrCapture.droppedCount() +
+                    " eventContract=QR_EVENT_PEEK_ACK_V1 noFinancialCommand=true";
+        }
+        try {
+            SbpQrCapture.SafeSummary safe = event.safeSummary();
+            return "SBP_EVENT " + id +
+                    " code=0 sequence=" + event.sequence +
+                    " qrIdB64=" + SbpWireCodec.encode(event.qrId) +
+                    " payloadB64=" + SbpWireCodec.encode(event.payload) +
+                    " payloadHash=" + safe.payloadHash +
+                    " payloadLength=" + safe.payloadLength +
+                    " source=" + token(event.source) +
+                    " queueSize=" + sbpQrCapture.size() +
+                    " dropped=" + sbpQrCapture.droppedCount() +
+                    " eventContract=QR_EVENT_PEEK_ACK_V1 noFinancialCommand=true";
+        } catch (Exception ex) {
+            return "SBP_EVENT " + id + " code=EXCEPTION type=" + token(ex.getClass().getSimpleName()) +
+                    " eventContract=QR_EVENT_PEEK_ACK_V1 noFinancialCommand=true";
+        }
+    }
+
+    private String ackSbpQrEvent(String id, String args) {
+        if (!validRequestId(id)) return "SBP_ACK " + token(id) + " code=BAD_REQUEST_ID eventContract=QR_EVENT_PEEK_ACK_V1 noFinancialCommand=true";
+        long sequence;
+        try {
+            String value = arg(args, "sequence");
+            sequence = Long.parseLong(value == null ? "" : value);
+        } catch (Exception ex) {
+            return "SBP_ACK " + id + " code=BAD_SEQUENCE eventContract=QR_EVENT_PEEK_ACK_V1 noFinancialCommand=true";
+        }
+        SbpQrCapture.AckStatus status = sbpQrCapture.ack(sequence);
+        boolean accepted = status == SbpQrCapture.AckStatus.ACKED || status == SbpQrCapture.AckStatus.ALREADY_ACKED;
+        return "SBP_ACK " + id +
+                " code=" + (accepted ? "0" : status.name()) +
+                " status=" + status.name() +
+                " sequence=" + sequence +
+                " headSequence=" + sbpQrCapture.headSequence() +
+                " queueSize=" + sbpQrCapture.size() +
+                " dropped=" + sbpQrCapture.droppedCount() +
+                " eventContract=QR_EVENT_PEEK_ACK_V1 noFinancialCommand=true";
     }
 
     private String qrPaymentBlocked(String id) {
@@ -733,11 +778,14 @@ public class ProductionBridgeService extends Service {
                 case 2: {
                     String qrId = data.readString();
                     String qrPayload = data.readString();
-                    SbpQrCapture.Event event = sbpQrCapture.capture(qrId, qrPayload);
+                    SbpQrCapture.Event event = sbpQrCapture.capture(qrId, qrPayload, "smartsky-callback");
                     SbpQrCapture.SafeSummary safe = event.safeSummary();
-                    Log.i(TAG, "SBP_CALLBACK_QR qrIdHash=" + safe.qrIdHash +
+                    Log.i(TAG, "SBP_CALLBACK_QR sequence=" + event.sequence +
+                            " qrIdHash=" + safe.qrIdHash +
                             " payloadHash=" + safe.payloadHash +
                             " payloadLength=" + safe.payloadLength +
+                            " queueSize=" + sbpQrCapture.size() +
+                            " dropped=" + sbpQrCapture.droppedCount() +
                             " rawPayloadLogged=false liveEnabled=" + LIVE_QR_PAYMENT_ENABLED);
                     if (reply != null) reply.writeNoException();
                     return true;

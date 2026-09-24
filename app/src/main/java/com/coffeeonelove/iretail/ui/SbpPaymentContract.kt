@@ -10,6 +10,8 @@ object SbpProductionContract {
     const val CALLBACK_CONTRACT = "CAPTURE_HASHED_V1"
     const val WIRE_BRIDGE_VERSION = "0.5.5"
     const val WIRE_CONTRACT = "BASE64URL_REDACTED_V1"
+    const val EVENT_BRIDGE_VERSION = "0.5.6"
+    const val EVENT_CONTRACT = "QR_EVENT_PEEK_ACK_V1"
     const val LIVE_CALL_ENABLED = false
 }
 

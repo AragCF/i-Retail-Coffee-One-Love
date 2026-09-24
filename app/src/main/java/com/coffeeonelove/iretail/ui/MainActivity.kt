@@ -234,6 +234,7 @@ class MainActivity : Activity() {
         maybeRunAcquirerSnapshot(intent, "onCreate")
         maybeRunSbpRouteAudit(intent, "onCreate")
         maybeRunSbpWireSyntheticTest(intent, "onCreate")
+        maybeRunSbpEventQueueSyntheticTest(intent, "onCreate")
         maybeRunSbpDryRunSelfTest(intent, "onCreate")
 
         if (fiscalPositivePaymentTestMode) {
@@ -280,6 +281,7 @@ class MainActivity : Activity() {
             maybeRunAcquirerSnapshot(intent, "onNewIntent")
             maybeRunSbpRouteAudit(intent, "onNewIntent")
             maybeRunSbpWireSyntheticTest(intent, "onNewIntent")
+            maybeRunSbpEventQueueSyntheticTest(intent, "onNewIntent")
             maybeRunSbpDryRunSelfTest(intent, "onNewIntent")
         }
     }
@@ -340,6 +342,79 @@ class MainActivity : Activity() {
         })
     }
 
+    private fun maybeRunSbpEventQueueSyntheticTest(intent: android.content.Intent?, source: String) {
+        if (intent?.getBooleanExtra("sbp_event_queue_synthetic_test", false) != true) return
+        intent.removeExtra("sbp_event_queue_synthetic_test")
+
+        val debuggable = (applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE) != 0
+        val persisted = MachineModeStore.load(this)
+        if (!debuggable || !persisted.standalone || realPosEnabled) {
+            android.util.Log.e(
+                "SbpEventQueueTest",
+                "EVENT_QUEUE_REJECTED source=$source debuggable=$debuggable standalone=${persisted.standalone} " +
+                    "realPos=$realPosEnabled noFinancialCommands=true"
+            )
+            return
+        }
+
+        val nonce = java.lang.Long.toHexString(System.nanoTime())
+        val rawPayload = "SBP-EVENT-QUEUE|amountMinor=100|nonce=$nonce"
+        android.util.Log.i(
+            "SbpEventQueueTest",
+            "EVENT_QUEUE_START source=$source payloadPrepared=true rawPayloadLogged=false " +
+                "expectedContract=${SbpProductionContract.EVENT_CONTRACT} realPos=false noFinancialCommands=true"
+        )
+
+        cardPaymentClient.runSyntheticSbpWireRoundTrip(
+            rawPayload,
+            object : KozenAoaPaymentClient.SbpWireRoundTripListener {
+                override fun onResult(wire: KozenAoaPaymentClient.SbpWireRoundTripResult) {
+                    if (!wire.ok || !wire.payloadMatches || wire.payload == null || wire.qrId == null) {
+                        android.util.Log.e(
+                            "SbpEventQueueTest",
+                            "EVENT_QUEUE_RESULT ok=false stage=wire code=${wire.code} bridge=${wire.bridgeVersion} " +
+                                "storedRaw=false rawPayloadLogged=false noFinancialCommands=true"
+                        )
+                        toast("СБП: подготовка события не пройдена: ${wire.code}")
+                        return
+                    }
+
+                    cardPaymentClient.readNextSbpQrEvent(
+                        object : KozenAoaPaymentClient.SbpQrEventListener {
+                            override fun onResult(event: KozenAoaPaymentClient.SbpQrEventResult) {
+                                val payloadMatches = event.payload == rawPayload
+                                val qrMatches = event.qrId == wire.qrId
+                                val sourceMatches = event.source == "synthetic"
+                                val ok =
+                                    event.ok &&
+                                    event.acked &&
+                                    payloadMatches &&
+                                    qrMatches &&
+                                    sourceMatches &&
+                                    event.dropped == 0L
+
+                                android.util.Log.println(
+                                    if (ok) android.util.Log.INFO else android.util.Log.ERROR,
+                                    "SbpEventQueueTest",
+                                    "EVENT_QUEUE_RESULT ok=$ok stage=peek_ack code=${event.code} " +
+                                        "bridge=${event.bridgeVersion} sequence=${event.sequence} " +
+                                        "payloadMatches=$payloadMatches qrMatches=$qrMatches source=${event.source} " +
+                                        "queueSizeBeforeAck=${event.queueSize} dropped=${event.dropped} acked=${event.acked} " +
+                                        "payloadHash=${event.payloadHash} payloadLength=${event.payloadLength} " +
+                                        "storedRaw=false rawPayloadLogged=false realPos=false noFinancialCommands=true"
+                                )
+                                toast(
+                                    if (ok) "СБП: очередь QR-событий и подтверждение доставки исправны."
+                                    else "СБП: проверка очереди не пройдена (${event.code})."
+                                )
+                            }
+                        }
+                    )
+                }
+            }
+        )
+    }
+
     private fun maybeRunSbpWireSyntheticTest(intent: android.content.Intent?, source: String) {
         if (intent?.getBooleanExtra("sbp_wire_synthetic_test", false) != true) return
         intent.removeExtra("sbp_wire_synthetic_test")
@@ -380,17 +455,16 @@ class MainActivity : Activity() {
                             updatedAtMs = now,
                             realPaymentSent = false
                         )
-                        sbpSessionStore.save(record)
                         val safe = sbpSessionStore.safeSummary(record)
                         android.util.Log.i(
                             "SbpWireTest",
                             "WIRE_RESULT ok=true code=${result.code} bridge=${result.bridgeVersion} " +
                                 "payloadMatches=true payloadHash=${safe.qrPayloadHash} " +
                                 "payloadLength=${safe.qrPayloadLength} qrIdHash=${safe.qrIdHash} " +
-                                "storedPrivately=true synthetic=${result.synthetic} liveEnabled=${result.liveEnabled} " +
+                                "storedRaw=false synthetic=${result.synthetic} liveEnabled=${result.liveEnabled} " +
                                 "rawPayloadLogged=false realPos=false noFinancialCommands=true"
                         )
-                        toast("СБП wire-test: payload передан и сохранён приватно.")
+                        toast("СБП wire-test: payload передан без долговременного сохранения.")
                     } else {
                         android.util.Log.i(
                             "SbpWireTest",
