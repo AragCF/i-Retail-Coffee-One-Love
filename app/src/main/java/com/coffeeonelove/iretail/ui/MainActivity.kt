@@ -233,6 +233,7 @@ class MainActivity : Activity() {
         maybeRunDeclinedPaymentRecovery(intent, "onCreate")
         maybeRunAcquirerSnapshot(intent, "onCreate")
         maybeRunSbpRouteAudit(intent, "onCreate")
+        maybeRunSbpWireSyntheticTest(intent, "onCreate")
         maybeRunSbpDryRunSelfTest(intent, "onCreate")
 
         if (fiscalPositivePaymentTestMode) {
@@ -278,6 +279,7 @@ class MainActivity : Activity() {
             maybeRunDeclinedPaymentRecovery(intent, "onNewIntent")
             maybeRunAcquirerSnapshot(intent, "onNewIntent")
             maybeRunSbpRouteAudit(intent, "onNewIntent")
+            maybeRunSbpWireSyntheticTest(intent, "onNewIntent")
             maybeRunSbpDryRunSelfTest(intent, "onNewIntent")
         }
     }
@@ -336,6 +338,78 @@ class MainActivity : Activity() {
                 }
             }
         })
+    }
+
+    private fun maybeRunSbpWireSyntheticTest(intent: android.content.Intent?, source: String) {
+        if (intent?.getBooleanExtra("sbp_wire_synthetic_test", false) != true) return
+        intent.removeExtra("sbp_wire_synthetic_test")
+
+        val debuggable = (applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE) != 0
+        val persisted = MachineModeStore.load(this)
+        if (!debuggable || !persisted.standalone || realPosEnabled) {
+            android.util.Log.e(
+                "SbpWireTest",
+                "WIRE_REJECTED source=$source debuggable=$debuggable standalone=${persisted.standalone} " +
+                    "realPos=$realPosEnabled noFinancialCommands=true"
+            )
+            return
+        }
+
+        val nonce = java.lang.Long.toHexString(System.nanoTime())
+        val rawPayload = "SBP-SYNTHETIC-WIRE|amountMinor=100|nonce=$nonce"
+        android.util.Log.i(
+            "SbpWireTest",
+            "WIRE_START source=$source payloadPrepared=true rawPayloadLogged=false " +
+                "expectedContract=${SbpProductionContract.WIRE_CONTRACT} realPos=false noFinancialCommands=true"
+        )
+
+        cardPaymentClient.runSyntheticSbpWireRoundTrip(
+            rawPayload,
+            object : KozenAoaPaymentClient.SbpWireRoundTripListener {
+                override fun onResult(result: KozenAoaPaymentClient.SbpWireRoundTripResult) {
+                    if (result.ok && result.payloadMatches && result.payload != null && result.qrId != null) {
+                        val now = System.currentTimeMillis()
+                        val record = SbpSessionRecord(
+                            sessionId = "sbp-wire-$nonce",
+                            state = SbpPaymentState.QR_READY,
+                            amountMinor = 100L,
+                            qrId = result.qrId,
+                            qrPayload = result.payload,
+                            generation = 1,
+                            createdAtMs = now,
+                            updatedAtMs = now,
+                            realPaymentSent = false
+                        )
+                        sbpSessionStore.save(record)
+                        val safe = sbpSessionStore.safeSummary(record)
+                        android.util.Log.i(
+                            "SbpWireTest",
+                            "WIRE_RESULT ok=true code=${result.code} bridge=${result.bridgeVersion} " +
+                                "payloadMatches=true payloadHash=${safe.qrPayloadHash} " +
+                                "payloadLength=${safe.qrPayloadLength} qrIdHash=${safe.qrIdHash} " +
+                                "storedPrivately=true synthetic=${result.synthetic} liveEnabled=${result.liveEnabled} " +
+                                "rawPayloadLogged=false realPos=false noFinancialCommands=true"
+                        )
+                        toast("СБП wire-test: payload передан и сохранён приватно.")
+                    } else {
+                        android.util.Log.i(
+                            "SbpWireTest",
+                            "WIRE_RESULT ok=false code=${result.code} bridge=${result.bridgeVersion} " +
+                                "payloadMatches=${result.payloadMatches} synthetic=${result.synthetic} " +
+                                "liveEnabled=${result.liveEnabled} rawPayloadLogged=false " +
+                                "realPos=false noFinancialCommands=true"
+                        )
+                        toast(
+                            if (result.code == "BRIDGE_UPGRADE_REQUIRED") {
+                                "Для СБП wire-test нужен Kozen bridge ${SbpProductionContract.WIRE_BRIDGE_VERSION}"
+                            } else {
+                                "СБП wire-test не пройден: ${result.code}"
+                            }
+                        )
+                    }
+                }
+            }
+        )
     }
 
     private fun maybeRunSbpRouteAudit(intent: android.content.Intent?, source: String) {
