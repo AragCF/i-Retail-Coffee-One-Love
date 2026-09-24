@@ -18,7 +18,7 @@ checks={
     "dry-run adapter implements boundary": "class DryRunSbpPaymentAdapter : SbpPaymentAdapter" in sbp,
     "dry-run live financial disabled": 'override val liveFinancialEnabled: Boolean = false' in sbp,
     "dry-run never sets real payment true": "realPaymentSent = true" not in sbp,
-    "dry-run has no SmartSkyPOS dependency": "smartsky" not in sbp.lower() and "KozenAoaPaymentClient" not in sbp,
+    "dry-run has no SmartSkyPOS dependency": "import com.skytech" not in sbp and "KozenAoaPaymentClient" not in sbp and ".qrPayment(" not in sbp,
     "main depends on interface": "private val sbpPaymentAdapter: SbpPaymentAdapter = DryRunSbpPaymentAdapter()" in main,
     "main no concrete session field": "private val sbpDryRunSession" not in main,
     "main renders SBP title": 'PaymentMethod.SBP -> "СБП / QR"' in main,
