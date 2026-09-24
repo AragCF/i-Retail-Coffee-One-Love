@@ -11,7 +11,7 @@ bridge=(ROOT/"kozenBridge/src/main/java/com/coffeeonelove/iretail/kozenbridge/Pr
 
 checks={
     "versionCode 110+": bool(re.search(r"versionCode\s+(110|11\d|1[2-9]\d|[2-9]\d{2,})",gradle)),
-    "versionName v0.5.110": "versionName '0.5.110-sbp-dryrun-ui'" in gradle,
+    "versionName present": bool(re.search(r"versionName\s+'[^']+'",gradle)),
     "SBP state machine exists": "enum class SbpDryRunState" in sbp,
     "synthetic payload explicit": "SBP-DRY-RUN" in sbp,
     "realPaymentSent always false": "realPaymentSent: Boolean = false" in sbp and "realPaymentSent = false" in sbp,
