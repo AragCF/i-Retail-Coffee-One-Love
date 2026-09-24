@@ -2,7 +2,7 @@
 setlocal EnableExtensions DisableDelayedExpansion
 cd /d "%~dp0"
 
-set "EXPECTED_APP_VERSION=0.5.116-sbp-dual-mode-bridge-upgrade"
+set "EXPECTED_APP_VERSION=0.5.117-jl22-wait-loop"
 set "EXPECTED_BRIDGE_VERSION=0.5.6-sbp-event-queue"
 set "JL22="
 set "KOZEN="
@@ -25,10 +25,8 @@ if errorlevel 1 (
   exit /b 10
 )
 
-for /f "tokens=1,2,*" %%A in ('adb devices -l ^| findstr /I /C:"product:octopus_jetinno model:UniWin_M190 device:octopus-jetinno"') do (
-  if /I "%%B"=="device" if not defined JL22 set "JL22=%%A"
-)
-if defined JL22 echo [JL22] %JL22%
+call "%~dp0tools\WAIT_FOR_JL22.bat" JL22
+if errorlevel 1 exit /b 13
 
 call :FindKozen
 if not defined KOZEN (
