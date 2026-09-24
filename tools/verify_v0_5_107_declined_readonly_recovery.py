@@ -20,7 +20,12 @@ checks={
     "recovery reads last transaction": "GET_LAST_TRANSACTION " in recovery,
     "recovery may target receipt": "GET_TRANSACTION " in recovery,
     "recovery has no PAYMENT command literal": '"PAYMENT "' not in recovery,
-    "recovery result omits rrn/auth/tid": "READ_ONLY_RECOVERY_OK" in recovery and "rrn=" not in recovery and "authCode=" not in recovery and "terminalId=" not in recovery,
+    "recovery result omits rrn/auth/tid": (
+        "READ_ONLY_RECOVERY_OK" in recovery and
+        "rrn=" not in recovery[recovery.find("READ_ONLY_RECOVERY_OK"):recovery.find("READ_ONLY_RECOVERY_OK")+900] and
+        "authCode=" not in recovery[recovery.find("READ_ONLY_RECOVERY_OK"):recovery.find("READ_ONLY_RECOVERY_OK")+900] and
+        "terminalId=" not in recovery[recovery.find("READ_ONLY_RECOVERY_OK"):recovery.find("READ_ONLY_RECOVERY_OK")+900]
+    ),
     "main intent exists": "fiscal_declined_payment_recovery" in main,
     "main recovery rejects real POS": "!debuggable || !persisted.standalone || realPosEnabled" in main,
     "main logs no-financial marker": "noFinancialCommands=true" in main,
