@@ -273,6 +273,9 @@ jobs:
       - name: Verify v0.5.103 marker audit sanitizer
         run: python3 tools/verify_v0_5_103_marker_audit_sanitizer.py
 
+      - name: Verify v0.5.104 payment marker guard
+        run: python3 tools/verify_v0_5_104_payment_marker_guard_fix.py
+
       - name: Verify marker audit sanitizer runtime
         shell: pwsh
         run: ./tools/Verify-FiscalPaymentMarkerAuditRuntime.ps1
@@ -299,6 +302,6 @@ jobs:
         if: success()
         uses: actions/upload-artifact@v4
         with:
-          name: iRetail-v0.5.103-debug-apk
+          name: iRetail-v0.5.104-debug-apk
           path: app/build/outputs/apk/debug/*.apk
           if-no-files-found: error
