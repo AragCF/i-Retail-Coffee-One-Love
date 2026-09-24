@@ -1,6 +1,6 @@
 # i-Retail Coffee One Love
 
-Текущая рабочая версия: **0.5.107-declined-readonly-recovery**.
+Текущая рабочая версия: **0.5.108-acquirer-readonly-diagnostics**.
 
 Android-проект теперь расположен непосредственно в корне репозитория. Дополнительный каталог
 `iRetail_Android_UI_v0.5.8_smartskypos_probe_source` больше не используется.
@@ -919,3 +919,8 @@ v0.5.95:
 ## v0.5.107 — read-only разбор отклонённой оплаты
 
 После единственной разрешённой попытки на 1 ₽ получен определённый `DECLINED`. Повторный PAYMENT по текущему контракту запрещён. Добавлен отдельный режим read-only recovery через уже установленный Kozen production bridge: он читает `GET_LAST_TRANSACTION` и, когда доступен номер чека, `GET_TRANSACTION`, не включая real POS и не отправляя финансовых команд. Также исправлен сбор `IretailKozenClient` в MAIN_26: один фильтр уровня V вместо повторяющихся I/W/E, чтобы будущие отчёты не теряли `PAYMENT_TX_ONCE`.
+
+
+## v0.5.108 — текущий read-only снимок acquiring-конфигурации
+
+После подтверждённого `approved=false / rc=99` добавлен безопасный снимок текущего SmartSkyPOS через уже установленный Kozen production bridge 0.5.2. JL22 читает только PING/INFO/GET_STATE/GET_TERMINAL_DATA; real POS остаётся false. Снимок фиксирует bridge/smartsky readiness, код TerminalData, наличие payment route и текст конфигурации TMS (после санитизации), без нового платежа.
