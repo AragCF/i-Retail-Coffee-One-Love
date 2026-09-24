@@ -1,7 +1,7 @@
 @echo off
 setlocal EnableExtensions DisableDelayedExpansion
 
-rem i-Retail Android UI v0.5.104 payment marker guard fix
+rem i-Retail Android UI v0.5.105 kozen bridge retrigger
 rem Windows CLI debug APK build script.
 rem
 rem Important:
@@ -23,7 +23,7 @@ if errorlevel 1 (
     exit /b 9
 )
 
-set "SCRIPT_VERSION=0.5.104-payment-marker-guard-fix"
+set "SCRIPT_VERSION=0.5.105-kozen-bridge-retrigger"
 set "DO_CLEAN=0"
 set "DO_HARD_CLEAN=0"
 
