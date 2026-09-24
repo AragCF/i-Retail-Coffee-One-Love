@@ -341,7 +341,7 @@ public final class KozenAoaPaymentClient {
             for (int attempt = 1; attempt <= 6 && !shutdown; attempt++) {
                 try {
                     ensureLink();
-                    verifyBridge();
+                    String bridgeVersion = verifyBridge();
 
                     String state = requestResponse("GET_STATE " + nextWireId(), "STATE ", 12000L);
                     if (!"0".equals(value(state, "code")) || !"0".equals(value(state, "state"))) {
@@ -363,7 +363,8 @@ public final class KozenAoaPaymentClient {
                     message = "Kozen / SmartSkyPOS готов к одной оплате";
                     Log.i(TAG,
                             "PREFLIGHT_OK attempt=" + attempt +
-                            " bridge=0.5.2 protocol=4 state=0 payment=true currency643=true " +
+                            " bridge=" + bridgeVersion +
+                            " protocol=4 state=0 payment=true currency643=true " +
                             "tidPresent=true noPaymentSent=true linkKeptOpen=true");
                     break;
                 } catch (Exception e) {
