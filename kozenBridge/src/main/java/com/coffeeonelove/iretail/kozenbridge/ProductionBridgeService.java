@@ -47,7 +47,7 @@ import java.util.Set;
  */
 public class ProductionBridgeService extends Service {
     private static final String TAG = "IretailKozenBridge";
-    private static final String BRIDGE_VERSION = "0.5.3";
+    private static final String BRIDGE_VERSION = "0.5.4";
 
     private static final String SMARTSKY_ACTION = "com.skytech.smartskypos.ISmartSkyPos";
     private static final String SMARTSKY_PACKAGE = "com.skytech.smartskypos";
@@ -71,6 +71,7 @@ public class ProductionBridgeService extends Service {
 
     private final Object accessoryLock = new Object();
     private final Object paymentLock = new Object();
+    private final SbpQrCapture sbpQrCapture = new SbpQrCapture();
     private Thread ioThread;
     private ParcelFileDescriptor parcelFd;
 
@@ -234,7 +235,8 @@ public class ProductionBridgeService extends Service {
             return "INFO " + id + " protocol=4 transport=AOA role=kozen-payment-bridge bridge=" + BRIDGE_VERSION +
                     " smartsky=" + (isSmartSkyReady() ? "bound" : "not_bound") +
                     " commands=PING,INFO,GET_STATE,GET_TERMINAL_DATA,GET_SBP_ROUTE,PAYMENT,QR_PAYMENT_BLOCKED,GET_PAYMENT_STATUS,GET_LAST_TRANSACTION,GET_TRANSACTION" +
-                    " paymentPolicy=EXPLICIT_SINGLE_NO_AUTO_RETRY sbpLiveEnabled=" + LIVE_QR_PAYMENT_ENABLED;
+                    " paymentPolicy=EXPLICIT_SINGLE_NO_AUTO_RETRY sbpLiveEnabled=" + LIVE_QR_PAYMENT_ENABLED +
+                    " sbpCallbackContract=CAPTURE_HASHED_V1";
         }
         if ("GET_STATE".equals(command)) return getStateResponse(id);
         if ("GET_TERMINAL_DATA".equals(command)) return getTerminalDataResponse(id);
@@ -343,6 +345,7 @@ public class ProductionBridgeService extends Service {
                     " currency=" + (route == null ? "-" : route.currency) +
                     " tidPresent=" + (route != null && route.tid != null && !route.tid.isEmpty()) +
                     " liveEnabled=" + LIVE_QR_PAYMENT_ENABLED +
+                    " callbackContract=CAPTURE_HASHED_V1" +
                     " safety=READ_ONLY";
         } catch (Exception e) {
             Log.e(TAG, "SMARTSKY_GET_SBP_ROUTE_ERROR " + e.getClass().getSimpleName() + ": " + safe(e.getMessage()));
@@ -355,7 +358,7 @@ public class ProductionBridgeService extends Service {
     private String qrPaymentBlocked(String id) {
         return "SBP_RESULT " + token(id) +
                 " status=BLOCKED code=LIVE_QR_PAYMENT_NOT_APPROVED liveEnabled=" +
-                LIVE_QR_PAYMENT_ENABLED + " noFinancialCommand=true";
+                LIVE_QR_PAYMENT_ENABLED + " callbackContract=CAPTURE_HASHED_V1 noFinancialCommand=true";
     }
 
     private PaymentRoute findPaymentRoute(TerminalData data, String requiredTid, String requiredCurrency) {
@@ -645,8 +648,13 @@ public class ProductionBridgeService extends Service {
                 }
                 case 2: {
                     String qrId = data.readString();
-                    data.readString();
-                    Log.i(TAG, "PAYMENT_CALLBACK_QR id=" + token(qrId) + " payload=redacted");
+                    String qrPayload = data.readString();
+                    SbpQrCapture.SafeSummary safe = SbpQrCapture.summarize(
+                            qrId, qrPayload, System.currentTimeMillis());
+                    Log.i(TAG, "PAYMENT_CALLBACK_QR qrIdHash=" + safe.qrIdHash +
+                            " payloadHash=" + safe.payloadHash +
+                            " payloadLength=" + safe.payloadLength +
+                            " rawPayloadLogged=false");
                     if (reply != null) reply.writeNoException();
                     return true;
                 }
@@ -663,6 +671,63 @@ public class ProductionBridgeService extends Service {
                 case 5: {
                     String prompt = data.readString();
                     Log.w(TAG, "PAYMENT_CALLBACK_PASSWORD requested=" + token(prompt) + " returning_empty=true");
+                    if (reply != null) {
+                        reply.writeNoException();
+                        reply.writeString("");
+                    }
+                    return true;
+                }
+                default:
+                    return super.onTransact(code, data, reply, flags);
+            }
+        }
+    }
+
+    private final class SbpTransactionCallback extends Binder {
+        SbpTransactionCallback() { attachInterface(null, TRANSACTION_CALLBACK_DESCRIPTOR); }
+
+        @Override protected boolean onTransact(int code, Parcel data, Parcel reply, int flags) throws RemoteException {
+            if (code == IBinder.INTERFACE_TRANSACTION) {
+                if (reply != null) reply.writeString(TRANSACTION_CALLBACK_DESCRIPTOR);
+                return true;
+            }
+            data.enforceInterface(TRANSACTION_CALLBACK_DESCRIPTOR);
+            switch (code) {
+                case 1: {
+                    int state = data.readInt();
+                    String message = data.readString();
+                    Log.i(TAG, "SBP_CALLBACK_STATE state=" + state + " message=" + token(message) +
+                            " liveEnabled=" + LIVE_QR_PAYMENT_ENABLED);
+                    if (reply != null) reply.writeNoException();
+                    return true;
+                }
+                case 2: {
+                    String qrId = data.readString();
+                    String qrPayload = data.readString();
+                    SbpQrCapture.Event event = sbpQrCapture.capture(qrId, qrPayload);
+                    SbpQrCapture.SafeSummary safe = event.safeSummary();
+                    Log.i(TAG, "SBP_CALLBACK_QR qrIdHash=" + safe.qrIdHash +
+                            " payloadHash=" + safe.payloadHash +
+                            " payloadLength=" + safe.payloadLength +
+                            " rawPayloadLogged=false liveEnabled=" + LIVE_QR_PAYMENT_ENABLED);
+                    if (reply != null) reply.writeNoException();
+                    return true;
+                }
+                case 3: {
+                    if (reply != null) reply.writeNoException();
+                    return true;
+                }
+                case 4: {
+                    String operation = data.readString();
+                    Log.i(TAG, "SBP_CALLBACK_OPERATION name=" + token(operation) +
+                            " liveEnabled=" + LIVE_QR_PAYMENT_ENABLED);
+                    if (reply != null) reply.writeNoException();
+                    return true;
+                }
+                case 5: {
+                    String prompt = data.readString();
+                    Log.w(TAG, "SBP_CALLBACK_PASSWORD requested=" + token(prompt) +
+                            " returning_empty=true liveEnabled=" + LIVE_QR_PAYMENT_ENABLED);
                     if (reply != null) {
                         reply.writeNoException();
                         reply.writeString("");
