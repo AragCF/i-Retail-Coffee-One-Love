@@ -12,7 +12,7 @@ data class StoredSbpSession(
     val updatedAtMs: Long
 ) {
     val unresolved: Boolean
-        get() = state in setOf(
+        get() = realPaymentSent || state in setOf(
             SbpPaymentState.QR_READY,
             SbpPaymentState.WAITING_CONFIRMATION,
             SbpPaymentState.UNCERTAIN
