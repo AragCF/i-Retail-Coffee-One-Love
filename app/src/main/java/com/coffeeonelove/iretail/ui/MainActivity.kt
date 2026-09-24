@@ -232,6 +232,7 @@ class MainActivity : Activity() {
         maybeRunFiscalDryRunSelfTest(intent, "onCreate")
         maybeRunDeclinedPaymentRecovery(intent, "onCreate")
         maybeRunAcquirerSnapshot(intent, "onCreate")
+        maybeRunSbpRouteAudit(intent, "onCreate")
         maybeRunSbpDryRunSelfTest(intent, "onCreate")
 
         if (fiscalPositivePaymentTestMode) {
@@ -276,6 +277,7 @@ class MainActivity : Activity() {
             maybeRunFiscalDryRunSelfTest(intent, "onNewIntent")
             maybeRunDeclinedPaymentRecovery(intent, "onNewIntent")
             maybeRunAcquirerSnapshot(intent, "onNewIntent")
+            maybeRunSbpRouteAudit(intent, "onNewIntent")
             maybeRunSbpDryRunSelfTest(intent, "onNewIntent")
         }
     }
@@ -332,6 +334,61 @@ class MainActivity : Activity() {
                     )
                     toast("$message. Финансовая попытка не начиналась.")
                 }
+            }
+        })
+    }
+
+    private fun maybeRunSbpRouteAudit(intent: android.content.Intent?, source: String) {
+        if (intent?.getBooleanExtra("sbp_route_readonly_audit", false) != true) return
+        intent.removeExtra("sbp_route_readonly_audit")
+
+        val debuggable = (applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE) != 0
+        val persisted = MachineModeStore.load(this)
+        if (!debuggable || !persisted.standalone || realPosEnabled) {
+            android.util.Log.e(
+                "SbpRouteAudit",
+                "ROUTE_REJECTED source=$source debuggable=$debuggable standalone=${persisted.standalone} " +
+                    "realPos=$realPosEnabled noFinancialCommands=true"
+            )
+            return
+        }
+
+        android.util.Log.i(
+            "SbpRouteAudit",
+            "ROUTE_START source=$source expectedType=${SbpProductionContract.OPERATION_TYPE} " +
+                "expectedTransactionType=${SbpProductionContract.TRANSACTION_TYPE} " +
+                "expectedCurrency=${SbpProductionContract.CURRENCY} liveCallEnabled=${SbpProductionContract.LIVE_CALL_ENABLED} " +
+                "noFinancialCommands=true"
+        )
+
+        cardPaymentClient.readSbpRoute(object : KozenAoaPaymentClient.SbpRouteListener {
+            override fun onResult(result: KozenAoaPaymentClient.SbpRouteResult) {
+                val level = if (result.ok || result.code == "BRIDGE_UPGRADE_REQUIRED") {
+                    android.util.Log.INFO
+                } else {
+                    android.util.Log.ERROR
+                }
+                android.util.Log.println(
+                    level,
+                    "SbpRouteAudit",
+                    "ROUTE_RESULT ok=${result.ok} code=${result.code} bridge=${result.bridgeVersion} " +
+                        "available=${result.available} operationType=${result.operationType} " +
+                        "transactionType=${result.transactionType} currency=${result.currency} " +
+                        "tidPresent=${result.tidPresent} liveEnabled=${result.liveEnabled} " +
+                        "noFinancialCommands=true"
+                )
+                toast(
+                    when {
+                        result.ok && result.available ->
+                            "Маршрут СБП найден: ${result.operationType}/${result.transactionType}/${result.currency}"
+                        result.code == "BRIDGE_UPGRADE_REQUIRED" ->
+                            "Для read-only проверки СБП нужен Kozen bridge 0.5.3"
+                        result.ok ->
+                            "SmartSkyPOS не объявил маршрут СБП"
+                        else ->
+                            "Не удалось проверить маршрут СБП: ${result.code}"
+                    }
+                )
             }
         })
     }
