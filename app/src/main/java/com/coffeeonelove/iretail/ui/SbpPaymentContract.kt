@@ -5,6 +5,9 @@ object SbpProductionContract {
     const val TRANSACTION_TYPE = "qrPayment"
     const val CURRENCY = "643"
     const val BINDER_TRANSACTION = 19
+    const val MIN_ROUTE_BRIDGE_VERSION = "0.5.3"
+    const val CALLBACK_BRIDGE_VERSION = "0.5.4"
+    const val CALLBACK_CONTRACT = "CAPTURE_HASHED_V1"
     const val LIVE_CALL_ENABLED = false
 }
 
