@@ -1,7 +1,7 @@
 @echo off
 setlocal EnableExtensions DisableDelayedExpansion
 
-rem i-Retail Android UI v0.5.116 dual-mode SBP / Kozen bridge upgrade
+rem i-Retail Android UI v0.5.117 JL22 persistent wait loop
 rem Windows CLI debug APK build script.
 rem
 rem Important:
@@ -23,7 +23,7 @@ if errorlevel 1 (
     exit /b 9
 )
 
-set "SCRIPT_VERSION=0.5.116-sbp-dual-mode-bridge-upgrade"
+set "SCRIPT_VERSION=0.5.117-jl22-wait-loop"
 set "DO_CLEAN=0"
 set "DO_HARD_CLEAN=0"
 
