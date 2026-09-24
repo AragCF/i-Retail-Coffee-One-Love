@@ -262,7 +262,7 @@ for /l %%S in (1,1,180) do (
       adb -s "%KOZEN%" shell am start -W -n com.coffeeonelove.iretail.kozenbridge/.BridgeActivity >nul 2>nul
     )
   )
-  adb -s "%JL22%" logcat -d -v brief FiscalPositivePaymentTest:I IretailKozenClient:I IretailKozenClient:E *:S > "%WAIT_LOG%" 2>&1
+  adb -s "%JL22%" logcat -d -v brief FiscalPositivePaymentTest:I IretailKozenClient:V *:S > "%WAIT_LOG%" 2>&1
   findstr /C:"TEST_MODE_READY productId=s3-fiscal-positive-test-1rub amountMinor=100 realPos=true persistedRealPos=false bridgeReady=true noPaymentSent=true" "%WAIT_LOG%" >nul 2>nul
   if not errorlevel 1 goto TEST_READY
   findstr /C:"TEST_PREFLIGHT_FAILED" "%WAIT_LOG%" >nul 2>nul
@@ -302,7 +302,7 @@ echo.
 set "OUTCOME=NO_ATTEMPT_TIMEOUT"
 echo [7/10] Waiting up to 10 minutes for the one authorized UI attempt...
 for /l %%S in (1,1,600) do (
-  adb -s "%JL22%" logcat -d -v brief FiscalPositivePaymentTest:I IretailKozenClient:I IretailKozenClient:W IretailKozenClient:E *:S > "%WAIT_LOG%" 2>&1
+  adb -s "%JL22%" logcat -d -v brief FiscalPositivePaymentTest:I IretailKozenClient:V *:S > "%WAIT_LOG%" 2>&1
   findstr /C:"ATTEMPT_CLAIMED amountMinor=100 productId=s3-fiscal-positive-test-1rub" "%WAIT_LOG%" >nul 2>nul
   if not errorlevel 1 goto ATTEMPT_STARTED
   timeout /t 1 /nobreak >nul
@@ -318,7 +318,7 @@ if not exist "fiscal_positive_payment_logs" mkdir "fiscal_positive_payment_logs"
 echo [INFO] Authorized attempt claimed. Repeat is now permanently blocked for this contract.
 set "OUTCOME=PAYMENT_RESULT_TIMEOUT_UNCERTAIN"
 for /l %%S in (1,1,190) do (
-  adb -s "%JL22%" logcat -d -v brief FiscalPositivePaymentTest:I IretailKozenClient:I IretailKozenClient:W IretailKozenClient:E FiscalGateway:I FiscalGateway:E *:S > "%WAIT_LOG%" 2>&1
+  adb -s "%JL22%" logcat -d -v brief FiscalPositivePaymentTest:I IretailKozenClient:V FiscalGateway:I FiscalGateway:E *:S > "%WAIT_LOG%" 2>&1
   findstr /C:"TEST_RESULT status=APPROVED" "%WAIT_LOG%" >nul 2>nul
   if not errorlevel 1 goto APPROVED
   findstr /C:"TEST_RESULT status=DECLINED" "%WAIT_LOG%" >nul 2>nul
@@ -397,7 +397,7 @@ echo [9/10] Collecting and sanitizing evidence...
 adb -s "%JL22%" shell dumpsys package com.coffeeonelove.iretail 2>nul | findstr /I "versionName= versionCode=" > "%OUT%\02_package.txt"
 adb -s "%JL22%" shell run-as com.coffeeonelove.iretail cat shared_prefs/iretail_machine_mode_v1.xml > "%OUT%\03_machine_mode.txt" 2>&1
 adb -s "%JL22%" shell run-as com.coffeeonelove.iretail cat files/fiscal_positive_payment_test_v1_0_1.attempt > "%OUT%\04_attempt_marker.txt" 2>nul
-adb -s "%JL22%" logcat -d -v threadtime FiscalPositivePaymentTest:I IretailKozenClient:I IretailKozenClient:W IretailKozenClient:E FiscalGateway:I FiscalGateway:E IretailMachineMode:I AndroidRuntime:E *:S > "%OUT%\RAW_jl22_logcat.txt" 2>&1
+adb -s "%JL22%" logcat -d -v threadtime FiscalPositivePaymentTest:I IretailKozenClient:V FiscalGateway:I FiscalGateway:E IretailMachineMode:I AndroidRuntime:E *:S > "%OUT%\RAW_jl22_logcat.txt" 2>&1
 if "%KOZEN_ADB_AVAILABLE%"=="1" (
   adb -s "%KOZEN%" logcat -d -v threadtime IretailKozenBridge:I IretailKozenBridge:W IretailKozenBridge:E AndroidRuntime:E *:S > "%OUT%\RAW_kozen_logcat.txt" 2>&1
 ) else (
