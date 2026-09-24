@@ -1,4 +1,5 @@
 from pathlib import Path
+import re
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -12,9 +13,14 @@ build = (ROOT / "BUILD_WINDOWS_CLI.bat").read_text(encoding="utf-8")
 signature = 'product:octopus_jetinno model:UniWin_M190 device:octopus-jetinno'
 helper_call = 'tools\\WAIT_FOR_JL22.bat" JL22'
 
+version_code_match = re.search(r"versionCode\s+(\d+)", gradle)
+version_name_match = re.search(r"versionName\s+'([^']+)'", gradle)
+version_code = int(version_code_match.group(1)) if version_code_match else 0
+version_name = version_name_match.group(1) if version_name_match else ""
+
 checks = {
-    "app version 0.5.117": "versionCode 117" in gradle and "versionName '0.5.117-jl22-wait-loop'" in gradle,
-    "build script version 0.5.117": 'SCRIPT_VERSION=0.5.117-jl22-wait-loop' in build,
+    "app version 0.5.117+": version_code >= 117 and bool(version_name),
+    "build script current version": bool(version_name) and ('SCRIPT_VERSION=' + version_name) in build,
     "helper matches exact JL22 signature": signature in helper,
     "helper accepts live device": 'if /I "%%B"=="device"' in helper and 'set "FOUND=%%A"' in helper,
     "helper recognizes offline device": 'if /I "%%B"=="offline"' in helper and 'set "OFFLINE=%%A"' in helper,
@@ -28,9 +34,9 @@ checks = {
     "combined runner uses persistent helper": combined.count(helper_call) >= 1,
     "dry-run no longer exits merely because JL22 is missing": "Live JL22 not found" not in dryrun,
     "event queue no longer exits merely because JL22 is missing": "Live JL22 not found" not in queue,
-    "current version in dry-run": "0.5.117-jl22-wait-loop" in dryrun,
-    "current version in event queue": "0.5.117-jl22-wait-loop" in queue,
-    "current version in combined runner": "0.5.117-jl22-wait-loop" in combined,
+    "current version in dry-run": bool(version_name) and version_name in dryrun,
+    "current version in event queue": bool(version_name) and version_name in queue,
+    "current version in combined runner": bool(version_name) and version_name in combined,
 }
 
 failed = [name for name, ok in checks.items() if not ok]
