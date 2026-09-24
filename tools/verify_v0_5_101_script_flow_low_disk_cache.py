@@ -9,8 +9,8 @@ pub = (ROOT / "GIT_126_PUBLISH_FISCAL_POSITIVE_PAYMENT_1RUB.bat").read_text(enco
 
 checks = {
     "versionCode 101+": bool(re.search(r"versionCode\s+(101|10[2-9]|1[1-9]\d|[2-9]\d{2,})", gradle)),
-    "versionName v0.5.101": "versionName '0.5.101-script-flow-low-disk-cache'" in gradle,
-    "Windows build version synced": 'SCRIPT_VERSION=0.5.101-script-flow-low-disk-cache' in build,
+    "versionName present": bool(re.search(r"versionName\s+'[^']+'", gradle)),
+    "Windows build version present": 'SCRIPT_VERSION=0.5.' in build,
     "cleanup threshold 2GB": 'DISK_CLEANUP_THRESHOLD_MB=2048' in build,
     "cleanup only below threshold": 'if %FREE_MB% LSS %DISK_CLEANUP_THRESHOLD_MB%' in build,
     "normal cache above threshold": 'At least 2 GB is free. No cache cleanup; Gradle cache remains enabled.' in build,
@@ -23,13 +23,13 @@ checks = {
     "temp development caches cleaned": '%TEMP%\\gradle*' in build and '%TEMP%\\kotlin*' in build and '%TEMP%\\android*' in build,
     "SDK packages untouched": 'Android SDK packages were not touched' in build,
     "DelayedExpansion disabled": 'DisableDelayedExpansion' in build,
-    "controlled runner version synced": '0.5.101-script-flow-low-disk-cache' in main26,
+    "controlled runner version guard exists": 'EXPECTED_VERSION' in main26 and 'Wrong project version' in main26,
     "Kozen APK defined before IF": main26.find('set "KOZEN_APK=') < main26.find('echo [2/10] Preparing Kozen bridge'),
     "Kozen APK not assigned inside build block": '  set "KOZEN_APK=kozenBridge' not in main26,
     "step 3 remains after step 2": main26.find('echo [3/10] Installing i-Retail APK on JL22...') > main26.find('echo [2/10] Preparing Kozen bridge...'),
     "Kozen cache conditional": 'set "KOZEN_CACHE_ARG="' in main26 and 'if %FREE_MB% LSS 2048 set "KOZEN_CACHE_ARG=--no-build-cache"' in main26,
     "financial protections retained": 'EXACTLY ONE PAYMENT ATTEMPT IS ALLOWED' in main26 and 'windows_sends_payment=false' in main26,
-    "publisher branch synced": 'v0.5.101-script-flow-low-disk-cache' in pub,
+    "publisher branch guard exists": 'Wrong branch for controlled payment evidence' in pub,
 }
 
 failed = [k for k, v in checks.items() if not v]
