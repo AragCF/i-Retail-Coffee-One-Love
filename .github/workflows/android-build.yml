@@ -297,6 +297,9 @@ jobs:
       - name: Verify v0.5.112 SBP route audit
         run: python3 tools/verify_v0_5_112_sbp_route_audit.py
 
+      - name: Verify v0.5.113 SBP callback contract
+        run: python3 tools/verify_v0_5_113_sbp_callback_contract.py
+
       - name: Verify marker audit sanitizer runtime
         shell: pwsh
         run: ./tools/Verify-FiscalPaymentMarkerAuditRuntime.ps1
@@ -315,7 +318,7 @@ jobs:
             Write-Host "[OK] $file"
           }
 
-      - name: Assemble Kozen bridge 0.5.3
+      - name: Assemble Kozen bridge 0.5.4
         working-directory: .
         run: gradle --no-daemon --stacktrace :kozenBridge:assembleDebug
 
@@ -327,7 +330,7 @@ jobs:
         if: success()
         uses: actions/upload-artifact@v4
         with:
-          name: KozenBridge-v0.5.3-debug-apk
+          name: KozenBridge-v0.5.4-debug-apk
           path: kozenBridge/build/outputs/apk/debug/*.apk
           if-no-files-found: error
 
@@ -335,6 +338,6 @@ jobs:
         if: success()
         uses: actions/upload-artifact@v4
         with:
-          name: iRetail-v0.5.112-debug-apk
+          name: iRetail-v0.5.113-debug-apk
           path: app/build/outputs/apk/debug/*.apk
           if-no-files-found: error
