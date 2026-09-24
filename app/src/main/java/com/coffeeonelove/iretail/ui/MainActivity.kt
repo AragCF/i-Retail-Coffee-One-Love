@@ -227,6 +227,7 @@ class MainActivity : Activity() {
         openScreen(if (fiscalPositivePaymentTestMode) "CATALOG_DEFAULT" else "SCREEN_SAVER_COFFEE", remember = false)
         maybeRunFiscalDryRunSelfTest(intent, "onCreate")
         maybeRunDeclinedPaymentRecovery(intent, "onCreate")
+        maybeRunAcquirerSnapshot(intent, "onCreate")
 
         if (fiscalPositivePaymentTestMode) {
             val persistedPos = MachineModeStore.load(this).realPosEnabled
@@ -269,6 +270,7 @@ class MainActivity : Activity() {
         if (::fiscalGateway.isInitialized) {
             maybeRunFiscalDryRunSelfTest(intent, "onNewIntent")
             maybeRunDeclinedPaymentRecovery(intent, "onNewIntent")
+            maybeRunAcquirerSnapshot(intent, "onNewIntent")
         }
     }
 
@@ -324,6 +326,51 @@ class MainActivity : Activity() {
                     )
                     toast("$message. Финансовая попытка не начиналась.")
                 }
+            }
+        })
+    }
+
+    private fun maybeRunAcquirerSnapshot(intent: android.content.Intent?, source: String) {
+        if (intent?.getBooleanExtra("acquirer_readonly_snapshot", false) != true) return
+        intent.removeExtra("acquirer_readonly_snapshot")
+
+        val debuggable = (applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE) != 0
+        val persisted = MachineModeStore.load(this)
+        if (!debuggable || !persisted.standalone || realPosEnabled) {
+            android.util.Log.e(
+                "AcquirerSnapshot",
+                "SNAPSHOT_REJECTED source=$source debuggable=$debuggable " +
+                    "standalone=${persisted.standalone} realPos=$realPosEnabled noFinancialCommands=true"
+            )
+            return
+        }
+
+        android.util.Log.i(
+            "AcquirerSnapshot",
+            "SNAPSHOT_START source=$source commands=PING,INFO,GET_STATE,GET_TERMINAL_DATA " +
+                "realPos=false noFinancialCommands=true"
+        )
+
+        cardPaymentClient.readAcquirerSnapshot(object : KozenAoaPaymentClient.AcquirerSnapshotListener {
+            override fun onResult(result: KozenAoaPaymentClient.AcquirerSnapshotResult) {
+                val level = if (result.ok) android.util.Log.INFO else android.util.Log.ERROR
+                android.util.Log.println(
+                    level,
+                    "AcquirerSnapshot",
+                    "SNAPSHOT_RESULT ok=${result.ok} code=${result.code} " +
+                        "bridge=${result.bridgeVersion} smartsky=${result.smartsky} protocol=${result.protocol} " +
+                        "state=${result.state} terminalDataCode=${result.terminalDataCode} " +
+                        "paymentRoute=${result.paymentRoute} currency643=${result.currency643} " +
+                        "betaProfile=${result.betaProfile} profileMessage=${result.profileMessage} " +
+                        "noFinancialCommands=true"
+                )
+                toast(
+                    if (result.ok) {
+                        "SmartSkyPOS: профиль BETA=${result.betaProfile}, state=${result.state}"
+                    } else {
+                        "Не удалось прочитать acquiring-конфигурацию: ${result.code}"
+                    }
+                )
             }
         })
     }
