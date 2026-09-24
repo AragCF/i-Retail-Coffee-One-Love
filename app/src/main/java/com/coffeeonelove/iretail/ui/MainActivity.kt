@@ -93,6 +93,7 @@ class MainActivity : Activity() {
     private var fiscalPositivePaymentTestMode = false
     private var fiscalPositivePaymentPreflightReady = false
     private val sbpDryRunSession = SbpDryRunSession()
+    private lateinit var sbpSessionStore: SbpSessionStore
     private var sbpDryRunMode = false
 
     private val fiscalPositivePaymentTestProduct = Product(
@@ -213,6 +214,7 @@ class MainActivity : Activity() {
         contentRepository = IretailContentRepository(this)
         fiscalGateway = DryRunFiscalGateway(this)
         cardPaymentClient = KozenAoaPaymentClient(this)
+        sbpSessionStore = SbpSessionStore(this)
         if (intent?.getBooleanExtra("tls_chain_probe", false) == true) {
             IretailTlsChainProbe.runAsync(this)
         }
@@ -351,29 +353,64 @@ class MainActivity : Activity() {
 
         sbpDryRunMode = true
         cart.clear()
+
+        val active = sbpSessionStore.loadActive()
+        val recovered = active?.takeIf { it.sessionId.startsWith("sbp-dryrun-") }
+        val amountMinor = recovered?.amountMinor?.takeIf { it > 0L } ?: 100L
+
         val product = Product(
             id = "sbp-dry-run-product",
             offerId = "sbp-dry-run-product",
             name = "SBP DRY RUN",
             volume = "1 pc",
-            price = 1,
+            price = (amountMinor / 100L).toInt().coerceAtLeast(1),
             category = "coffee",
             available = true,
-            priceMinor = 100L,
-            basePriceMinor = 100L
+            priceMinor = amountMinor,
+            basePriceMinor = amountMinor
         )
         cart.add(CartLine(product = product, quantity = 1))
-        val order = orderGateway.createOrder(cart, 100L, 0L, null)
+        val order = orderGateway.createOrder(cart, amountMinor, 0L, null)
         orderGateway.startPayment(PaymentMethod.ONLINE)
         lastPaymentMethod = PaymentMethod.ONLINE
-        val snapshot = sbpDryRunSession.start(order.amountMinor, order.externalNumber)
+
+        val snapshot = if (recovered != null) {
+            sbpDryRunSession.restore(recovered).also {
+                logSbpDryRunSafe("DRY_RUN_RECOVERED", it)
+            }
+        } else {
+            sbpDryRunSession.start(order.amountMinor, order.externalNumber).also {
+                persistSbpDryRun("DRY_RUN_QR_READY", it)
+            }
+        }
+
+        openScreen(
+            if (snapshot.state == SbpDryRunState.WAITING_CONFIRMATION) "PAYMENT_ONLINE_CONFIRM"
+            else "PAYMENT_ONLINE_QR"
+        )
+        toast(
+            if (recovered != null) "СБП DRY RUN восстановлен без создания нового QR."
+            else "СБП DRY RUN: синтетический QR готов. Реальный qrPayment не вызван."
+        )
+    }
+
+    private fun persistSbpDryRun(marker: String, snapshot: SbpDryRunSnapshot?) {
+        if (snapshot == null || !::sbpSessionStore.isInitialized) return
+        val record = snapshot.toSessionRecord()
+        sbpSessionStore.save(record)
+        logSbpDryRunSafe(marker, snapshot)
+    }
+
+    private fun logSbpDryRunSafe(marker: String, snapshot: SbpDryRunSnapshot) {
+        if (!::sbpSessionStore.isInitialized) return
+        val safe = sbpSessionStore.safeSummary(snapshot.toSessionRecord())
         android.util.Log.i(
             "SbpDryRun",
-            "DRY_RUN_QR_READY source=$source session=${snapshot.sessionId} amountMinor=${snapshot.amountMinor} " +
-                "generation=${snapshot.generation} state=${snapshot.state} realQrPaymentSent=false"
+            "$marker session=${safe.sessionId} state=${safe.state} amountMinor=${safe.amountMinor} " +
+                "generation=${safe.generation} qrIdHash=${safe.qrIdHash} " +
+                "qrPayloadHash=${safe.qrPayloadHash} qrPayloadLength=${safe.qrPayloadLength} " +
+                "realQrPaymentSent=${safe.realPaymentSent}"
         )
-        openScreen("PAYMENT_ONLINE_QR")
-        toast("СБП DRY RUN: синтетический QR готов. Реальный qrPayment не вызван.")
     }
 
     private fun maybeRunAcquirerSnapshot(intent: android.content.Intent?, source: String) {
@@ -2025,14 +2062,11 @@ class MainActivity : Activity() {
         "PAYMENT_ONLINE_QR" -> if (sbpDryRunMode) listOf(
             area("Синтетически отсканировать QR", 120, 1180, 840, 280) {
                 val snapshot = sbpDryRunSession.markWaiting()
-                android.util.Log.i(
-                    "SbpDryRun",
-                    "DRY_RUN_QR_SCANNED session=${snapshot?.sessionId ?: "-"} state=${snapshot?.state} realQrPaymentSent=false"
-                )
+                persistSbpDryRun("DRY_RUN_QR_SCANNED", snapshot)
                 openScreen("PAYMENT_ONLINE_CONFIRM")
             },
             area("Отменить СБП dry-run", 0, 1700, 300, 220) {
-                sbpDryRunSession.cancel()
+                persistSbpDryRun("DRY_RUN_CANCELLED", sbpDryRunSession.cancel())
                 sbpDryRunMode = false
                 openScreen("PAYMENT_METHOD_ALL")
             }
@@ -2046,17 +2080,17 @@ class MainActivity : Activity() {
         "PAYMENT_ONLINE_CONFIRM" -> if (sbpDryRunMode) listOf(
             area("Синтетически подтвердить СБП", 120, 1180, 840, 280) {
                 val snapshot = sbpDryRunSession.confirmSynthetic()
+                persistSbpDryRun("DRY_RUN_CONFIRMED", snapshot)
                 android.util.Log.i(
                     "SbpDryRun",
-                    "DRY_RUN_CONFIRMED session=${snapshot?.sessionId ?: "-"} amountMinor=${snapshot?.amountMinor ?: 0L} " +
-                        "state=${snapshot?.state} runtimeOrderPaid=false fiscalCalled=false machineCalled=false realQrPaymentSent=false"
+                    "DRY_RUN_CONFIRM_INVARIANTS runtimeOrderPaid=false fiscalCalled=false machineCalled=false realQrPaymentSent=false"
                 )
                 toast("СБП DRY RUN подтверждён синтетически. Заказ не оплачен.")
                 sbpDryRunMode = false
                 openScreen("PAYMENT_METHOD_ALL")
             },
             area("Отменить СБП dry-run", 0, 1700, 300, 220) {
-                sbpDryRunSession.cancel()
+                persistSbpDryRun("DRY_RUN_CANCELLED", sbpDryRunSession.cancel())
                 sbpDryRunMode = false
                 openScreen("PAYMENT_METHOD_ALL")
             }
@@ -2299,6 +2333,7 @@ class MainActivity : Activity() {
         cardPaymentStatus = ""
         sbpDryRunMode = false
         sbpDryRunSession.reset()
+        if (::sbpSessionStore.isInitialized) sbpSessionStore.clear()
         openScreen("CATALOG_DEFAULT", remember = false)
     }
 
@@ -2750,6 +2785,7 @@ class MainActivity : Activity() {
         screenHistory.clear()
         sbpDryRunMode = false
         sbpDryRunSession.reset()
+        if (::sbpSessionStore.isInitialized) sbpSessionStore.clear()
         openScreen("SCREEN_SAVER_COFFEE", remember = false)
     }
 
