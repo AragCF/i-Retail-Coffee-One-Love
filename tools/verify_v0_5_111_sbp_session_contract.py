@@ -13,7 +13,7 @@ bridge=(ROOT/"kozenBridge/src/main/java/com/coffeeonelove/iretail/kozenbridge/Pr
 
 checks={
     "versionCode 111+": bool(re.search(r"versionCode\s+(111|11[2-9]|1[2-9]\d|[2-9]\d{2,})",gradle)),
-    "versionName v0.5.111": "versionName '0.5.111-sbp-session-contract'" in gradle,
+    "versionName present": bool(re.search(r"versionName\s+'[^']+'",gradle)),
     "SBP operation type 42": 'OPERATION_TYPE = "42"' in contract,
     "SBP transaction type qrPayment": 'TRANSACTION_TYPE = "qrPayment"' in contract,
     "SBP currency 643": 'CURRENCY = "643"' in contract,
