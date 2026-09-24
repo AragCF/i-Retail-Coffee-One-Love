@@ -244,6 +244,7 @@ class MainActivity : Activity() {
         maybeRunSbpRouteSnapshot(intent, "onCreate")
         maybeRunSbpRecoveryProbe(intent, "onCreate")
         maybeRunSbpRecoveryClearDryRun(intent, "onCreate")
+        maybeRunSbpExpiryIdempotencySelfTest(intent, "onCreate")
 
         if (fiscalPositivePaymentTestMode) {
             val persistedPos = MachineModeStore.load(this).realPosEnabled
@@ -291,6 +292,7 @@ class MainActivity : Activity() {
             maybeRunSbpRouteSnapshot(intent, "onNewIntent")
             maybeRunSbpRecoveryProbe(intent, "onNewIntent")
             maybeRunSbpRecoveryClearDryRun(intent, "onNewIntent")
+            maybeRunSbpExpiryIdempotencySelfTest(intent, "onNewIntent")
         }
     }
 
@@ -348,6 +350,56 @@ class MainActivity : Activity() {
                 }
             }
         })
+    }
+
+    private fun maybeRunSbpExpiryIdempotencySelfTest(intent: android.content.Intent?, source: String) {
+        if (intent?.getBooleanExtra("sbp_expiry_idempotency_self_test", false) != true) return
+        intent.removeExtra("sbp_expiry_idempotency_self_test")
+
+        val debuggable = (applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE) != 0
+        val persisted = MachineModeStore.load(this)
+        if (!debuggable || !persisted.standalone || realPosEnabled) {
+            android.util.Log.e(
+                "SbpExpiryTest",
+                "EXPIRY_TEST_REJECTED source=$source debuggable=$debuggable standalone=${persisted.standalone} " +
+                    "realPos=$realPosEnabled noFinancialCommands=true"
+            )
+            return
+        }
+
+        val testAdapter: SbpPaymentAdapter = DryRunSbpPaymentAdapter(store = null, ttlMs = 600L)
+        val first = testAdapter.start(100L, "SBP-EXPIRY-TEST")
+        val second = testAdapter.start(100L, "SBP-EXPIRY-TEST")
+        val sameBeforeExpiry =
+            first.sessionId == second.sessionId &&
+            first.generation == second.generation
+
+        android.util.Log.i(
+            "SbpExpiryTest",
+            "EXPIRY_TEST_STARTED sameBeforeExpiry=$sameBeforeExpiry generation=${first.generation} " +
+                "ttlMs=${first.expiresAtMs - first.createdAtMs} realPaymentSent=false noFinancialCommands=true"
+        )
+
+        handler.postDelayed({
+            val expired = testAdapter.current()
+            val confirmAfterExpiry = testAdapter.confirmSynthetic()
+            val third = testAdapter.start(100L, "SBP-EXPIRY-TEST")
+            val expiredOk = expired?.state == SbpPaymentState.EXPIRED
+            val confirmBlocked = confirmAfterExpiry?.state == SbpPaymentState.EXPIRED
+            val newAfterExpiry =
+                third.sessionId != first.sessionId &&
+                third.generation > first.generation &&
+                third.state == SbpPaymentState.QR_READY
+
+            android.util.Log.i(
+                "SbpExpiryTest",
+                "EXPIRY_TEST_RESULT sameBeforeExpiry=$sameBeforeExpiry expired=$expiredOk " +
+                    "confirmBlocked=$confirmBlocked newAfterExpiry=$newAfterExpiry " +
+                    "firstGeneration=${first.generation} nextGeneration=${third.generation} " +
+                    "realPaymentSent=${third.realPaymentSent} noFinancialCommands=true"
+            )
+            testAdapter.reset()
+        }, 900L)
     }
 
     private fun maybeRunSbpRecoveryProbe(intent: android.content.Intent?, source: String) {
