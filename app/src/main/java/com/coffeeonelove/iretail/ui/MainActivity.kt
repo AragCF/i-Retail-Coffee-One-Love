@@ -1691,11 +1691,22 @@ class MainActivity : Activity() {
 
         if (sbpDryRunMode && (currentScreen == "PAYMENT_ONLINE_QR" || currentScreen == "PAYMENT_ONLINE_CONFIRM")) {
             val sbp = sbpDryRunSession.current()
-            addBox(RectSpec(215, 470, 650, 650), 0xFFF4F6F7.toInt(), 24f)
-            addLabel("СБП\nDRY RUN", RectSpec(315, 575, 450, 180), 42f, blueGray, Gravity.CENTER, true, Color.TRANSPARENT)
-            addLabel("QR payload синтетический", RectSpec(285, 790, 510, 55), 20f, dark, Gravity.CENTER, true, Color.TRANSPARENT)
-            addLabel("Состояние: ${sbp?.state ?: SbpDryRunState.IDLE}", RectSpec(285, 865, 510, 55), 18f, blueGray, Gravity.CENTER, false, Color.TRANSPARENT)
-            addLabel("Реальный qrPayment НЕ вызывался", RectSpec(265, 950, 550, 70), 18f, red, Gravity.CENTER, true, Color.TRANSPARENT)
+            addBox(RectSpec(190, 410, 700, 790), Color.WHITE, 24f)
+            val payload = sbp?.qrPayload.orEmpty()
+            if (payload.isNotBlank()) {
+                val qr = ImageView(this).apply {
+                    scaleType = ImageView.ScaleType.FIT_CENTER
+                    setBackgroundColor(Color.WHITE)
+                    setImageBitmap(SbpQrRenderer.render(payload, 640))
+                    contentDescription = "QR-код СБП"
+                }
+                dynamicLayer.addView(qr, scaledLayoutParams(RectSpec(290, 470, 500, 500)))
+                addLabel("Наведите камеру банковского приложения", RectSpec(245, 985, 590, 55), 19f, dark, Gravity.CENTER, true, Color.TRANSPARENT)
+            } else {
+                addLabel("QR-код недоступен", RectSpec(290, 610, 500, 120), 28f, red, Gravity.CENTER, true, Color.TRANSPARENT)
+            }
+            addLabel("Состояние: ${sbp?.state ?: SbpDryRunState.IDLE}", RectSpec(245, 1050, 590, 50), 17f, blueGray, Gravity.CENTER, false, Color.TRANSPARENT)
+            addLabel("DRY RUN: реальный qrPayment не вызывался", RectSpec(225, 1110, 630, 55), 17f, red, Gravity.CENTER, true, Color.TRANSPARENT)
         }
 
         // В исходном POS-макете сумма была статичной. Закрываем нижний финансовый блок и
