@@ -6,7 +6,7 @@ if errorlevel 1 exit /b 10
 set "EXPECTED_VERSION="
 for /f "tokens=2" %%V in ('findstr /C:"versionName " "app\build.gradle"') do if not defined EXPECTED_VERSION set "EXPECTED_VERSION=%%V"
 set "EXPECTED_VERSION=%EXPECTED_VERSION:'=%"
-if /I not "%EXPECTED_VERSION%"=="0.5.101-script-flow-low-disk-cache" (
+if /I not "%EXPECTED_VERSION%"=="0.5.104-payment-marker-guard-fix" (
   echo [ERROR] Wrong project version: %EXPECTED_VERSION%
   pause
   exit /b 11
@@ -115,6 +115,32 @@ if exist "%LOCAL_CONSUMED%" (
   exit /b 18
 )
 
+set "CHECK_FILE=%TEMP%\iretail_positive_payment_check.txt"
+set "MARKER_CONTRACT=contract=S3_FISCAL_POSITIVE_PAYMENT_CONTRACT_v1.0.1"
+
+echo [SAFETY] Checking durable payment state before build/install...
+> "%CHECK_FILE%" (
+  adb -s "%JL22%" shell run-as com.coffeeonelove.iretail cat files/fiscal_positive_payment_test_v1_0_1.attempt 2^>nul
+)
+findstr /X /C:"%MARKER_CONTRACT%" "%CHECK_FILE%" >nul 2>nul
+if not errorlevel 1 (
+  echo [SAFETY] Genuine Android one-attempt marker exists.
+  echo [SAFETY] Build/install/payment are blocked. Run MAIN_27_FISCAL_PAYMENT_MARKER_AUDIT.bat.
+  pause
+  exit /b 27
+)
+
+> "%CHECK_FILE%" (
+  adb -s "%JL22%" shell run-as com.coffeeonelove.iretail cat shared_prefs/iretail_jl22_kozen_payment_v1.xml 2^>nul
+)
+findstr /C:"unresolved_request_id" "%CHECK_FILE%" >nul 2>nul
+if not errorlevel 1 (
+  echo [SAFETY] Previous unresolved payment state exists.
+  echo [SAFETY] Build/install/payment are blocked. Run MAIN_27_FISCAL_PAYMENT_MARKER_AUDIT.bat.
+  pause
+  exit /b 28
+)
+
 echo [JL22] %JL22%
 
 echo [1/10] Building current debug APK...
@@ -169,20 +195,27 @@ if "%KOZEN_ADB_AVAILABLE%"=="1" (
   if errorlevel 1 exit /b 26
 )
 
-set "CHECK_FILE=%TEMP%\iretail_positive_payment_check.txt"
-adb -s "%JL22%" shell run-as com.coffeeonelove.iretail ls files/fiscal_positive_payment_test_v1_0_1.attempt > "%CHECK_FILE%" 2>nul
-findstr /C:"fiscal_positive_payment_test_v1_0_1.attempt" "%CHECK_FILE%" >nul 2>nul
+echo [SAFETY] Re-checking durable payment state after install...
+> "%CHECK_FILE%" (
+  adb -s "%JL22%" shell run-as com.coffeeonelove.iretail cat files/fiscal_positive_payment_test_v1_0_1.attempt 2^>nul
+)
+findstr /X /C:"%MARKER_CONTRACT%" "%CHECK_FILE%" >nul 2>nul
 if not errorlevel 1 (
-  echo [ERROR] Android one-attempt marker already exists. Repeat is forbidden.
+  echo [SAFETY] Genuine Android one-attempt marker exists after install.
+  adb -s "%JL22%" shell am start -W -n com.coffeeonelove.iretail/.ui.MainActivity --es machine_mode standalone --ez real_pos_enabled false >nul 2>nul
+  echo [SAFETY] Payment remains blocked. Run MAIN_27_FISCAL_PAYMENT_MARKER_AUDIT.bat.
   pause
   exit /b 27
 )
 
-adb -s "%JL22%" shell run-as com.coffeeonelove.iretail cat shared_prefs/iretail_jl22_kozen_payment_v1.xml > "%CHECK_FILE%" 2>nul
+> "%CHECK_FILE%" (
+  adb -s "%JL22%" shell run-as com.coffeeonelove.iretail cat shared_prefs/iretail_jl22_kozen_payment_v1.xml 2^>nul
+)
 findstr /C:"unresolved_request_id" "%CHECK_FILE%" >nul 2>nul
 if not errorlevel 1 (
-  echo [ERROR] Previous unresolved payment marker exists on JL22.
-  echo [ERROR] New PAYMENT is forbidden until read-only recovery is completed.
+  adb -s "%JL22%" shell am start -W -n com.coffeeonelove.iretail/.ui.MainActivity --es machine_mode standalone --ez real_pos_enabled false >nul 2>nul
+  echo [SAFETY] Previous unresolved payment state exists after install.
+  echo [SAFETY] New PAYMENT is forbidden. Run MAIN_27_FISCAL_PAYMENT_MARKER_AUDIT.bat.
   pause
   exit /b 28
 )
