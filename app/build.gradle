@@ -11,8 +11,8 @@ android {
         applicationId 'com.coffeeonelove.iretail'
         minSdk 23
         targetSdk 35
-        versionCode 101
-        versionName '0.5.101-script-flow-low-disk-cache'
+        versionCode 102
+        versionName '0.5.102-payment-marker-audit'
     }
 
     compileOptions {
