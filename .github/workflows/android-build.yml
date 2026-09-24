@@ -8,6 +8,15 @@ on:
   pull_request:
 
 jobs:
+  diag-latest-declined-report:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Print latest declined sanitized report
+        run: python3 tools/diag_print_latest_declined_report.py
+
   s3-admin-auth-result-analysis:
     runs-on: ubuntu-latest
     timeout-minutes: 5
