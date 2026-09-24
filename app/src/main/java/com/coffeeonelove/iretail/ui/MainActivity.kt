@@ -92,6 +92,8 @@ class MainActivity : Activity() {
     private var currentLanguage = "RU"
     private var fiscalPositivePaymentTestMode = false
     private var fiscalPositivePaymentPreflightReady = false
+    private val sbpDryRunSession = SbpDryRunSession()
+    private var sbpDryRunMode = false
 
     private val fiscalPositivePaymentTestProduct = Product(
         id = "s3-fiscal-positive-test-1rub",
@@ -228,6 +230,7 @@ class MainActivity : Activity() {
         maybeRunFiscalDryRunSelfTest(intent, "onCreate")
         maybeRunDeclinedPaymentRecovery(intent, "onCreate")
         maybeRunAcquirerSnapshot(intent, "onCreate")
+        maybeRunSbpDryRunSelfTest(intent, "onCreate")
 
         if (fiscalPositivePaymentTestMode) {
             val persistedPos = MachineModeStore.load(this).realPosEnabled
@@ -271,6 +274,7 @@ class MainActivity : Activity() {
             maybeRunFiscalDryRunSelfTest(intent, "onNewIntent")
             maybeRunDeclinedPaymentRecovery(intent, "onNewIntent")
             maybeRunAcquirerSnapshot(intent, "onNewIntent")
+            maybeRunSbpDryRunSelfTest(intent, "onNewIntent")
         }
     }
 
@@ -328,6 +332,48 @@ class MainActivity : Activity() {
                 }
             }
         })
+    }
+
+    private fun maybeRunSbpDryRunSelfTest(intent: android.content.Intent?, source: String) {
+        if (intent?.getBooleanExtra("sbp_dry_run_self_test", false) != true) return
+        intent.removeExtra("sbp_dry_run_self_test")
+
+        val debuggable = (applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE) != 0
+        val persisted = MachineModeStore.load(this)
+        if (!debuggable || !persisted.standalone || realPosEnabled) {
+            android.util.Log.e(
+                "SbpDryRun",
+                "DRY_RUN_REJECTED source=$source debuggable=$debuggable standalone=${persisted.standalone} " +
+                    "realPos=$realPosEnabled realQrPaymentSent=false"
+            )
+            return
+        }
+
+        sbpDryRunMode = true
+        cart.clear()
+        val product = Product(
+            id = "sbp-dry-run-product",
+            offerId = "sbp-dry-run-product",
+            name = "SBP DRY RUN",
+            volume = "1 pc",
+            price = 1,
+            category = "coffee",
+            available = true,
+            priceMinor = 100L,
+            basePriceMinor = 100L
+        )
+        cart.add(CartLine(product = product, quantity = 1))
+        val order = orderGateway.createOrder(cart, 100L, 0L, null)
+        orderGateway.startPayment(PaymentMethod.ONLINE)
+        lastPaymentMethod = PaymentMethod.ONLINE
+        val snapshot = sbpDryRunSession.start(order.amountMinor, order.externalNumber)
+        android.util.Log.i(
+            "SbpDryRun",
+            "DRY_RUN_QR_READY source=$source session=${snapshot.sessionId} amountMinor=${snapshot.amountMinor} " +
+                "generation=${snapshot.generation} state=${snapshot.state} realQrPaymentSent=false"
+        )
+        openScreen("PAYMENT_ONLINE_QR")
+        toast("СБП DRY RUN: синтетический QR готов. Реальный qrPayment не вызван.")
     }
 
     private fun maybeRunAcquirerSnapshot(intent: android.content.Intent?, source: String) {
