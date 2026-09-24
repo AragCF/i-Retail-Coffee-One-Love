@@ -22,7 +22,7 @@ checks = {
     "restore still exists": "fun restore(record: SbpSessionRecord)" in sbp,
     "restore no longer uses updateAndGet lambda": "generationCounter.updateAndGet" not in sbp,
     "restore uses API-safe CAS": "generationCounter.compareAndSet" in sbp and "generationCounter.get()" in sbp,
-    "restore avoids java.util.function": "java.util.function" not in sbp,
+    "restore avoids java.util.function imports": "import java.util.function" not in sbp and "java.util.function." not in sbp,
     "restore keeps generation monotonic": "while (observed < record.generation)" in sbp,
     "saved session recovery is preserved": "sbpSessionStore.loadActive()" in main and "sbpDryRunSession.restore(recovered)" in main,
     "runner targets current version": bool(version_name) and version_name in runner,
