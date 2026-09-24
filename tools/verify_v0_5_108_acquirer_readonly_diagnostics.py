@@ -27,6 +27,7 @@ checks={
     "runner starts snapshot intent": "--ez acquirer_readonly_snapshot true" in runner,
     "runner no financial adb command": not bool(re.search(r"adb[^\n\r]*\b(?:PAYMENT|CANCEL|REFUND|RECONCILIATION)\b",runner,re.I)),
     "runner collects verbose client logs": "IretailKozenClient:V" in runner,
+    "summary uses sanitized JL22 log": 'findstr /I "SNAPSHOT_RESULT ACQUIRER_SNAPSHOT_OK ACQUIRER_SNAPSHOT_FAILED" "%OUT%\\05_jl22_logcat.txt"' in runner,
     "publisher current branch": "v0.5.108-acquirer-readonly-diagnostics" in publisher,
 }
 failed=[k for k,v in checks.items() if not v]
