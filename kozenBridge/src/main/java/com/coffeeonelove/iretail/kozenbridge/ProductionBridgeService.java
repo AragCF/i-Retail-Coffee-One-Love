@@ -47,7 +47,7 @@ import java.util.Set;
  */
 public class ProductionBridgeService extends Service {
     private static final String TAG = "IretailKozenBridge";
-    private static final String BRIDGE_VERSION = "0.5.2";
+    private static final String BRIDGE_VERSION = "0.5.3";
 
     private static final String SMARTSKY_ACTION = "com.skytech.smartskypos.ISmartSkyPos";
     private static final String SMARTSKY_PACKAGE = "com.skytech.smartskypos";
@@ -58,10 +58,12 @@ public class ProductionBridgeService extends Service {
     private static final int TX_GET_STATE = 1;
     private static final int TX_GET_TERMINAL_DATA = 4;
     private static final int TX_PAYMENT = 5;
+    private static final int TX_QR_PAYMENT = 19;
     private static final int TX_GET_LAST_TRANSACTION = 20;
     private static final int TX_GET_TRANSACTION = 21;
 
     private static final String SUPPORTED_CURRENCY = "643";
+    private static final boolean LIVE_QR_PAYMENT_ENABLED = false;
     private static final BigDecimal MAX_AMOUNT = new BigDecimal("999999.99");
 
     private static final String PREFS = "iretail_payment_bridge_v1";
@@ -231,12 +233,14 @@ public class ProductionBridgeService extends Service {
         if ("INFO".equals(command)) {
             return "INFO " + id + " protocol=4 transport=AOA role=kozen-payment-bridge bridge=" + BRIDGE_VERSION +
                     " smartsky=" + (isSmartSkyReady() ? "bound" : "not_bound") +
-                    " commands=PING,INFO,GET_STATE,GET_TERMINAL_DATA,PAYMENT,GET_PAYMENT_STATUS,GET_LAST_TRANSACTION,GET_TRANSACTION" +
-                    " paymentPolicy=EXPLICIT_SINGLE_NO_AUTO_RETRY";
+                    " commands=PING,INFO,GET_STATE,GET_TERMINAL_DATA,GET_SBP_ROUTE,PAYMENT,QR_PAYMENT_BLOCKED,GET_PAYMENT_STATUS,GET_LAST_TRANSACTION,GET_TRANSACTION" +
+                    " paymentPolicy=EXPLICIT_SINGLE_NO_AUTO_RETRY sbpLiveEnabled=" + LIVE_QR_PAYMENT_ENABLED;
         }
         if ("GET_STATE".equals(command)) return getStateResponse(id);
         if ("GET_TERMINAL_DATA".equals(command)) return getTerminalDataResponse(id);
+        if ("GET_SBP_ROUTE".equals(command)) return getSbpRouteResponse(id);
         if ("PAYMENT".equals(command)) return payment(id, args);
+        if ("QR_PAYMENT".equals(command)) return qrPaymentBlocked(id);
         if ("GET_PAYMENT_STATUS".equals(command)) return getPaymentStatus(id);
         if ("GET_LAST_TRANSACTION".equals(command)) return getLastTransactionResponse(id, arg(args, "terminalId"));
         if ("GET_TRANSACTION".equals(command)) return getTransactionResponse(id, arg(args, "terminalId"), arg(args, "receiptNumber"));
@@ -303,6 +307,7 @@ public class ProductionBridgeService extends Service {
         try {
             TerminalData data = readTerminalData();
             PaymentRoute route = findPaymentRoute(data, null, null);
+            PaymentRoute sbpRoute = findRoute(data, "42", "qrPayment", null, SUPPORTED_CURRENCY);
             int count = data.getTerminals() == null ? 0 : data.getTerminals().size();
             return "TERMINAL_DATA " + id +
                     " code=" + data.getCode() +
@@ -315,6 +320,11 @@ public class ProductionBridgeService extends Service {
                     " paymentType=" + (route == null ? "-" : route.type) +
                     " transactionType=" + (route == null ? "-" : route.transactionType) +
                     " currencies=" + (route == null ? "-" : route.currency) +
+                    " sbp=" + (sbpRoute != null) +
+                    " sbpTidPresent=" + (sbpRoute != null && sbpRoute.tid != null && !sbpRoute.tid.isEmpty()) +
+                    " sbpType=" + (sbpRoute == null ? "-" : sbpRoute.type) +
+                    " sbpTransactionType=" + (sbpRoute == null ? "-" : sbpRoute.transactionType) +
+                    " sbpCurrency=" + (sbpRoute == null ? "-" : sbpRoute.currency) +
                     " bound=true";
         } catch (Exception e) {
             Log.e(TAG, "SMARTSKY_GET_TERMINAL_DATA_ERROR " + e.getClass().getSimpleName() + ": " + safe(e.getMessage()));
@@ -322,7 +332,38 @@ public class ProductionBridgeService extends Service {
         }
     }
 
+    private String getSbpRouteResponse(String id) {
+        try {
+            TerminalData data = readTerminalData();
+            PaymentRoute route = findRoute(data, "42", "qrPayment", null, SUPPORTED_CURRENCY);
+            return "SBP_ROUTE " + id +
+                    " code=0 available=" + (route != null) +
+                    " operationType=" + (route == null ? "-" : route.type) +
+                    " transactionType=" + (route == null ? "-" : route.transactionType) +
+                    " currency=" + (route == null ? "-" : route.currency) +
+                    " tidPresent=" + (route != null && route.tid != null && !route.tid.isEmpty()) +
+                    " liveEnabled=" + LIVE_QR_PAYMENT_ENABLED +
+                    " safety=READ_ONLY";
+        } catch (Exception e) {
+            Log.e(TAG, "SMARTSKY_GET_SBP_ROUTE_ERROR " + e.getClass().getSimpleName() + ": " + safe(e.getMessage()));
+            return "SBP_ROUTE " + id + " code=EXCEPTION available=false type=" +
+                    token(e.getClass().getSimpleName()) + " message=" + token(safe(e.getMessage())) +
+                    " liveEnabled=" + LIVE_QR_PAYMENT_ENABLED + " safety=READ_ONLY";
+        }
+    }
+
+    private String qrPaymentBlocked(String id) {
+        return "SBP_RESULT " + token(id) +
+                " status=BLOCKED code=LIVE_QR_PAYMENT_NOT_APPROVED liveEnabled=" +
+                LIVE_QR_PAYMENT_ENABLED + " noFinancialCommand=true";
+    }
+
     private PaymentRoute findPaymentRoute(TerminalData data, String requiredTid, String requiredCurrency) {
+        return findRoute(data, "00", "payment", requiredTid, requiredCurrency);
+    }
+
+    private PaymentRoute findRoute(TerminalData data, String requiredType, String requiredTransactionType,
+                                   String requiredTid, String requiredCurrency) {
         if (data == null || data.getCode() != 0 || data.getTerminals() == null) return null;
         for (Terminal terminal : data.getTerminals()) {
             if (terminal == null) continue;
@@ -334,6 +375,7 @@ public class ProductionBridgeService extends Service {
                 if (operation == null) continue;
                 String type = operation.getType();
                 String txType = operation.getTransactionType();
+                if (!requiredType.equals(type) || !requiredTransactionType.equalsIgnoreCase(txType)) continue;
                 Set<String> currencies = new LinkedHashSet<>();
                 ArrayList<Currency> list = operation.getCurrencies();
                 if (list != null) {
@@ -341,8 +383,6 @@ public class ProductionBridgeService extends Service {
                         if (currency != null && currency.getCurrencyCode() != null) currencies.add(currency.getCurrencyCode().trim());
                     }
                 }
-                boolean exactPayment = "00".equals(type) && "payment".equalsIgnoreCase(txType);
-                if (!exactPayment) continue;
                 if (requiredCurrency != null) {
                     if (currencies.contains(requiredCurrency)) return new PaymentRoute(tid, type, txType, requiredCurrency);
                 } else if (!currencies.isEmpty()) {
