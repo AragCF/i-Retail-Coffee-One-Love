@@ -6,7 +6,7 @@ if errorlevel 1 exit /b 10
 set "EXPECTED_VERSION="
 for /f "tokens=2" %%V in ('findstr /C:"versionName " "app\build.gradle"') do if not defined EXPECTED_VERSION set "EXPECTED_VERSION=%%V"
 set "EXPECTED_VERSION=%EXPECTED_VERSION:'=%"
-if /I not "%EXPECTED_VERSION%"=="0.5.105-kozen-bridge-retrigger" (
+if /I not "%EXPECTED_VERSION%"=="0.5.106-aoa-preflight-warmup" (
   echo [ERROR] Wrong project version: %EXPECTED_VERSION%
   pause
   exit /b 11
@@ -229,9 +229,9 @@ timeout /t 1 /nobreak >nul
 echo [5/10] Preparing USB/AOA evidence channel...
 if "%KOZEN_ADB_AVAILABLE%"=="1" (
   adb -s "%KOZEN%" shell am force-stop com.coffeeonelove.iretail.kozenbridge >nul 2>nul
+  adb -s "%KOZEN%" logcat -c
   adb -s "%KOZEN%" shell am start -W -n com.coffeeonelove.iretail.kozenbridge/.BridgeActivity >nul
   if errorlevel 1 exit /b 30
-  adb -s "%KOZEN%" logcat -c
 )
 adb -s "%JL22%" logcat -c
 adb -s "%JL22%" shell run-as com.coffeeonelove.iretail rm -f files/fiscalization_dry_run.json >nul 2>nul
@@ -246,17 +246,27 @@ set "WAIT_LOG=%TEMP%\iretail_positive_payment_wait.log"
 set "READY=0"
 echo [INFO] Read-only preflight is running inside i-Retail: PING, INFO, GET_STATE, GET_TERMINAL_DATA.
 echo [INFO] No PAYMENT is sent during this preflight.
-echo [INFO] If JL22 asks for USB permission, allow it.
+echo [INFO] If JL22 or Kozen asks for USB/accessory permission, allow it. This is not a payment confirmation.
 for /l %%S in (1,1,180) do (
+  if "%KOZEN_ADB_AVAILABLE%"=="1" (
+    if "%%S"=="1" (
+      echo [INFO] Kozen bridge warm-up 1/3...
+      adb -s "%KOZEN%" shell am start -W -n com.coffeeonelove.iretail.kozenbridge/.BridgeActivity >nul 2>nul
+    )
+    if "%%S"=="3" (
+      echo [INFO] Kozen bridge warm-up 2/3...
+      adb -s "%KOZEN%" shell am start -W -n com.coffeeonelove.iretail.kozenbridge/.BridgeActivity >nul 2>nul
+    )
+    if "%%S"=="5" (
+      echo [INFO] Kozen bridge warm-up 3/3...
+      adb -s "%KOZEN%" shell am start -W -n com.coffeeonelove.iretail.kozenbridge/.BridgeActivity >nul 2>nul
+    )
+  )
   adb -s "%JL22%" logcat -d -v brief FiscalPositivePaymentTest:I IretailKozenClient:I IretailKozenClient:E *:S > "%WAIT_LOG%" 2>&1
   findstr /C:"TEST_MODE_READY productId=s3-fiscal-positive-test-1rub amountMinor=100 realPos=true persistedRealPos=false bridgeReady=true noPaymentSent=true" "%WAIT_LOG%" >nul 2>nul
   if not errorlevel 1 goto TEST_READY
   findstr /C:"TEST_PREFLIGHT_FAILED" "%WAIT_LOG%" >nul 2>nul
   if not errorlevel 1 goto PREFLIGHT_FAILED
-  if "%%S"=="5" if "%KOZEN_ADB_AVAILABLE%"=="1" (
-    echo [INFO] Re-triggering Kozen BridgeActivity after AOA re-enumeration...
-    adb -s "%KOZEN%" shell am start -W -n com.coffeeonelove.iretail.kozenbridge/.BridgeActivity >nul 2>nul
-  )
   timeout /t 1 /nobreak >nul
 )
 goto PREFLIGHT_TIMEOUT
