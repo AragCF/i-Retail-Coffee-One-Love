@@ -107,6 +107,41 @@ public final class KozenAoaPaymentClient {
         void onResult(AcquirerSnapshotResult result);
     }
 
+    public interface SbpRouteSnapshotListener {
+        void onResult(SbpRouteSnapshotResult result);
+    }
+
+    public static final class SbpRouteSnapshotResult {
+        public final boolean ok;
+        public final String code;
+        public final String bridgeVersion;
+        public final boolean bridgeReportsSbpRoute;
+        public final boolean routeAvailable;
+        public final String routeType;
+        public final String transactionType;
+        public final boolean currency643;
+        public final boolean tidPresent;
+
+        private SbpRouteSnapshotResult(boolean ok, String code, String bridgeVersion,
+                                       boolean bridgeReportsSbpRoute, boolean routeAvailable,
+                                       String routeType, String transactionType,
+                                       boolean currency643, boolean tidPresent) {
+            this.ok = ok;
+            this.code = tokenOrDash(code);
+            this.bridgeVersion = tokenOrDash(bridgeVersion);
+            this.bridgeReportsSbpRoute = bridgeReportsSbpRoute;
+            this.routeAvailable = routeAvailable;
+            this.routeType = tokenOrDash(routeType);
+            this.transactionType = tokenOrDash(transactionType);
+            this.currency643 = currency643;
+            this.tidPresent = tidPresent;
+        }
+
+        static SbpRouteSnapshotResult failed(String code) {
+            return new SbpRouteSnapshotResult(false, code, "-", false, false, "-", "-", false, false);
+        }
+    }
+
     public static final class AcquirerSnapshotResult {
         public final boolean ok;
         public final String code;
@@ -329,7 +364,7 @@ public final class KozenAoaPaymentClient {
                     message = "Kozen / SmartSkyPOS готов к одной оплате";
                     Log.i(TAG,
                             "PREFLIGHT_OK attempt=" + attempt +
-                            " bridge=0.5.2 protocol=4 state=0 payment=true currency643=true " +
+                            " bridge=" + value(info, "bridge") + " protocol=4 state=0 payment=true currency643=true " +
                             "tidPresent=true noPaymentSent=true linkKeptOpen=true");
                     break;
                 } catch (Exception e) {
@@ -365,6 +400,10 @@ public final class KozenAoaPaymentClient {
         });
     }
 
+    private static boolean isCompatibleBridgeVersion(String version) {
+        return "0.5.2".equals(version) || "0.5.3".equals(version);
+    }
+
     private static boolean isPreflightWarmupRetryable(String code) {
         if (code == null) return false;
         return code.startsWith("WRITE_INCOMPLETE_PING_") ||
@@ -374,6 +413,119 @@ public final class KozenAoaPaymentClient {
                 code.startsWith("AOA_") ||
                 code.startsWith("USB_PERMISSION_") ||
                 code.startsWith("KOZEN_NOT_FOUND");
+    }
+
+    /**
+     * Read the exact SBP route advertised by SmartSkyPOS TerminalData.
+     * This method is strictly read-only and sends only PING, INFO, GET_STATE and GET_TERMINAL_DATA.
+     *
+     * Bridge 0.5.2 remains compatible with card flows but cannot report the dedicated SBP fields.
+     * Bridge 0.5.3 adds qrPayment route fields without adding any financial command.
+     */
+    public void readSbpRouteSnapshot(SbpRouteSnapshotListener listener) {
+        if (listener == null) return;
+        if (shutdown) {
+            main.post(() -> listener.onResult(SbpRouteSnapshotResult.failed("CLIENT_SHUTDOWN")));
+            return;
+        }
+        if (!busy.compareAndSet(false, true)) {
+            main.post(() -> listener.onResult(SbpRouteSnapshotResult.failed("LOCAL_BUSY")));
+            return;
+        }
+
+        executor.execute(() -> {
+            SbpRouteSnapshotResult result = null;
+            Exception lastError = null;
+
+            for (int attempt = 1; attempt <= 6 && !shutdown; attempt++) {
+                try {
+                    ensureLink();
+
+                    String pingId = nextWireId();
+                    String pong = requestResponse("PING " + pingId, "PONG " + pingId, 12000L);
+                    if (pong == null || !"kozen-payment-bridge".equals(value(pong, "role"))) {
+                        throw new IOException("BAD_PONG");
+                    }
+
+                    String infoId = nextWireId();
+                    String info = requestResponse("INFO " + infoId, "INFO " + infoId, 12000L);
+                    String bridgeVersion = value(info, "bridge");
+                    if (!"4".equals(value(info, "protocol")) || !isCompatibleBridgeVersion(bridgeVersion)) {
+                        throw new IOException("INCOMPATIBLE_BRIDGE");
+                    }
+
+                    String state = requestResponse("GET_STATE " + nextWireId(), "STATE ", 12000L);
+                    if (!"0".equals(value(state, "code")) || !"0".equals(value(state, "state"))) {
+                        throw new IOException("STATE_NOT_READY");
+                    }
+
+                    String terminalData = requestResponse(
+                            "GET_TERMINAL_DATA " + nextWireId(), "TERMINAL_DATA ", 15000L);
+                    if (!"0".equals(value(terminalData, "code"))) {
+                        throw new IOException("TERMINAL_DATA_NOT_READY");
+                    }
+
+                    boolean reportsSbp = value(terminalData, "qrPayment") != null;
+                    boolean routeAvailable = "true".equalsIgnoreCase(value(terminalData, "qrPayment"));
+                    String routeType = value(terminalData, "qrPaymentType");
+                    String transactionType = value(terminalData, "qrTransactionType");
+                    String tid = value(terminalData, "qrPaymentTid");
+                    boolean currency643 = containsCsvValue(value(terminalData, "qrCurrencies"), CURRENCY);
+                    boolean tidPresent = tid != null && !tid.isEmpty() && !"-".equals(tid);
+
+                    String code = reportsSbp ? "OK" : "LEGACY_BRIDGE_NO_SBP_ROUTE_FIELDS";
+                    result = new SbpRouteSnapshotResult(
+                            true,
+                            code,
+                            bridgeVersion,
+                            reportsSbp,
+                            routeAvailable,
+                            routeType,
+                            transactionType,
+                            currency643,
+                            tidPresent
+                    );
+
+                    Log.i(TAG,
+                            "SBP_ROUTE_SNAPSHOT_OK attempt=" + attempt +
+                            " bridge=" + result.bridgeVersion +
+                            " bridgeReportsSbpRoute=" + result.bridgeReportsSbpRoute +
+                            " routeAvailable=" + result.routeAvailable +
+                            " routeType=" + result.routeType +
+                            " transactionType=" + result.transactionType +
+                            " currency643=" + result.currency643 +
+                            " tidPresent=" + result.tidPresent +
+                            " noFinancialCommands=true");
+                    break;
+                } catch (Exception e) {
+                    lastError = e;
+                    String code = safe(e.getMessage());
+                    Log.w(TAG,
+                            "SBP_ROUTE_SNAPSHOT_RETRY attempt=" + attempt +
+                            " code=" + code + " noFinancialCommands=true");
+                    if (attempt >= 6 || !isPreflightWarmupRetryable(code)) break;
+                    closeLink();
+                    try {
+                        Thread.sleep(1200L);
+                    } catch (InterruptedException interrupted) {
+                        Thread.currentThread().interrupt();
+                        lastError = interrupted;
+                        break;
+                    }
+                }
+            }
+
+            if (result == null) {
+                String code = lastError == null ? "UNKNOWN" : safe(lastError.getMessage());
+                result = SbpRouteSnapshotResult.failed(code);
+                Log.e(TAG, "SBP_ROUTE_SNAPSHOT_FAILED code=" + code + " noFinancialCommands=true");
+                closeLink();
+            }
+
+            busy.set(false);
+            final SbpRouteSnapshotResult finalResult = result;
+            main.post(() -> listener.onResult(finalResult));
+        });
     }
 
     /**
@@ -410,7 +562,7 @@ public final class KozenAoaPaymentClient {
                     String bridgeVersion = value(info, "bridge");
                     String protocol = value(info, "protocol");
                     String smartsky = value(info, "smartsky");
-                    if (!"4".equals(protocol) || !"0.5.2".equals(bridgeVersion)) {
+                    if (!"4".equals(protocol) || !isCompatibleBridgeVersion(bridgeVersion)) {
                         throw new IOException("INCOMPATIBLE_BRIDGE");
                     }
 
@@ -770,7 +922,7 @@ public final class KozenAoaPaymentClient {
         String infoId = nextWireId();
         String info = requestResponse("INFO " + infoId, "INFO " + infoId, 12000L);
         if (!"4".equals(value(info, "protocol")) ||
-                !"0.5.2".equals(value(info, "bridge")) ||
+                !isCompatibleBridgeVersion(value(info, "bridge")) ||
                 !"EXPLICIT_SINGLE_NO_AUTO_RETRY".equals(value(info, "paymentPolicy")) ||
                 !info.contains("PAYMENT")) {
             throw new IOException("INCOMPATIBLE_BRIDGE");
