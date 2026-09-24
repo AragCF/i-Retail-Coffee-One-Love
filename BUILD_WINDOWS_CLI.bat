@@ -1,7 +1,7 @@
 @echo off
 setlocal EnableExtensions DisableDelayedExpansion
 
-rem i-Retail Android UI v0.5.114 sbp wire sanitizer
+rem i-Retail Android UI v0.5.115 sbp event queue
 rem Windows CLI debug APK build script.
 rem
 rem Important:
@@ -23,7 +23,7 @@ if errorlevel 1 (
     exit /b 9
 )
 
-set "SCRIPT_VERSION=0.5.114-sbp-wire-sanitizer"
+set "SCRIPT_VERSION=0.5.115-sbp-event-queue"
 set "DO_CLEAN=0"
 set "DO_HARD_CLEAN=0"
 
