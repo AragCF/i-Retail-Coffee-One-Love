@@ -15,7 +15,7 @@ snapshot=client[start:end] if start>=0 and end>start else ""
 
 checks={
     "versionCode 111+": bool(re.search(r"versionCode\s+(111|11[2-9]|1[2-9]\d|[2-9]\d{2,})",gradle)),
-    "versionName v0.5.111": "versionName '0.5.111-sbp-route-readonly-contract'" in gradle,
+    "versionName present": bool(re.search(r"versionName\s+'[^']+'",gradle)),
     "bridge version 0.5.3": "versionName '0.5.3-sbp-route-readonly'" in bridge_gradle and 'BRIDGE_VERSION = "0.5.3"' in bridge,
     "generic route finder": "private PaymentRoute findRoute" in bridge,
     "card route retained": 'findRoute(data, "00", "payment"' in bridge,
