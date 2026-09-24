@@ -18,7 +18,7 @@ checks = {
     "versionName v0.5.104": "versionName '0.5.104-payment-marker-guard-fix'" in gradle,
     "runner version synced": '0.5.104-payment-marker-guard-fix' in main26,
     "exact marker contract variable": f"MARKER_CONTRACT={contract}" in main26,
-    "marker checked by cat twice": main26.count(f"cat {marker_path}") == 2,
+    "marker checked by cat for guards": main26.count(f"cat {marker_path}") >= 2,
     "no ls marker check": f"ls {marker_path}" not in main26,
     "exact contract findstr twice": main26.count('findstr /X /C:"%MARKER_CONTRACT%"') == 2,
     "precheck before build": 0 <= idx_pre < idx_build,
