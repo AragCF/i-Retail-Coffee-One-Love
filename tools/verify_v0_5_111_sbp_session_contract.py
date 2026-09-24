@@ -33,7 +33,11 @@ checks={
     "normal online payment still blocked": 'if (method != PaymentMethod.CARD)' in main,
     "no qrPayment call in main": ".qrPayment(" not in main,
     "no qrPayment call in gateway": ".qrPayment(" not in gateway,
-    "no QR_PAYMENT command in bridge": "QR_PAYMENT" not in bridge and "qrPayment(" not in bridge,
+    "bridge cannot execute live QR payment": (
+        "binder.transact(TX_QR_PAYMENT" not in bridge and
+        "LIVE_QR_PAYMENT_ENABLED = false" in bridge and
+        "LIVE_QR_PAYMENT_NOT_APPROVED" in bridge
+    ),
     "recovery runner exact version": "0.5.111-sbp-session-contract" in runner,
     "recovery runner keeps POS false": "--ez real_pos_enabled true" not in runner,
     "runner simulates restart": "am force-stop com.coffeeonelove.iretail" in runner and "DRY_RUN_RECOVERED" in runner,
