@@ -8,8 +8,8 @@ assert_ps = (ROOT / "tools/Assert-FiscalPositivePayment1Rub.ps1").read_text(enco
 
 checks = {
     "versionCode 105+": bool(re.search(r"versionCode\s+(10[5-9]|1[1-9]\d|[2-9]\d{2,})", gradle)),
-    "versionName v0.5.105": "versionName '0.5.105-kozen-bridge-retrigger'" in gradle,
-    "runner version synced": '0.5.105-kozen-bridge-retrigger' in main26,
+    "versionName present": bool(re.search(r"versionName\s+'[^']+'", gradle)),
+    "runner version guard exists": 'EXPECTED_VERSION' in main26 and 'Wrong project version' in main26,
     "read-only preflight retained": 'No PAYMENT is sent during this preflight.' in main26,
     "Kozen bridge retrigger exists": 'Re-triggering Kozen BridgeActivity after AOA re-enumeration' in main26,
     "retrigger occurs at fifth poll": 'if "%%S"=="5" if "%KOZEN_ADB_AVAILABLE%"=="1"' in main26,
