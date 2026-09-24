@@ -5,7 +5,7 @@ cd /d "%~dp0"
 set "EXPECTED_VERSION="
 for /f "tokens=2" %%V in ('findstr /C:"versionName " "app\build.gradle"') do if not defined EXPECTED_VERSION set "EXPECTED_VERSION=%%V"
 set "EXPECTED_VERSION=%EXPECTED_VERSION:'=%"
-if /I not "%EXPECTED_VERSION%"=="0.5.116-sbp-dual-mode-bridge-upgrade" (
+if /I not "%EXPECTED_VERSION%"=="0.5.117-jl22-wait-loop" (
   echo [ERROR] Wrong project version: %EXPECTED_VERSION%
   pause
   exit /b 11
@@ -30,15 +30,8 @@ if errorlevel 1 (
 )
 
 set "JL22="
-for /f "tokens=1,2,*" %%A in ('adb devices -l ^| findstr /I /C:"product:octopus_jetinno model:UniWin_M190 device:octopus-jetinno"') do (
-  if /I "%%B"=="device" if not defined JL22 set "JL22=%%A"
-)
-if not defined JL22 (
-  echo [ERROR] Live JL22 not found.
-  adb devices -l
-  pause
-  exit /b 13
-)
+call "%~dp0tools\WAIT_FOR_JL22.bat" JL22
+if errorlevel 1 exit /b 13
 
 echo [1/5] Building i-Retail...
 call "%~dp0BUILD_WINDOWS_CLI.bat"
@@ -48,6 +41,8 @@ set "APP_APK=app\build\outputs\apk\debug\app-debug.apk"
 if not exist "%APP_APK%" exit /b 21
 
 echo [2/5] Installing i-Retail on JL22...
+call "%~dp0tools\WAIT_FOR_JL22.bat" JL22
+if errorlevel 1 exit /b 13
 adb -s "%JL22%" install -r "%APP_APK%"
 if errorlevel 1 exit /b 22
 
