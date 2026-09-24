@@ -140,21 +140,40 @@ if defined KOZEN_NET (
 )
 
 echo.
-echo [5/6] Running safe SBP queue test...
+echo [5/7] Running safe SBP queue test...
 call "%~dp0MAIN_34_SBP_EVENT_QUEUE_SYNTHETIC_TEST.bat"
 set "QUEUE_RC=%ERRORLEVEL%"
 
+if not "%QUEUE_RC%"=="0" goto QUEUE_FAILED
+
 echo.
-echo [6/6] Finished.
-if "%QUEUE_RC%"=="0" (
+echo [6/7] Running JL22 screen QR DRY RUN...
+call "%~dp0MAIN_30_SBP_DRYRUN_UI_TEST.bat"
+set "QR_UI_RC=%ERRORLEVEL%"
+
+echo.
+echo [7/7] Finished.
+if "%QR_UI_RC%"=="0" (
   echo ============================================================
   echo KOZEN_BRIDGE_UPGRADE_OK
   echo SBP_EVENT_QUEUE_OK
+  echo JL22_SCREEN_QR_DRYRUN_OK
   echo No financial command was sent.
   echo ============================================================
   exit /b 0
 )
 
+echo ============================================================
+echo KOZEN_BRIDGE_UPGRADE_OK
+echo SBP_EVENT_QUEUE_OK
+echo JL22 screen QR DRY RUN returned code %QR_UI_RC%.
+echo No financial command was sent.
+echo ============================================================
+pause
+exit /b %QR_UI_RC%
+
+:QUEUE_FAILED
+echo.
 echo ============================================================
 echo KOZEN_BRIDGE_UPGRADE_OK
 echo SBP queue test returned code %QUEUE_RC%.
