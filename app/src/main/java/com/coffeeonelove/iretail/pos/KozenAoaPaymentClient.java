@@ -342,7 +342,7 @@ public final class KozenAoaPaymentClient {
             for (int attempt = 1; attempt <= 6 && !shutdown; attempt++) {
                 try {
                     ensureLink();
-                    verifyBridge();
+                    String bridgeVersion = verifyBridge();
 
                     String state = requestResponse("GET_STATE " + nextWireId(), "STATE ", 12000L);
                     if (!"0".equals(value(state, "code")) || !"0".equals(value(state, "state"))) {
@@ -364,7 +364,7 @@ public final class KozenAoaPaymentClient {
                     message = "Kozen / SmartSkyPOS готов к одной оплате";
                     Log.i(TAG,
                             "PREFLIGHT_OK attempt=" + attempt +
-                            " bridge=" + value(info, "bridge") + " protocol=4 state=0 payment=true currency643=true " +
+                            " bridge=" + bridgeVersion + " protocol=4 state=0 payment=true currency643=true " +
                             "tidPresent=true noPaymentSent=true linkKeptOpen=true");
                     break;
                 } catch (Exception e) {
@@ -914,7 +914,7 @@ public final class KozenAoaPaymentClient {
         }
     }
 
-    private void verifyBridge() throws Exception {
+    private String verifyBridge() throws Exception {
         String pingId = nextWireId();
         String pong = requestResponse("PING " + pingId, "PONG " + pingId, 12000L);
         if (pong == null || !pong.contains("role=kozen-payment-bridge")) throw new IOException("BAD_PONG");
@@ -927,6 +927,7 @@ public final class KozenAoaPaymentClient {
                 !info.contains("PAYMENT")) {
             throw new IOException("INCOMPATIBLE_BRIDGE");
         }
+        return value(info, "bridge");
     }
 
     private PaymentResult queryPaymentStatus(String requestId) throws Exception {
