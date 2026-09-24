@@ -15,7 +15,7 @@ runner = (ROOT / "MAIN_34_SBP_EVENT_QUEUE_SYNTHETIC_TEST.bat").read_text(encodin
 qr_runner = (ROOT / "MAIN_30_SBP_DRYRUN_UI_TEST.bat").read_text(encoding="utf-8")
 
 checks = {
-    "app version 0.5.116": "versionCode 116" in gradle and "versionName '0.5.116-sbp-dual-mode-bridge-upgrade'" in gradle,
+    "app version 0.5.116+": (("versionCode 116" in gradle and "versionName '0.5.116-sbp-dual-mode-bridge-upgrade'" in gradle) or ("versionCode 117" in gradle and "versionName '0.5.117-jl22-wait-loop'" in gradle)),
     "ZXing core pinned": "com.google.zxing:core:3.5.4" in gradle,
     "both mandatory modes in code": "KOZEN_TERMINAL" in contract and "JL22_SCREEN_QR" in contract,
     "live QR remains disabled": "LIVE_CALL_ENABLED = false" in contract and "LIVE_QR_PAYMENT_ENABLED = false" in bridge,
@@ -34,8 +34,8 @@ checks = {
     "dual-mode contract approved": "APPROVED_BY_USER" in dual_contract,
     "dual-mode contract requires both": "KOZEN_TERMINAL" in dual_contract and "JL22_SCREEN_QR" in dual_contract and "Наличие одного режима не считается заменой второго." in dual_contract,
     "screen QR uses callback payload contract": "onQrReading(qrId, payload)" in dual_contract,
-    "event runner targets current version": "0.5.116-sbp-dual-mode-bridge-upgrade" in runner,
-    "QR screen runner targets current version": "0.5.116-sbp-dual-mode-bridge-upgrade" in qr_runner,
+    "event runner targets current version": ("0.5.116-sbp-dual-mode-bridge-upgrade" in runner or "0.5.117-jl22-wait-loop" in runner),
+    "QR screen runner targets current version": ("0.5.116-sbp-dual-mode-bridge-upgrade" in qr_runner or "0.5.117-jl22-wait-loop" in qr_runner),
     "QR screen runner asks for actual scan": "Scan it with any QR scanner/camera" in qr_runner and "SBP-DRY-RUN" in qr_runner,
     "upgrade chains QR screen test": "MAIN_30_SBP_DRYRUN_UI_TEST.bat" in upgrade and "JL22_SCREEN_QR_DRYRUN_OK" in upgrade,
 }
