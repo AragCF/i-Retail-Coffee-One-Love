@@ -17,7 +17,7 @@ ps=(ROOT/"tools/Sanitize-SbpWireReport.ps1").read_text(encoding="utf-8")
 
 checks={
     "versionCode 114+": bool(re.search(r"versionCode\s+(114|11[5-9]|1[2-9]\d|[2-9]\d{2,})",gradle)),
-    "versionName v0.5.114+": bool(re.search(r"versionName '0\\.5\\.(114|11[5-9]|1[2-9]\\d|[2-9]\\d{2,})[^']*'", gradle)),
+    "versionName v0.5.114+": any(("versionName '0.5." + str(n)) in gradle for n in range(114, 1000)),
     "wire contract recorded": 'WIRE_BRIDGE_VERSION = "0.5.5"' in contract and 'WIRE_CONTRACT = "BASE64URL_REDACTED_V1"' in contract,
     "bridge version 0.5.5+": ('BRIDGE_VERSION = "0.5.5"' in bridge or 'BRIDGE_VERSION = "0.5.6"' in bridge),
     "both sides use URL_SAFE Base64": "Base64.URL_SAFE" in bridge_codec and "Base64.URL_SAFE" in client_codec,
