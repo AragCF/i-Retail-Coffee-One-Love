@@ -85,7 +85,15 @@ class SbpDryRunSession {
     fun cancel(): SbpDryRunSnapshot? = updateState(SbpDryRunState.CANCELLED)
 
     fun restore(record: SbpSessionRecord): SbpDryRunSnapshot {
-        generationCounter.updateAndGet { old -> maxOf(old, record.generation) }
+        // Android 6 / API 23: avoid AtomicInteger.updateAndGet(lambda).
+        // The Java 8 functional-interface path produced a synthetic lambda class that was
+        // not loadable on the real JL22. CAS keeps the same monotonic invariant without
+        // java.util.function or an external synthetic lambda class.
+        var observed = generationCounter.get()
+        while (observed < record.generation) {
+            if (generationCounter.compareAndSet(observed, record.generation)) break
+            observed = generationCounter.get()
+        }
         val restored = SbpDryRunSnapshot(
             sessionId = record.sessionId,
             state = when (record.state) {
