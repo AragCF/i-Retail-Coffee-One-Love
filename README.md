@@ -1,6 +1,6 @@
 # i-Retail Coffee One Love
 
-Текущая рабочая версия: **0.5.110-sbp-dryrun-ui**.
+Текущая рабочая версия: **0.5.111-sbp-route-readonly-contract**.
 
 Android-проект теперь расположен непосредственно в корне репозитория. Дополнительный каталог
 `iRetail_Android_UI_v0.5.8_smartskypos_probe_source` больше не используется.
@@ -929,3 +929,8 @@ v0.5.95:
 ## v0.5.110 — СБП DRY_RUN UI
 
 Добавлен безопасный СБП dry-run: синтетическая QR-сессия, переходы PAYMENT_ONLINE_QR → PAYMENT_ONLINE_CONFIRM, идемпотентность и диагностический smoke-test. Реальный SmartSkyPOS qrPayment не вызывается и остаётся запрещён до отдельного финансового разрешения.
+
+
+## v0.5.111 — read-only контракт маршрута СБП
+
+Production bridge расширен безопасным чтением TerminalData: отдельно фиксируются карточный маршрут 00/payment и СБП-маршрут 42/qrPayment. Реальный qrPayment не вызывается. JL22-клиент получает read-only модель SBP route readiness; live-проверка нового bridge выполняется только когда Kozen доступен для обновления.
