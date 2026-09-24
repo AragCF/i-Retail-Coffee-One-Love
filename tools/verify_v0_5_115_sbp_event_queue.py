@@ -19,7 +19,7 @@ event_section = main[event_start:wire_start]
 wire_section = main[wire_start:route_start]
 
 checks = {
-    "app version 0.5.115": "versionName '0.5.115-sbp-event-queue'" in gradle,
+    "app version 0.5.115+": ("versionName '0.5.115-sbp-event-queue'" in gradle or "versionName '0.5.116-sbp-dual-mode-bridge-upgrade'" in gradle),
     "event contract constants": 'EVENT_BRIDGE_VERSION = "0.5.6"' in contract and 'EVENT_CONTRACT = "QR_EVENT_PEEK_ACK_V1"' in contract,
     "live call remains disabled": "LIVE_CALL_ENABLED = false" in contract and "LIVE_QR_PAYMENT_ENABLED = false" in bridge,
     "bridge source version 0.5.6": 'BRIDGE_VERSION = "0.5.6"' in bridge,
