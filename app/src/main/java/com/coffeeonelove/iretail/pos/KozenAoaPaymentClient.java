@@ -103,6 +103,47 @@ public final class KozenAoaPaymentClient {
         void onResult(ReadOnlyRecoveryResult result);
     }
 
+    public interface AcquirerSnapshotListener {
+        void onResult(AcquirerSnapshotResult result);
+    }
+
+    public static final class AcquirerSnapshotResult {
+        public final boolean ok;
+        public final String code;
+        public final String bridgeVersion;
+        public final String smartsky;
+        public final String protocol;
+        public final String state;
+        public final String terminalDataCode;
+        public final boolean paymentRoute;
+        public final boolean currency643;
+        public final boolean betaProfile;
+        public final String profileMessage;
+
+        private AcquirerSnapshotResult(boolean ok, String code, String bridgeVersion,
+                                       String smartsky, String protocol, String state,
+                                       String terminalDataCode, boolean paymentRoute,
+                                       boolean currency643, boolean betaProfile,
+                                       String profileMessage) {
+            this.ok = ok;
+            this.code = tokenOrDash(code);
+            this.bridgeVersion = tokenOrDash(bridgeVersion);
+            this.smartsky = tokenOrDash(smartsky);
+            this.protocol = tokenOrDash(protocol);
+            this.state = tokenOrDash(state);
+            this.terminalDataCode = tokenOrDash(terminalDataCode);
+            this.paymentRoute = paymentRoute;
+            this.currency643 = currency643;
+            this.betaProfile = betaProfile;
+            this.profileMessage = tokenOrDash(profileMessage).replace('_', ' ');
+        }
+
+        static AcquirerSnapshotResult failed(String code) {
+            return new AcquirerSnapshotResult(
+                    false, code, "-", "-", "-", "-", "-", false, false, false, "-");
+        }
+    }
+
     public static final class ReadOnlyRecoveryResult {
         public final boolean ok;
         public final String code;
@@ -333,6 +374,116 @@ public final class KozenAoaPaymentClient {
                 code.startsWith("AOA_") ||
                 code.startsWith("USB_PERMISSION_") ||
                 code.startsWith("KOZEN_NOT_FOUND");
+    }
+
+    /**
+     * Read current SmartSkyPOS/acquiring configuration through the installed production bridge.
+     * Only PING, INFO, GET_STATE and GET_TERMINAL_DATA are sent.
+     */
+    public void readAcquirerSnapshot(AcquirerSnapshotListener listener) {
+        if (listener == null) return;
+        if (shutdown) {
+            main.post(() -> listener.onResult(AcquirerSnapshotResult.failed("CLIENT_SHUTDOWN")));
+            return;
+        }
+        if (!busy.compareAndSet(false, true)) {
+            main.post(() -> listener.onResult(AcquirerSnapshotResult.failed("LOCAL_BUSY")));
+            return;
+        }
+
+        executor.execute(() -> {
+            AcquirerSnapshotResult result = null;
+            Exception lastError = null;
+
+            for (int attempt = 1; attempt <= 6 && !shutdown; attempt++) {
+                try {
+                    ensureLink();
+
+                    String pingId = nextWireId();
+                    String pong = requestResponse("PING " + pingId, "PONG " + pingId, 12000L);
+                    if (pong == null || !"kozen-payment-bridge".equals(value(pong, "role"))) {
+                        throw new IOException("BAD_PONG");
+                    }
+
+                    String infoId = nextWireId();
+                    String info = requestResponse("INFO " + infoId, "INFO " + infoId, 12000L);
+                    String bridgeVersion = value(info, "bridge");
+                    String protocol = value(info, "protocol");
+                    String smartsky = value(info, "smartsky");
+                    if (!"4".equals(protocol) || !"0.5.2".equals(bridgeVersion)) {
+                        throw new IOException("INCOMPATIBLE_BRIDGE");
+                    }
+
+                    String state = requestResponse("GET_STATE " + nextWireId(), "STATE ", 12000L);
+                    String stateCode = value(state, "state");
+                    String stateResultCode = value(state, "code");
+                    if (!"0".equals(stateResultCode)) throw new IOException("STATE_READ_FAILED");
+
+                    String terminalData = requestResponse(
+                            "GET_TERMINAL_DATA " + nextWireId(), "TERMINAL_DATA ", 15000L);
+                    String terminalCode = value(terminalData, "code");
+                    String profileMessage = value(terminalData, "message");
+                    boolean paymentRoute = "true".equalsIgnoreCase(value(terminalData, "payment"));
+                    boolean currency643 = containsCsvValue(value(terminalData, "currencies"), CURRENCY);
+                    boolean betaProfile = profileMessage != null &&
+                            profileMessage.toUpperCase(Locale.US).contains("BETA");
+
+                    result = new AcquirerSnapshotResult(
+                            true,
+                            "OK",
+                            bridgeVersion,
+                            smartsky,
+                            protocol,
+                            stateCode,
+                            terminalCode,
+                            paymentRoute,
+                            currency643,
+                            betaProfile,
+                            profileMessage
+                    );
+
+                    Log.i(TAG,
+                            "ACQUIRER_SNAPSHOT_OK attempt=" + attempt +
+                            " bridge=" + result.bridgeVersion +
+                            " smartsky=" + result.smartsky +
+                            " protocol=" + result.protocol +
+                            " state=" + result.state +
+                            " terminalDataCode=" + result.terminalDataCode +
+                            " paymentRoute=" + result.paymentRoute +
+                            " currency643=" + result.currency643 +
+                            " betaProfile=" + result.betaProfile +
+                            " profileMessage=" + safe(result.profileMessage) +
+                            " noFinancialCommands=true");
+                    break;
+                } catch (Exception e) {
+                    lastError = e;
+                    String code = safe(e.getMessage());
+                    Log.w(TAG,
+                            "ACQUIRER_SNAPSHOT_RETRY attempt=" + attempt +
+                            " code=" + code + " noFinancialCommands=true");
+                    if (attempt >= 6 || !isPreflightWarmupRetryable(code)) break;
+                    closeLink();
+                    try {
+                        Thread.sleep(1200L);
+                    } catch (InterruptedException interrupted) {
+                        Thread.currentThread().interrupt();
+                        lastError = interrupted;
+                        break;
+                    }
+                }
+            }
+
+            if (result == null) {
+                String code = lastError == null ? "UNKNOWN" : safe(lastError.getMessage());
+                result = AcquirerSnapshotResult.failed(code);
+                Log.e(TAG, "ACQUIRER_SNAPSHOT_FAILED code=" + code + " noFinancialCommands=true");
+                closeLink();
+            }
+
+            busy.set(false);
+            final AcquirerSnapshotResult finalResult = result;
+            main.post(() -> listener.onResult(finalResult));
+        });
     }
 
     /**
