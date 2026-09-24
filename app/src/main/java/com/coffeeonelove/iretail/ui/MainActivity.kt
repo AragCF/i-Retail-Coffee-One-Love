@@ -92,7 +92,7 @@ class MainActivity : Activity() {
     private var currentLanguage = "RU"
     private var fiscalPositivePaymentTestMode = false
     private var fiscalPositivePaymentPreflightReady = false
-    private val sbpDryRunSession = SbpDryRunSession()
+    private val sbpPaymentAdapter: SbpPaymentAdapter = DryRunSbpPaymentAdapter()
     private var sbpDryRunMode = false
 
     private val fiscalPositivePaymentTestProduct = Product(
@@ -421,11 +421,12 @@ class MainActivity : Activity() {
         val order = orderGateway.createOrder(cart, 100L, 0L, null)
         orderGateway.startPayment(PaymentMethod.ONLINE)
         lastPaymentMethod = PaymentMethod.ONLINE
-        val snapshot = sbpDryRunSession.start(order.amountMinor, order.externalNumber)
+        val snapshot = sbpPaymentAdapter.start(order.amountMinor, order.externalNumber)
         android.util.Log.i(
             "SbpDryRun",
             "DRY_RUN_QR_READY source=$source session=${snapshot.sessionId} amountMinor=${snapshot.amountMinor} " +
-                "generation=${snapshot.generation} state=${snapshot.state} realQrPaymentSent=false"
+                "generation=${snapshot.generation} state=${snapshot.state} adapter=${snapshot.adapterId} " +
+                "liveFinancialEnabled=${snapshot.liveFinancialEnabled} realQrPaymentSent=false"
         )
         openScreen("PAYMENT_ONLINE_QR")
         toast("СБП DRY RUN: синтетический QR готов. Реальный qrPayment не вызван.")
@@ -1503,7 +1504,7 @@ class MainActivity : Activity() {
         if (order != null) addLabel("Заказ ${order.externalNumber} • ${formatMoney(order.amountMinor)}", RectSpec(145, 1310, 790, 55), 18f, 0xFF6D8297.toInt(), Gravity.CENTER, false, 0xEEFFFFFF.toInt())
 
         if (sbpDryRunMode && (currentScreen == "PAYMENT_ONLINE_QR" || currentScreen == "PAYMENT_ONLINE_CONFIRM")) {
-            val sbp = sbpDryRunSession.current()
+            val sbp = sbpPaymentAdapter.current()
             addBox(RectSpec(215, 470, 650, 650), 0xFFF4F6F7.toInt(), 24f)
             addLabel("СБП\nDRY RUN", RectSpec(315, 575, 450, 180), 42f, blueGray, Gravity.CENTER, true, Color.TRANSPARENT)
             addLabel("QR payload синтетический", RectSpec(285, 790, 510, 55), 20f, dark, Gravity.CENTER, true, Color.TRANSPARENT)
@@ -1546,6 +1547,7 @@ class MainActivity : Activity() {
         PaymentMethod.CARD -> "Банковская карта"
         PaymentMethod.CASH -> "Наличные"
         PaymentMethod.ONLINE, PaymentMethod.SBER_SPASIBO -> "Онлайн-оплата"
+        PaymentMethod.SBP -> "СБП / QR"
         null -> "Банковская карта"
     }
 
@@ -2079,7 +2081,7 @@ class MainActivity : Activity() {
 
         "PAYMENT_ONLINE_QR" -> if (sbpDryRunMode) listOf(
             area("Синтетически отсканировать QR", 120, 1180, 840, 280) {
-                val snapshot = sbpDryRunSession.markWaiting()
+                val snapshot = sbpPaymentAdapter.markWaiting()
                 android.util.Log.i(
                     "SbpDryRun",
                     "DRY_RUN_QR_SCANNED session=${snapshot?.sessionId ?: "-"} state=${snapshot?.state} realQrPaymentSent=false"
@@ -2087,7 +2089,7 @@ class MainActivity : Activity() {
                 openScreen("PAYMENT_ONLINE_CONFIRM")
             },
             area("Отменить СБП dry-run", 0, 1700, 300, 220) {
-                sbpDryRunSession.cancel()
+                sbpPaymentAdapter.cancel()
                 sbpDryRunMode = false
                 openScreen("PAYMENT_METHOD_ALL")
             }
@@ -2100,7 +2102,7 @@ class MainActivity : Activity() {
 
         "PAYMENT_ONLINE_CONFIRM" -> if (sbpDryRunMode) listOf(
             area("Синтетически подтвердить СБП", 120, 1180, 840, 280) {
-                val snapshot = sbpDryRunSession.confirmSynthetic()
+                val snapshot = sbpPaymentAdapter.confirmSynthetic()
                 android.util.Log.i(
                     "SbpDryRun",
                     "DRY_RUN_CONFIRMED session=${snapshot?.sessionId ?: "-"} amountMinor=${snapshot?.amountMinor ?: 0L} " +
@@ -2111,7 +2113,7 @@ class MainActivity : Activity() {
                 openScreen("PAYMENT_METHOD_ALL")
             },
             area("Отменить СБП dry-run", 0, 1700, 300, 220) {
-                sbpDryRunSession.cancel()
+                sbpPaymentAdapter.cancel()
                 sbpDryRunMode = false
                 openScreen("PAYMENT_METHOD_ALL")
             }
@@ -2353,7 +2355,7 @@ class MainActivity : Activity() {
         cardPaymentBusy = false
         cardPaymentStatus = ""
         sbpDryRunMode = false
-        sbpDryRunSession.reset()
+        sbpPaymentAdapter.reset()
         openScreen("CATALOG_DEFAULT", remember = false)
     }
 
@@ -2539,6 +2541,7 @@ class MainActivity : Activity() {
             val title = when (method) {
                 PaymentMethod.CASH -> "Оплата наличными"
                 PaymentMethod.ONLINE, PaymentMethod.SBER_SPASIBO -> "Онлайн-оплата"
+                PaymentMethod.SBP -> "Оплата СБП"
                 PaymentMethod.CARD -> "Оплата картой"
             }
             toast("$title пока не подключена к подтверждаемому платёжному контуру")
@@ -2804,7 +2807,7 @@ class MainActivity : Activity() {
         languagePopupVisible = false
         screenHistory.clear()
         sbpDryRunMode = false
-        sbpDryRunSession.reset()
+        sbpPaymentAdapter.reset()
         openScreen("SCREEN_SAVER_COFFEE", remember = false)
     }
 
