@@ -328,6 +328,49 @@ class MainActivity : Activity() {
         })
     }
 
+    private fun maybeRunDeclinedPaymentRecovery(intent: android.content.Intent?, source: String) {
+        if (intent?.getBooleanExtra("fiscal_declined_payment_recovery", false) != true) return
+        intent.removeExtra("fiscal_declined_payment_recovery")
+
+        val debuggable = (applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE) != 0
+        val persisted = MachineModeStore.load(this)
+        if (!debuggable || !persisted.standalone || realPosEnabled) {
+            android.util.Log.e(
+                "DeclinedPaymentRecovery",
+                "RECOVERY_REJECTED source=$source debuggable=$debuggable " +
+                    "standalone=${persisted.standalone} realPos=$realPosEnabled noFinancialCommands=true"
+            )
+            return
+        }
+
+        android.util.Log.i(
+            "DeclinedPaymentRecovery",
+            "RECOVERY_START source=$source commands=PING,INFO,GET_STATE,GET_TERMINAL_DATA," +
+                "GET_LAST_TRANSACTION,GET_TRANSACTION realPos=false noFinancialCommands=true"
+        )
+
+        cardPaymentClient.readLastTransaction(object : KozenAoaPaymentClient.ReadOnlyRecoveryListener {
+            override fun onResult(result: KozenAoaPaymentClient.ReadOnlyRecoveryResult) {
+                val level = if (result.ok) android.util.Log.INFO else android.util.Log.ERROR
+                android.util.Log.println(
+                    level,
+                    "DeclinedPaymentRecovery",
+                    "RECOVERY_RESULT ok=${result.ok} code=${result.code} approved=${result.approved} " +
+                        "rc=${result.rc} amount=${result.amount} receiptPresent=${result.receiptPresent} " +
+                        "transactionIdPresent=${result.transactionIdPresent} targeted=${result.targeted} " +
+                        "noFinancialCommands=true"
+                )
+                toast(
+                    if (result.ok) {
+                        "Последняя транзакция прочитана: approved=${result.approved}, rc=${result.rc}, сумма=${result.amount}"
+                    } else {
+                        "Не удалось прочитать последнюю транзакцию: ${result.code}"
+                    }
+                )
+            }
+        })
+    }
+
     private fun maybeRunFiscalDryRunSelfTest(intent: android.content.Intent?, source: String) {
         if (intent?.getBooleanExtra("fiscal_dry_run_self_test", false) != true) return
         android.util.Log.i(
