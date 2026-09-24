@@ -288,6 +288,9 @@ jobs:
       - name: Verify v0.5.108 acquirer read-only diagnostics
         run: python3 tools/verify_v0_5_108_acquirer_readonly_diagnostics.py
 
+      - name: Verify v0.5.110 SBP dry-run UI
+        run: python3 tools/verify_v0_5_110_sbp_dryrun_ui.py
+
       - name: Verify marker audit sanitizer runtime
         shell: pwsh
         run: ./tools/Verify-FiscalPaymentMarkerAuditRuntime.ps1
@@ -314,6 +317,6 @@ jobs:
         if: success()
         uses: actions/upload-artifact@v4
         with:
-          name: iRetail-v0.5.108-debug-apk
+          name: iRetail-v0.5.110-debug-apk
           path: app/build/outputs/apk/debug/*.apk
           if-no-files-found: error
