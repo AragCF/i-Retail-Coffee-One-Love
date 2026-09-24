@@ -1,7 +1,7 @@
 @echo off
 setlocal EnableExtensions DisableDelayedExpansion
 
-rem i-Retail Android UI v0.5.107 declined readonly recovery
+rem i-Retail Android UI v0.5.108 acquirer readonly diagnostics
 rem Windows CLI debug APK build script.
 rem
 rem Important:
@@ -23,7 +23,7 @@ if errorlevel 1 (
     exit /b 9
 )
 
-set "SCRIPT_VERSION=0.5.107-declined-readonly-recovery"
+set "SCRIPT_VERSION=0.5.108-acquirer-readonly-diagnostics"
 set "DO_CLEAN=0"
 set "DO_HARD_CLEAN=0"
 
