@@ -1,7 +1,7 @@
 @echo off
 setlocal EnableExtensions DisableDelayedExpansion
 
-rem i-Retail Android UI v0.5.101 script flow low-disk cache
+rem i-Retail Android UI v0.5.102 payment marker audit
 rem Windows CLI debug APK build script.
 rem
 rem Important:
@@ -23,7 +23,7 @@ if errorlevel 1 (
     exit /b 9
 )
 
-set "SCRIPT_VERSION=0.5.101-script-flow-low-disk-cache"
+set "SCRIPT_VERSION=0.5.102-payment-marker-audit"
 set "DO_CLEAN=0"
 set "DO_HARD_CLEAN=0"
 
