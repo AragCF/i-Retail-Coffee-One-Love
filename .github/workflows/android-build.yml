@@ -315,6 +315,9 @@ jobs:
       - name: Verify v0.5.118 Android 6 SBP restore
         run: python3 tools/verify_v0_5_118_sbp_android6_restore.py
 
+      - name: Verify v0.5.119 landscape SBP QR
+        run: python3 tools/verify_v0_5_119_sbp_landscape_qr.py
+
       - name: Verify SBP wire sanitizer runtime
         shell: pwsh
         run: ./tools/Verify-SbpWireSanitizerRuntime.ps1
@@ -359,6 +362,6 @@ jobs:
         if: success()
         uses: actions/upload-artifact@v4
         with:
-          name: iRetail-v0.5.118-debug-apk
+          name: iRetail-v0.5.119-debug-apk
           path: app/build/outputs/apk/debug/*.apk
           if-no-files-found: error
