@@ -35,10 +35,19 @@ if ($pkgText -notmatch [regex]::Escape("versionName=$ExpectedVersion")) { throw 
 if ($modeText -notmatch ">standalone<") { throw "Standalone mode not persisted" }
 if ($modeText -notmatch 'name="real_pos_enabled" value="false"') { throw "Persisted real_pos_enabled is not false" }
 
-if ($Outcome -eq "NO_ATTEMPT_TIMEOUT") {
-    if ($markerText.Trim().Length -ne 0) { throw "Attempt marker exists although no attempt was expected" }
-    if ($jl22Text -match "PAYMENT_TX_ONCE") { throw "PAYMENT was observed during NO_ATTEMPT outcome" }
-    throw "No financial attempt was started; positive acceptance is not complete"
+$preAttemptOutcomes = @(
+    "NO_ATTEMPT_TIMEOUT",
+    "TEST_PREFLIGHT_FAILED",
+    "TEST_PREFLIGHT_TIMEOUT",
+    "TEST_SETUP_FAILED"
+)
+if ($preAttemptOutcomes -contains $Outcome) {
+    $markerAbsent = [string]::IsNullOrWhiteSpace($markerText) -or
+        ($markerText -match "No such file or directory")
+    if (-not $markerAbsent) { throw "Attempt marker exists although no attempt was expected" }
+    if ($jl22Text -match "PAYMENT_TX_ONCE") { throw "PAYMENT was observed although no attempt was expected" }
+    Write-Host "[SAFE] No financial attempt was started. Positive acceptance is incomplete."
+    exit 2
 }
 
 if ($markerText -notmatch "contract=S3_FISCAL_POSITIVE_PAYMENT_CONTRACT_v1.0.1") { throw "Wrong attempt contract marker" }
