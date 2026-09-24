@@ -11,7 +11,7 @@ client=(ROOT/"app/src/main/java/com/coffeeonelove/iretail/pos/KozenAoaPaymentCli
 checks={
     "versionCode 113+": bool(re.search(r"versionCode\s+(113|11[4-9]|1[2-9]\d|[2-9]\d{2,})",gradle)),
     "versionName present": bool(re.search(r"versionName\s+'[^']+'",gradle)),
-    "bridge version supports callback contract": any(x in bridge for x in ['BRIDGE_VERSION = "0.5.4"','BRIDGE_VERSION = "0.5.5"']),
+    "bridge version supports callback contract": any(x in bridge for x in ['BRIDGE_VERSION = "0.5.4"','BRIDGE_VERSION = "0.5.5"','BRIDGE_VERSION = "0.5.6"']),
     "client accepts bridge 0.5.4": '"0.5.4".equals(version)' in client,
     "production contract callback version": 'CALLBACK_BRIDGE_VERSION = "0.5.4"' in contract,
     "production contract callback name": 'CALLBACK_CONTRACT = "CAPTURE_HASHED_V1"' in contract,
