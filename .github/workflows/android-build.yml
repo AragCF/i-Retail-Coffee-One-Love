@@ -306,6 +306,9 @@ jobs:
       - name: Verify v0.5.115 SBP event queue
         run: python3 tools/verify_v0_5_115_sbp_event_queue.py
 
+      - name: Verify v0.5.116 dual-mode SBP
+        run: python3 tools/verify_v0_5_116_sbp_dual_mode.py
+
       - name: Verify SBP wire sanitizer runtime
         shell: pwsh
         run: ./tools/Verify-SbpWireSanitizerRuntime.ps1
@@ -350,6 +353,6 @@ jobs:
         if: success()
         uses: actions/upload-artifact@v4
         with:
-          name: iRetail-v0.5.115-debug-apk
+          name: iRetail-v0.5.116-debug-apk
           path: app/build/outputs/apk/debug/*.apk
           if-no-files-found: error
