@@ -1,7 +1,7 @@
 @echo off
 setlocal EnableExtensions DisableDelayedExpansion
 
-rem i-Retail Android UI v0.5.106 aoa preflight warmup
+rem i-Retail Android UI v0.5.107 declined readonly recovery
 rem Windows CLI debug APK build script.
 rem
 rem Important:
@@ -23,7 +23,7 @@ if errorlevel 1 (
     exit /b 9
 )
 
-set "SCRIPT_VERSION=0.5.106-aoa-preflight-warmup"
+set "SCRIPT_VERSION=0.5.107-declined-readonly-recovery"
 set "DO_CLEAN=0"
 set "DO_HARD_CLEAN=0"
 
