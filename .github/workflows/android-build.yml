@@ -300,6 +300,9 @@ jobs:
       - name: Verify v0.5.113 SBP recovery store
         run: python3 tools/verify_v0_5_113_sbp_recovery_store.py
 
+      - name: Verify v0.5.114 SBP expiry/idempotency
+        run: python3 tools/verify_v0_5_114_sbp_expiry_idempotency.py
+
       - name: Verify marker audit sanitizer runtime
         shell: pwsh
         run: ./tools/Verify-FiscalPaymentMarkerAuditRuntime.ps1
@@ -326,6 +329,6 @@ jobs:
         if: success()
         uses: actions/upload-artifact@v4
         with:
-          name: iRetail-v0.5.113-debug-apk
+          name: iRetail-v0.5.114-debug-apk
           path: app/build/outputs/apk/debug/*.apk
           if-no-files-found: error
