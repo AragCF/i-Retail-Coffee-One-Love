@@ -150,19 +150,19 @@ if "%KOZEN_ADB_AVAILABLE%"=="1" (
 ) else (
   > "%OUT%\RAW_kozen_logcat.txt" echo KOZEN_ADB_NOT_AVAILABLE
 )
-(
-  echo ===== OUTCOME =====
-  echo %OUTCOME%
-  echo.
-  findstr /I "SNAPSHOT_RESULT ACQUIRER_SNAPSHOT_OK ACQUIRER_SNAPSHOT_FAILED" "%OUT%\RAW_jl22_logcat.txt"
-) > "%OUT%\07_summary.txt" 2>&1
-
 powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0tools\Sanitize-FiscalPositivePaymentReport.ps1" -RawJl22 "%CD%\%OUT%\RAW_jl22_logcat.txt" -RawKozen "%CD%\%OUT%\RAW_kozen_logcat.txt" -ReportDir "%CD%\%OUT%"
 if errorlevel 1 (
   echo [ERROR] Safety scan failed.
   pause
   exit /b 30
 )
+
+(
+  echo ===== OUTCOME =====
+  echo %OUTCOME%
+  echo.
+  findstr /I "SNAPSHOT_RESULT ACQUIRER_SNAPSHOT_OK ACQUIRER_SNAPSHOT_FAILED" "%OUT%\05_jl22_logcat.txt"
+) > "%OUT%\07_summary.txt" 2>&1
 
 echo [7/7] Creating archive and publishing evidence...
 powershell -NoProfile -ExecutionPolicy Bypass -Command "$p=Resolve-Path '%OUT%'; $z=$p.Path+'.zip'; Compress-Archive -Path ($p.Path+'\*') -DestinationPath $z -Force; Set-Content -Encoding ASCII -LiteralPath ($z+'.safe.txt') -Value 'SAFETY_SCAN_OK'; Write-Host ('[REPORT] '+$z)"
