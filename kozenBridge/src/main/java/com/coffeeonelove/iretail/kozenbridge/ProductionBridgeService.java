@@ -47,7 +47,7 @@ import java.util.Set;
  */
 public class ProductionBridgeService extends Service {
     private static final String TAG = "IretailKozenBridge";
-    private static final String BRIDGE_VERSION = "0.5.2";
+    private static final String BRIDGE_VERSION = "0.5.3";
 
     private static final String SMARTSKY_ACTION = "com.skytech.smartskypos.ISmartSkyPos";
     private static final String SMARTSKY_PACKAGE = "com.skytech.smartskypos";
@@ -302,7 +302,8 @@ public class ProductionBridgeService extends Service {
     private String getTerminalDataResponse(String id) {
         try {
             TerminalData data = readTerminalData();
-            PaymentRoute route = findPaymentRoute(data, null, null);
+            PaymentRoute cardRoute = findPaymentRoute(data, null, null);
+            PaymentRoute sbpRoute = findSbpRoute(data, null, null);
             int count = data.getTerminals() == null ? 0 : data.getTerminals().size();
             return "TERMINAL_DATA " + id +
                     " code=" + data.getCode() +
@@ -310,11 +311,16 @@ public class ProductionBridgeService extends Service {
                     " terminalId=" + token(data.getTerminalId()) +
                     " merchantId=" + token(data.getMerchantId()) +
                     " terminals=" + count +
-                    " payment=" + (route != null) +
-                    " paymentTid=" + (route == null ? "-" : route.tid) +
-                    " paymentType=" + (route == null ? "-" : route.type) +
-                    " transactionType=" + (route == null ? "-" : route.transactionType) +
-                    " currencies=" + (route == null ? "-" : route.currency) +
+                    " payment=" + (cardRoute != null) +
+                    " paymentTid=" + (cardRoute == null ? "-" : cardRoute.tid) +
+                    " paymentType=" + (cardRoute == null ? "-" : cardRoute.type) +
+                    " transactionType=" + (cardRoute == null ? "-" : cardRoute.transactionType) +
+                    " currencies=" + (cardRoute == null ? "-" : cardRoute.currency) +
+                    " qrPayment=" + (sbpRoute != null) +
+                    " qrPaymentTid=" + (sbpRoute == null ? "-" : sbpRoute.tid) +
+                    " qrPaymentType=" + (sbpRoute == null ? "-" : sbpRoute.type) +
+                    " qrTransactionType=" + (sbpRoute == null ? "-" : sbpRoute.transactionType) +
+                    " qrCurrencies=" + (sbpRoute == null ? "-" : sbpRoute.currency) +
                     " bound=true";
         } catch (Exception e) {
             Log.e(TAG, "SMARTSKY_GET_TERMINAL_DATA_ERROR " + e.getClass().getSimpleName() + ": " + safe(e.getMessage()));
@@ -323,6 +329,15 @@ public class ProductionBridgeService extends Service {
     }
 
     private PaymentRoute findPaymentRoute(TerminalData data, String requiredTid, String requiredCurrency) {
+        return findRoute(data, "00", "payment", requiredTid, requiredCurrency);
+    }
+
+    private PaymentRoute findSbpRoute(TerminalData data, String requiredTid, String requiredCurrency) {
+        return findRoute(data, "42", "qrPayment", requiredTid, requiredCurrency);
+    }
+
+    private PaymentRoute findRoute(TerminalData data, String requiredType, String requiredTransactionType,
+                                   String requiredTid, String requiredCurrency) {
         if (data == null || data.getCode() != 0 || data.getTerminals() == null) return null;
         for (Terminal terminal : data.getTerminals()) {
             if (terminal == null) continue;
@@ -334,17 +349,22 @@ public class ProductionBridgeService extends Service {
                 if (operation == null) continue;
                 String type = operation.getType();
                 String txType = operation.getTransactionType();
+                if (!requiredType.equals(type) || !requiredTransactionType.equalsIgnoreCase(txType)) continue;
+
                 Set<String> currencies = new LinkedHashSet<>();
                 ArrayList<Currency> list = operation.getCurrencies();
                 if (list != null) {
                     for (Currency currency : list) {
-                        if (currency != null && currency.getCurrencyCode() != null) currencies.add(currency.getCurrencyCode().trim());
+                        if (currency != null && currency.getCurrencyCode() != null) {
+                            currencies.add(currency.getCurrencyCode().trim());
+                        }
                     }
                 }
-                boolean exactPayment = "00".equals(type) && "payment".equalsIgnoreCase(txType);
-                if (!exactPayment) continue;
+
                 if (requiredCurrency != null) {
-                    if (currencies.contains(requiredCurrency)) return new PaymentRoute(tid, type, txType, requiredCurrency);
+                    if (currencies.contains(requiredCurrency)) {
+                        return new PaymentRoute(tid, type, txType, requiredCurrency);
+                    }
                 } else if (!currencies.isEmpty()) {
                     return new PaymentRoute(tid, type, txType, currencies.iterator().next());
                 }
