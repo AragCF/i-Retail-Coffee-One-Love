@@ -15,6 +15,12 @@ object SbpProductionContract {
     const val LIVE_CALL_ENABLED = false
 }
 
+/** Mandatory customer-facing SBP presentation modes. */
+enum class SbpPresentationMode {
+    KOZEN_TERMINAL,
+    JL22_SCREEN_QR
+}
+
 enum class SbpPaymentState {
     IDLE,
     QR_READY,
