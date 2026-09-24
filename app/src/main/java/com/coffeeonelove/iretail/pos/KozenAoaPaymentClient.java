@@ -99,6 +99,56 @@ public final class KozenAoaPaymentClient {
         void onResult(boolean ready, String code, String message);
     }
 
+    public interface ReadOnlyRecoveryListener {
+        void onResult(ReadOnlyRecoveryResult result);
+    }
+
+    public static final class ReadOnlyRecoveryResult {
+        public final boolean ok;
+        public final String code;
+        public final String approved;
+        public final String message;
+        public final String rc;
+        public final String amount;
+        public final boolean receiptPresent;
+        public final boolean transactionIdPresent;
+        public final boolean targeted;
+
+        private ReadOnlyRecoveryResult(boolean ok, String code, String approved, String message,
+                                       String rc, String amount, boolean receiptPresent,
+                                       boolean transactionIdPresent, boolean targeted) {
+            this.ok = ok;
+            this.code = tokenOrDash(code);
+            this.approved = tokenOrDash(approved);
+            this.message = tokenOrDash(message).replace('_', ' ');
+            this.rc = tokenOrDash(rc);
+            this.amount = tokenOrDash(amount);
+            this.receiptPresent = receiptPresent;
+            this.transactionIdPresent = transactionIdPresent;
+            this.targeted = targeted;
+        }
+
+        static ReadOnlyRecoveryResult failed(String code, String message) {
+            return new ReadOnlyRecoveryResult(false, code, "null", message, "-", "-", false, false, false);
+        }
+
+        static ReadOnlyRecoveryResult fromLine(String line, boolean targeted) {
+            String receipt = value(line, "receipt");
+            String transactionId = value(line, "transactionId");
+            return new ReadOnlyRecoveryResult(
+                    true,
+                    value(line, "code"),
+                    value(line, "approved"),
+                    value(line, "message"),
+                    value(line, "rc"),
+                    value(line, "amount"),
+                    receipt != null && !receipt.isEmpty() && !"-".equals(receipt),
+                    transactionId != null && !transactionId.isEmpty() && !"-".equals(transactionId),
+                    targeted
+            );
+        }
+    }
+
     public static final class PaymentResult {
         public final String requestId;
         public final String status;
@@ -283,6 +333,115 @@ public final class KozenAoaPaymentClient {
                 code.startsWith("AOA_") ||
                 code.startsWith("USB_PERMISSION_") ||
                 code.startsWith("KOZEN_NOT_FOUND");
+    }
+
+    /**
+     * Read the latest SmartSkyPOS transaction through the already installed production bridge.
+     * This path is read-only: GET_STATE, GET_TERMINAL_DATA, GET_LAST_TRANSACTION and,
+     * when a receipt exists, GET_TRANSACTION. It never emits a financial command.
+     */
+    public void readLastTransaction(ReadOnlyRecoveryListener listener) {
+        if (listener == null) return;
+        if (shutdown) {
+            main.post(() -> listener.onResult(ReadOnlyRecoveryResult.failed(
+                    "CLIENT_SHUTDOWN", "Платёжный клиент остановлен")));
+            return;
+        }
+        if (!busy.compareAndSet(false, true)) {
+            main.post(() -> listener.onResult(ReadOnlyRecoveryResult.failed(
+                    "LOCAL_BUSY", "Платёжный клиент занят")));
+            return;
+        }
+
+        executor.execute(() -> {
+            ReadOnlyRecoveryResult result = null;
+            Exception lastError = null;
+
+            for (int attempt = 1; attempt <= 6 && !shutdown; attempt++) {
+                try {
+                    ensureLink();
+                    verifyBridge();
+
+                    String state = requestResponse("GET_STATE " + nextWireId(), "STATE ", 12000L);
+                    if (!"0".equals(value(state, "code")) || !"0".equals(value(state, "state"))) {
+                        throw new IOException("STATE_NOT_READY");
+                    }
+
+                    String terminalData = requestResponse(
+                            "GET_TERMINAL_DATA " + nextWireId(), "TERMINAL_DATA ", 15000L);
+                    String tid = value(terminalData, "paymentTid");
+                    boolean routeOk = "0".equals(value(terminalData, "code")) &&
+                            "true".equalsIgnoreCase(value(terminalData, "payment")) &&
+                            tid != null && !tid.isEmpty() && !"-".equals(tid);
+                    if (!routeOk) throw new IOException("FRESH_ROUTE_NOT_FOUND");
+
+                    String lastId = nextWireId();
+                    String last = requestResponse(
+                            "GET_LAST_TRANSACTION " + lastId + " terminalId=" + tid,
+                            "LAST_TRANSACTION " + lastId, 15000L);
+                    String lastCode = value(last, "code");
+                    if ("EXCEPTION".equals(lastCode) || (lastCode != null && lastCode.startsWith("BAD_"))) {
+                        throw new IOException("LAST_TRANSACTION_" + lastCode);
+                    }
+
+                    String selected = last;
+                    boolean targeted = false;
+                    String receipt = value(last, "receipt");
+                    if (receipt != null && !receipt.isEmpty() && !"-".equals(receipt)) {
+                        String targetId = nextWireId();
+                        String target = requestResponse(
+                                "GET_TRANSACTION " + targetId + " terminalId=" + tid +
+                                        " receiptNumber=" + receipt,
+                                "TRANSACTION " + targetId, 15000L);
+                        String targetCode = value(target, "code");
+                        if (!"EXCEPTION".equals(targetCode) &&
+                                (targetCode == null || !targetCode.startsWith("BAD_"))) {
+                            selected = target;
+                            targeted = true;
+                        }
+                    }
+
+                    result = ReadOnlyRecoveryResult.fromLine(selected, targeted);
+                    Log.i(TAG,
+                            "READ_ONLY_RECOVERY_OK attempt=" + attempt +
+                            " code=" + result.code +
+                            " approved=" + result.approved +
+                            " rc=" + result.rc +
+                            " amount=" + result.amount +
+                            " receiptPresent=" + result.receiptPresent +
+                            " transactionIdPresent=" + result.transactionIdPresent +
+                            " targeted=" + result.targeted +
+                            " noFinancialCommands=true");
+                    break;
+                } catch (Exception e) {
+                    lastError = e;
+                    String code = safe(e.getMessage());
+                    Log.w(TAG,
+                            "READ_ONLY_RECOVERY_RETRY attempt=" + attempt +
+                            " code=" + code + " noFinancialCommands=true");
+                    if (attempt >= 6 || !isPreflightWarmupRetryable(code)) break;
+                    closeLink();
+                    try {
+                        Thread.sleep(1200L);
+                    } catch (InterruptedException interrupted) {
+                        Thread.currentThread().interrupt();
+                        lastError = interrupted;
+                        break;
+                    }
+                }
+            }
+
+            if (result == null) {
+                String code = lastError == null ? "UNKNOWN" : safe(lastError.getMessage());
+                result = ReadOnlyRecoveryResult.failed(code, "Не удалось прочитать последнюю транзакцию");
+                Log.e(TAG, "READ_ONLY_RECOVERY_FAILED code=" + code + " noFinancialCommands=true");
+                closeLink();
+            }
+
+            busy.set(false);
+            final ReadOnlyRecoveryResult finalResult = result;
+            main.post(() -> listener.onResult(finalResult));
+        });
     }
 
     /**
