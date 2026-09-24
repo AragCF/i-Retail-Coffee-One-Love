@@ -2,7 +2,7 @@
 setlocal EnableExtensions DisableDelayedExpansion
 cd /d "%~dp0"
 
-set "EXPECTED_APP_VERSION=0.5.117-jl22-wait-loop"
+set "EXPECTED_APP_VERSION=0.5.118-sbp-android6-restore-fix"
 set "EXPECTED_BRIDGE_VERSION=0.5.6-sbp-event-queue"
 set "JL22="
 set "KOZEN="
