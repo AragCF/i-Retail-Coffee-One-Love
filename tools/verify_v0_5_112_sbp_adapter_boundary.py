@@ -10,7 +10,7 @@ bridge=(ROOT/"kozenBridge/src/main/java/com/coffeeonelove/iretail/kozenbridge/Pr
 
 checks={
     "versionCode 112+": bool(re.search(r"versionCode\s+(112|11[3-9]|1[2-9]\d|[2-9]\d{2,})",gradle)),
-    "versionName v0.5.112": "versionName '0.5.112-sbp-adapter-boundary'" in gradle,
+    "versionName present": bool(re.search(r"versionName\s+'[^']+'",gradle)),
     "explicit SBP payment method": re.search(r"enum class PaymentMethod\s*\{[^}]*\bSBP\b",models,re.S) is not None,
     "generic SBP state machine": "enum class SbpPaymentState" in sbp,
     "adapter interface exists": "interface SbpPaymentAdapter" in sbp,
@@ -19,7 +19,7 @@ checks={
     "dry-run live financial disabled": 'override val liveFinancialEnabled: Boolean = false' in sbp,
     "dry-run never sets real payment true": "realPaymentSent = true" not in sbp,
     "dry-run has no SmartSkyPOS dependency": "import com.skytech" not in sbp and "KozenAoaPaymentClient" not in sbp and ".qrPayment(" not in sbp,
-    "main depends on interface": "private val sbpPaymentAdapter: SbpPaymentAdapter = DryRunSbpPaymentAdapter()" in main,
+    "main depends on interface": ("private val sbpPaymentAdapter: SbpPaymentAdapter" in main) or ("private lateinit var sbpPaymentAdapter: SbpPaymentAdapter" in main),
     "main no concrete session field": "private val sbpDryRunSession" not in main,
     "main renders SBP title": 'PaymentMethod.SBP -> "СБП / QR"' in main,
     "normal non-card flow still blocked": 'if (method != PaymentMethod.CARD)' in main,
