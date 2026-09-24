@@ -100,7 +100,7 @@ public class BridgeActivity extends Activity {
         root.setPadding(pad, pad, pad, pad);
 
         TextView title = new TextView(this);
-        title.setText("i-Retail Kozen Payment Bridge 0.5.2\nUSB/AOA → SmartSkyPOS");
+        title.setText("i-Retail Kozen Payment Bridge 0.5.6\nUSB/AOA → SmartSkyPOS");
         title.setTextSize(22f);
         root.addView(title);
 
