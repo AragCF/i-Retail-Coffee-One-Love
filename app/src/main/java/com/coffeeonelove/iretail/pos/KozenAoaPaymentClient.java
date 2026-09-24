@@ -111,6 +111,44 @@ public final class KozenAoaPaymentClient {
         void onResult(SbpRouteResult result);
     }
 
+    public interface SbpWireRoundTripListener {
+        void onResult(SbpWireRoundTripResult result);
+    }
+
+    public static final class SbpWireRoundTripResult {
+        public final boolean ok;
+        public final String code;
+        public final String bridgeVersion;
+        public final String qrId;
+        public final String payload;
+        public final String payloadHash;
+        public final int payloadLength;
+        public final boolean payloadMatches;
+        public final boolean synthetic;
+        public final boolean liveEnabled;
+
+        private SbpWireRoundTripResult(boolean ok, String code, String bridgeVersion,
+                                       String qrId, String payload, String payloadHash,
+                                       int payloadLength, boolean payloadMatches,
+                                       boolean synthetic, boolean liveEnabled) {
+            this.ok = ok;
+            this.code = tokenOrDash(code);
+            this.bridgeVersion = tokenOrDash(bridgeVersion);
+            this.qrId = qrId;
+            this.payload = payload;
+            this.payloadHash = tokenOrDash(payloadHash);
+            this.payloadLength = payloadLength;
+            this.payloadMatches = payloadMatches;
+            this.synthetic = synthetic;
+            this.liveEnabled = liveEnabled;
+        }
+
+        static SbpWireRoundTripResult failed(String code, String bridgeVersion) {
+            return new SbpWireRoundTripResult(
+                    false, code, bridgeVersion, null, null, "-", 0, false, true, false);
+        }
+    }
+
     public static final class SbpRouteResult {
         public final boolean ok;
         public final String code;
@@ -409,6 +447,134 @@ public final class KozenAoaPaymentClient {
                 code.startsWith("AOA_") ||
                 code.startsWith("USB_PERMISSION_") ||
                 code.startsWith("KOZEN_NOT_FOUND");
+    }
+
+    /**
+     * Synthetic-only SBP payload round-trip through AOA.
+     * Raw qrId/payload are returned to the caller for private in-app persistence,
+     * but never logged. No SmartSkyPOS financial method is invoked.
+     */
+    public void runSyntheticSbpWireRoundTrip(String payload, SbpWireRoundTripListener listener) {
+        if (listener == null) return;
+        if (payload == null || payload.isEmpty()) {
+            main.post(() -> listener.onResult(SbpWireRoundTripResult.failed("EMPTY_PAYLOAD", "-")));
+            return;
+        }
+        if (shutdown) {
+            main.post(() -> listener.onResult(SbpWireRoundTripResult.failed("CLIENT_SHUTDOWN", "-")));
+            return;
+        }
+        if (!busy.compareAndSet(false, true)) {
+            main.post(() -> listener.onResult(SbpWireRoundTripResult.failed("LOCAL_BUSY", "-")));
+            return;
+        }
+
+        executor.execute(() -> {
+            SbpWireRoundTripResult result = null;
+            Exception lastError = null;
+
+            for (int attempt = 1; attempt <= 6 && !shutdown; attempt++) {
+                try {
+                    ensureLink();
+
+                    String pingId = nextWireId();
+                    String pong = requestResponse("PING " + pingId, "PONG " + pingId, 12000L);
+                    if (pong == null || !"kozen-payment-bridge".equals(value(pong, "role"))) {
+                        throw new IOException("BAD_PONG");
+                    }
+
+                    String infoId = nextWireId();
+                    String info = requestResponse("INFO " + infoId, "INFO " + infoId, 12000L);
+                    String bridgeVersion = value(info, "bridge");
+                    String protocol = value(info, "protocol");
+                    if (!"4".equals(protocol) || !isSupportedBridgeVersion(bridgeVersion)) {
+                        throw new IOException("INCOMPATIBLE_BRIDGE");
+                    }
+
+                    if (!"0.5.5".equals(bridgeVersion)) {
+                        result = SbpWireRoundTripResult.failed("BRIDGE_UPGRADE_REQUIRED", bridgeVersion);
+                        Log.w(TAG,
+                                "SBP_WIRE_PENDING bridge=" + bridgeVersion +
+                                " reason=BRIDGE_UPGRADE_REQUIRED noFinancialCommands=true");
+                        break;
+                    }
+
+                    String encodedPayload = SbpWireCodec.encode(payload);
+                    String wireId = nextWireId();
+                    String line = requestResponse(
+                            "SBP_ECHO_QR " + wireId + " payloadB64=" + encodedPayload,
+                            "SBP_QR " + wireId,
+                            15000L
+                    );
+
+                    String code = value(line, "code");
+                    if (!"0".equals(code)) {
+                        throw new IOException("SBP_WIRE_" + tokenOrDash(code));
+                    }
+                    if (!"BASE64URL_REDACTED_V1".equals(value(line, "wireContract"))) {
+                        throw new IOException("SBP_WIRE_CONTRACT");
+                    }
+
+                    String returnedPayload = SbpWireCodec.decode(value(line, "payloadB64"));
+                    String returnedQrId = SbpWireCodec.decode(value(line, "qrIdB64"));
+                    boolean matches = payload.equals(returnedPayload);
+                    boolean synthetic = "true".equalsIgnoreCase(value(line, "synthetic"));
+                    boolean liveEnabled = "true".equalsIgnoreCase(value(line, "liveEnabled"));
+                    String hash = WireProtocolSanitizer.shortHash(returnedPayload);
+
+                    result = new SbpWireRoundTripResult(
+                            matches && synthetic && !liveEnabled,
+                            matches && synthetic && !liveEnabled ? "OK" : "ROUNDTRIP_INVARIANT_FAILED",
+                            bridgeVersion,
+                            returnedQrId,
+                            returnedPayload,
+                            hash,
+                            returnedPayload.length(),
+                            matches,
+                            synthetic,
+                            liveEnabled
+                    );
+
+                    Log.i(TAG,
+                            "SBP_WIRE_OK attempt=" + attempt +
+                            " bridge=" + bridgeVersion +
+                            " payloadHash=" + result.payloadHash +
+                            " payloadLength=" + result.payloadLength +
+                            " payloadMatches=" + result.payloadMatches +
+                            " qrIdHash=" + WireProtocolSanitizer.shortHash(returnedQrId) +
+                            " synthetic=" + result.synthetic +
+                            " liveEnabled=" + result.liveEnabled +
+                            " rawPayloadLogged=false noFinancialCommands=true");
+                    break;
+                } catch (Exception e) {
+                    lastError = e;
+                    String code = safe(e.getMessage());
+                    Log.w(TAG,
+                            "SBP_WIRE_RETRY attempt=" + attempt +
+                            " code=" + code + " noFinancialCommands=true");
+                    if (attempt >= 6 || !isPreflightWarmupRetryable(code)) break;
+                    closeLink();
+                    try {
+                        Thread.sleep(1200L);
+                    } catch (InterruptedException interrupted) {
+                        Thread.currentThread().interrupt();
+                        lastError = interrupted;
+                        break;
+                    }
+                }
+            }
+
+            if (result == null) {
+                String code = lastError == null ? "UNKNOWN" : safe(lastError.getMessage());
+                result = SbpWireRoundTripResult.failed(code, "-");
+                Log.e(TAG, "SBP_WIRE_FAILED code=" + code + " noFinancialCommands=true");
+                closeLink();
+            }
+
+            busy.set(false);
+            final SbpWireRoundTripResult finalResult = result;
+            main.post(() -> listener.onResult(finalResult));
+        });
     }
 
     /**
@@ -927,7 +1093,8 @@ public final class KozenAoaPaymentClient {
     }
 
     private static boolean isSupportedBridgeVersion(String version) {
-        return "0.5.2".equals(version) || "0.5.3".equals(version) || "0.5.4".equals(version);
+        return "0.5.2".equals(version) || "0.5.3".equals(version) ||
+                "0.5.4".equals(version) || "0.5.5".equals(version);
     }
 
     private PaymentResult queryPaymentStatus(String requestId) throws Exception {
@@ -1075,7 +1242,7 @@ public final class KozenAoaPaymentClient {
                 while (!rxLines.isEmpty()) {
                     String line = rxLines.removeFirst();
                     if (line.startsWith(prefix)) return line;
-                    Log.i(TAG, "RX_STALE " + safe(line));
+                    Log.i(TAG, "RX_STALE " + WireProtocolSanitizer.safeLogLine(line));
                 }
                 int newline;
                 while ((newline = rxBuffer.indexOf("\n")) >= 0) {
