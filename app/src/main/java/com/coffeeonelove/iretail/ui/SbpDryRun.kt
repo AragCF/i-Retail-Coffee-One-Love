@@ -21,6 +21,8 @@ data class SbpPaymentSnapshot(
     val qrId: String?,
     val qrPayload: String?,
     val generation: Int,
+    val createdAtMs: Long,
+    val expiresAtMs: Long,
     val adapterId: String,
     val liveFinancialEnabled: Boolean,
     val realPaymentSent: Boolean = false
@@ -48,7 +50,8 @@ interface SbpPaymentAdapter {
  * отдельным финансовым контрактом.
  */
 class DryRunSbpPaymentAdapter(
-    private val store: SbpSessionStore? = null
+    private val store: SbpSessionStore? = null,
+    private val ttlMs: Long = DEFAULT_TTL_MS
 ) : SbpPaymentAdapter {
     override val adapterId: String = "dry-run"
     override val liveFinancialEnabled: Boolean = false
@@ -56,14 +59,30 @@ class DryRunSbpPaymentAdapter(
     private val generationCounter = AtomicInteger(0)
     private var current: SbpPaymentSnapshot? = null
 
-    override fun current(): SbpPaymentSnapshot? = current
+    override fun current(): SbpPaymentSnapshot? {
+        val value = current ?: return null
+        if (value.realPaymentSent) return value
+        if (value.state in setOf(SbpPaymentState.QR_READY, SbpPaymentState.WAITING_CONFIRMATION) &&
+            value.expiresAtMs > 0L &&
+            System.currentTimeMillis() >= value.expiresAtMs
+        ) {
+            return updateState(SbpPaymentState.EXPIRED)
+        }
+        return value
+    }
 
     override fun recover(): SbpPaymentSnapshot? {
         current?.let { return it }
         val stored = store?.load() ?: return null
         generationCounter.set(maxOf(generationCounter.get(), stored.generation))
 
-        val recoveredState = if (stored.unresolved) SbpPaymentState.UNCERTAIN else stored.state
+        val now = System.currentTimeMillis()
+        val recoveredState = when {
+            stored.realPaymentSent -> SbpPaymentState.UNCERTAIN
+            stored.unresolved && stored.expiresAtMs > 0L && now >= stored.expiresAtMs -> SbpPaymentState.EXPIRED
+            stored.unresolved -> SbpPaymentState.UNCERTAIN
+            else -> stored.state
+        }
         return SbpPaymentSnapshot(
             sessionId = stored.sessionId,
             state = recoveredState,
@@ -71,6 +90,8 @@ class DryRunSbpPaymentAdapter(
             qrId = null,
             qrPayload = null,
             generation = stored.generation,
+            createdAtMs = stored.createdAtMs,
+            expiresAtMs = stored.expiresAtMs,
             adapterId = adapterId,
             liveFinancialEnabled = false,
             realPaymentSent = stored.realPaymentSent
@@ -88,7 +109,7 @@ class DryRunSbpPaymentAdapter(
             return recovered
         }
 
-        val existing = current
+        val existing = current()
         if (existing != null &&
             existing.state in setOf(SbpPaymentState.QR_READY, SbpPaymentState.WAITING_CONFIRMATION)
         ) {
@@ -100,6 +121,8 @@ class DryRunSbpPaymentAdapter(
         val sessionId = "sbp-dryrun-$generation-$safeExternal"
         val qrId = "dry-$generation"
         val payload = "SBP-DRY-RUN|session=$sessionId|amountMinor=$amountMinor|generation=$generation"
+        val createdAtMs = System.currentTimeMillis()
+        val expiresAtMs = createdAtMs + ttlMs.coerceAtLeast(MIN_TTL_MS)
 
         return SbpPaymentSnapshot(
             sessionId = sessionId,
@@ -108,17 +131,25 @@ class DryRunSbpPaymentAdapter(
             qrId = qrId,
             qrPayload = payload,
             generation = generation,
+            createdAtMs = createdAtMs,
+            expiresAtMs = expiresAtMs,
             adapterId = adapterId,
             liveFinancialEnabled = liveFinancialEnabled,
             realPaymentSent = false
         ).also { current = it }
     }
 
-    override fun markWaiting(): SbpPaymentSnapshot? =
-        updateState(SbpPaymentState.WAITING_CONFIRMATION)
+    override fun markWaiting(): SbpPaymentSnapshot? {
+        val value = current() ?: return null
+        if (value.state == SbpPaymentState.EXPIRED) return value
+        return updateState(SbpPaymentState.WAITING_CONFIRMATION)
+    }
 
-    override fun confirmSynthetic(): SbpPaymentSnapshot? =
-        updateState(SbpPaymentState.CONFIRMED)
+    override fun confirmSynthetic(): SbpPaymentSnapshot? {
+        val value = current() ?: return null
+        if (value.state == SbpPaymentState.EXPIRED) return value
+        return updateState(SbpPaymentState.CONFIRMED)
+    }
 
     override fun expire(): SbpPaymentSnapshot? =
         updateState(SbpPaymentState.EXPIRED)
@@ -142,6 +173,11 @@ class DryRunSbpPaymentAdapter(
         current = updated
         store?.save(updated)
         return updated
+    }
+
+    companion object {
+        const val DEFAULT_TTL_MS: Long = 120_000L
+        const val MIN_TTL_MS: Long = 250L
     }
 }
 
