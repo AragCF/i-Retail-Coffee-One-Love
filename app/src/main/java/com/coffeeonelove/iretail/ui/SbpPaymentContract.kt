@@ -8,6 +8,8 @@ object SbpProductionContract {
     const val MIN_ROUTE_BRIDGE_VERSION = "0.5.3"
     const val CALLBACK_BRIDGE_VERSION = "0.5.4"
     const val CALLBACK_CONTRACT = "CAPTURE_HASHED_V1"
+    const val WIRE_BRIDGE_VERSION = "0.5.5"
+    const val WIRE_CONTRACT = "BASE64URL_REDACTED_V1"
     const val LIVE_CALL_ENABLED = false
 }
 
