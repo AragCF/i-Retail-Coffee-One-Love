@@ -231,6 +231,7 @@ class MainActivity : Activity() {
         maybeRunDeclinedPaymentRecovery(intent, "onCreate")
         maybeRunAcquirerSnapshot(intent, "onCreate")
         maybeRunSbpDryRunSelfTest(intent, "onCreate")
+        maybeRunSbpRouteSnapshot(intent, "onCreate")
 
         if (fiscalPositivePaymentTestMode) {
             val persistedPos = MachineModeStore.load(this).realPosEnabled
@@ -275,6 +276,7 @@ class MainActivity : Activity() {
             maybeRunDeclinedPaymentRecovery(intent, "onNewIntent")
             maybeRunAcquirerSnapshot(intent, "onNewIntent")
             maybeRunSbpDryRunSelfTest(intent, "onNewIntent")
+            maybeRunSbpRouteSnapshot(intent, "onNewIntent")
         }
     }
 
@@ -330,6 +332,59 @@ class MainActivity : Activity() {
                     )
                     toast("$message. Финансовая попытка не начиналась.")
                 }
+            }
+        })
+    }
+
+    private fun maybeRunSbpRouteSnapshot(intent: android.content.Intent?, source: String) {
+        if (intent?.getBooleanExtra("sbp_route_readonly_snapshot", false) != true) return
+        intent.removeExtra("sbp_route_readonly_snapshot")
+
+        val debuggable = (applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE) != 0
+        val persisted = MachineModeStore.load(this)
+        if (!debuggable || !persisted.standalone || realPosEnabled) {
+            android.util.Log.e(
+                "SbpRouteAudit",
+                "ROUTE_REJECTED source=$source debuggable=$debuggable standalone=${persisted.standalone} " +
+                    "realPos=$realPosEnabled noFinancialCommands=true"
+            )
+            return
+        }
+
+        android.util.Log.i(
+            "SbpRouteAudit",
+            "ROUTE_START source=$source commands=PING,INFO,GET_STATE,GET_TERMINAL_DATA " +
+                "realPos=false noFinancialCommands=true"
+        )
+
+        cardPaymentClient.readSbpRouteSnapshot(object : KozenAoaPaymentClient.SbpRouteSnapshotListener {
+            override fun onResult(result: KozenAoaPaymentClient.SbpRouteSnapshotResult) {
+                val exactRoute =
+                    result.routeAvailable &&
+                    result.routeType == "42" &&
+                    result.transactionType.equals("qrPayment", ignoreCase = true) &&
+                    result.currency643 &&
+                    result.tidPresent
+
+                val level = if (result.ok) android.util.Log.INFO else android.util.Log.ERROR
+                android.util.Log.println(
+                    level,
+                    "SbpRouteAudit",
+                    "ROUTE_RESULT ok=${result.ok} code=${result.code} bridge=${result.bridgeVersion} " +
+                        "bridgeReportsSbpRoute=${result.bridgeReportsSbpRoute} routeAvailable=${result.routeAvailable} " +
+                        "routeType=${result.routeType} transactionType=${result.transactionType} " +
+                        "currency643=${result.currency643} tidPresent=${result.tidPresent} " +
+                        "exactRoute=$exactRoute realPos=false noFinancialCommands=true"
+                )
+
+                toast(
+                    when {
+                        !result.ok -> "Не удалось прочитать маршрут СБП: ${result.code}"
+                        exactRoute -> "Маршрут СБП 42/qrPayment подтверждён"
+                        !result.bridgeReportsSbpRoute -> "На Kozen установлен старый bridge: нужен 0.5.3"
+                        else -> "Точный маршрут СБП пока не подтверждён"
+                    }
+                )
             }
         })
     }
