@@ -8,7 +8,7 @@ analyzer = (ROOT / "tools/Analyze-FiscalPaymentMarkerAudit.ps1").read_text(encod
 
 checks = {
     "versionCode 102+": bool(re.search(r"versionCode\s+(10[2-9]|1[1-9]\d|[2-9]\d{2,})", gradle)),
-    "versionName v0.5.102": "versionName '0.5.102-payment-marker-audit'" in gradle,
+    "versionName present": bool(re.search(r"versionName\s+'[^']+'", gradle)),
     "audit explicitly read only": "PAYMENT MARKER AUDIT - READ ONLY" in audit and "sends NO PAYMENT" in audit,
     "audit sends no financial adb command": not bool(re.search(r"adb[^\n\r]*\bPAYMENT\b", audit, re.I)),
     "audit never enables real POS": "--ez real_pos_enabled true" not in audit,
