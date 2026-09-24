@@ -45,7 +45,7 @@ checks = {
     "store raw limited to synthetic dryrun": 'record.sessionId.startsWith("sbp-dryrun-") && !record.realPaymentSent' in store,
     "live QR command remains blocked": '"QR_PAYMENT".equals(command)) return qrPaymentBlocked(id)' in bridge,
     "no live Binder QR transact": "binder.transact(TX_QR_PAYMENT" not in bridge,
-    "runner exact app version": "0.5.115-sbp-event-queue" in runner,
+    "runner current app version": ("0.5.115-sbp-event-queue" in runner or "0.5.116-sbp-dual-mode-bridge-upgrade" in runner),
     "runner requests event test": "--ez sbp_event_queue_synthetic_test true" in runner,
     "runner keeps real POS false": "--ez real_pos_enabled true" not in runner,
     "runner sends no financial adb command": not bool(re.search(r"adb[^\n\r]*\b(?:PAYMENT|QR_PAYMENT|QRPAYMENT|REFUND|RECONCILIATION)\b", runner, re.I)),
