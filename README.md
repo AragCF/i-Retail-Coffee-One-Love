@@ -1,6 +1,6 @@
 # i-Retail Coffee One Love
 
-Текущая рабочая версия: **0.5.106-aoa-preflight-warmup**.
+Текущая рабочая версия: **0.5.107-declined-readonly-recovery**.
 
 Android-проект теперь расположен непосредственно в корне репозитория. Дополнительный каталог
 `iRetail_Android_UI_v0.5.8_smartskypos_probe_source` больше не используется.
@@ -914,3 +914,8 @@ v0.5.95:
 ## Исправление v0.5.106 — прогрев AOA preflight
 
 Живой v0.5.105 дал точный код `WRITE_INCOMPLETE_PING_-1`: AOA-интерфейс на JL22 уже открыт, но первая bulk-запись выполняется раньше готовности accessory-side bridge на Kozen. Read-only preflight теперь повторяет только транспортные PING/INFO без PAYMENT, а Windows активнее поднимает Kozen BridgeActivity в первые секунды re-enumeration. Журнал Kozen очищается до запуска BridgeActivity, чтобы lifecycle-маркеры не терялись.
+
+
+## v0.5.107 — read-only разбор отклонённой оплаты
+
+После единственной разрешённой попытки на 1 ₽ получен определённый `DECLINED`. Повторный PAYMENT по текущему контракту запрещён. Добавлен отдельный режим read-only recovery через уже установленный Kozen production bridge: он читает `GET_LAST_TRANSACTION` и, когда доступен номер чека, `GET_TRANSACTION`, не включая real POS и не отправляя финансовых команд. Также исправлен сбор `IretailKozenClient` в MAIN_26: один фильтр уровня V вместо повторяющихся I/W/E, чтобы будущие отчёты не теряли `PAYMENT_TX_ONCE`.
