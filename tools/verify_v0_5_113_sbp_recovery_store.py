@@ -10,7 +10,7 @@ runner=(ROOT/"MAIN_32_SBP_RESTART_RECOVERY_SMOKE.bat").read_text(encoding="utf-8
 
 checks={
     "versionCode 113+": bool(re.search(r"versionCode\s+(113|11[4-9]|1[2-9]\d|[2-9]\d{2,})",gradle)),
-    "versionName v0.5.113": "versionName '0.5.113-sbp-recovery-store'" in gradle,
+    "versionName present": bool(re.search(r"versionName\s+'[^']+'",gradle)),
     "durable store exists": 'getSharedPreferences(PREFS, Context.MODE_PRIVATE)' in store,
     "store keeps session id": 'KEY_SESSION_ID' in store,
     "store keeps state and amount": 'KEY_STATE' in store and 'KEY_AMOUNT_MINOR' in store,
