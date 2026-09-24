@@ -927,7 +927,7 @@ public final class KozenAoaPaymentClient {
     }
 
     private static boolean isSupportedBridgeVersion(String version) {
-        return "0.5.2".equals(version) || "0.5.3".equals(version);
+        return "0.5.2".equals(version) || "0.5.3".equals(version) || "0.5.4".equals(version);
     }
 
     private PaymentResult queryPaymentStatus(String requestId) throws Exception {
