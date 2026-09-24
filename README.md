@@ -1,6 +1,6 @@
 # i-Retail Coffee One Love
 
-Текущая рабочая версия: **0.5.111-sbp-session-contract**.
+Текущая рабочая версия: **0.5.112-sbp-route-audit**.
 
 Android-проект теперь расположен непосредственно в корне репозитория. Дополнительный каталог
 `iRetail_Android_UI_v0.5.8_smartskypos_probe_source` больше не используется.
@@ -934,3 +934,8 @@ v0.5.95:
 ## v0.5.111 — контракт и восстановление СБП-сессии
 
 Добавлены production-neutral состояния СБП, приватное долговечное хранилище сессии и безопасные отпечатки QR. Контракт фиксирует operation type 42 / qrPayment / currency 643 / Binder transaction 19, но live call остаётся жёстко выключен. После restart активная сессия должна восстанавливаться, а новая не создаётся автоматически.
+
+
+## v0.5.112 — read-only аудит маршрута СБП
+
+Production bridge 0.5.3 получает безопасную команду GET_SBP_ROUTE, которая только читает TerminalData и проверяет route type=42 / transactionType=qrPayment / currency=643. Живой Binder-вызов qrPayment №19 жёстко выключен. JL22-клиент остаётся совместим с bridge 0.5.2 для карточного контура и умеет честно сообщать BRIDGE_UPGRADE_REQUIRED для СБП-аудита.
