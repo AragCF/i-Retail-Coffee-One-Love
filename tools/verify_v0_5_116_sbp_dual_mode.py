@@ -12,6 +12,7 @@ bridge_ui = (ROOT / "kozenBridge/src/main/java/com/coffeeonelove/iretail/kozenbr
 upgrade = (ROOT / "MAIN_35_KOZEN_BRIDGE_UPGRADE_AND_SBP_QUEUE_TEST.bat").read_text(encoding="utf-8")
 dual_contract = (ROOT / "docs/SBP_DUAL_MODE_CONTRACT_v1.0.0.md").read_text(encoding="utf-8")
 runner = (ROOT / "MAIN_34_SBP_EVENT_QUEUE_SYNTHETIC_TEST.bat").read_text(encoding="utf-8")
+qr_runner = (ROOT / "MAIN_30_SBP_DRYRUN_UI_TEST.bat").read_text(encoding="utf-8")
 
 checks = {
     "app version 0.5.116": "versionCode 116" in gradle and "versionName '0.5.116-sbp-dual-mode-bridge-upgrade'" in gradle,
@@ -34,6 +35,9 @@ checks = {
     "dual-mode contract requires both": "KOZEN_TERMINAL" in dual_contract and "JL22_SCREEN_QR" in dual_contract and "Наличие одного режима не считается заменой второго." in dual_contract,
     "screen QR uses callback payload contract": "onQrReading(qrId, payload)" in dual_contract,
     "event runner targets current version": "0.5.116-sbp-dual-mode-bridge-upgrade" in runner,
+    "QR screen runner targets current version": "0.5.116-sbp-dual-mode-bridge-upgrade" in qr_runner,
+    "QR screen runner asks for actual scan": "Scan it with any QR scanner/camera" in qr_runner and "SBP-DRY-RUN" in qr_runner,
+    "upgrade chains QR screen test": "MAIN_30_SBP_DRYRUN_UI_TEST.bat" in upgrade and "JL22_SCREEN_QR_DRYRUN_OK" in upgrade,
 }
 
 failed = [name for name, ok in checks.items() if not ok]
