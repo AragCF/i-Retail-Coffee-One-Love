@@ -6,7 +6,7 @@ if errorlevel 1 exit /b 10
 set "EXPECTED_VERSION="
 for /f "tokens=2" %%V in ('findstr /C:"versionName " "app\build.gradle"') do if not defined EXPECTED_VERSION set "EXPECTED_VERSION=%%V"
 set "EXPECTED_VERSION=%EXPECTED_VERSION:'=%"
-if /I not "%EXPECTED_VERSION%"=="0.5.104-payment-marker-guard-fix" (
+if /I not "%EXPECTED_VERSION%"=="0.5.105-kozen-bridge-retrigger" (
   echo [ERROR] Wrong project version: %EXPECTED_VERSION%
   pause
   exit /b 11
@@ -253,6 +253,10 @@ for /l %%S in (1,1,180) do (
   if not errorlevel 1 goto TEST_READY
   findstr /C:"TEST_PREFLIGHT_FAILED" "%WAIT_LOG%" >nul 2>nul
   if not errorlevel 1 goto PREFLIGHT_FAILED
+  if "%%S"=="5" if "%KOZEN_ADB_AVAILABLE%"=="1" (
+    echo [INFO] Re-triggering Kozen BridgeActivity after AOA re-enumeration...
+    adb -s "%KOZEN%" shell am start -W -n com.coffeeonelove.iretail.kozenbridge/.BridgeActivity >nul 2>nul
+  )
   timeout /t 1 /nobreak >nul
 )
 goto PREFLIGHT_TIMEOUT
