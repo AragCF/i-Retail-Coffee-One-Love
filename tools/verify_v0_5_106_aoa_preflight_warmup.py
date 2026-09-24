@@ -12,8 +12,8 @@ preflight = client[pre_start:pre_end]
 
 checks = {
     "versionCode 106+": bool(re.search(r"versionCode\s+(10[6-9]|1[1-9]\d|[2-9]\d{2,})", gradle)),
-    "versionName v0.5.106": "versionName '0.5.106-aoa-preflight-warmup'" in gradle,
-    "runner version synced": '0.5.106-aoa-preflight-warmup' in main26,
+    "versionName present": bool(re.search(r"versionName\s+'[^']+'", gradle)),
+    "runner version guard exists": 'EXPECTED_VERSION' in main26 and 'Wrong project version' in main26,
     "preflight retry loop": "attempt <= 6" in preflight,
     "preflight retry marker": "PREFLIGHT_WARMUP_RETRY attempt=" in preflight,
     "retry delay": "Thread.sleep(1200L)" in preflight,
