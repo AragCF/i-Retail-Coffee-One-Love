@@ -75,12 +75,14 @@ if errorlevel 1 exit /b 20
 set "APP_APK=app\build\outputs\apk\debug\app-debug.apk"
 if not exist "%APP_APK%" exit /b 21
 
+set "GRADLE_EXE="
+for /f "delims=" %%G in ('where gradle.bat 2^>nul') do if not defined GRADLE_EXE set "GRADLE_EXE=%%G"
+if not defined GRADLE_EXE if defined ANDROID_HOME if exist "%ANDROID_HOME%\gradle\bin\gradle.bat" set "GRADLE_EXE=%ANDROID_HOME%\gradle\bin\gradle.bat"
+if not defined GRADLE_EXE if exist "C:\54\Dist\Progr\Android_Tools\gradle\bin\gradle.bat" set "GRADLE_EXE=C:\54\Dist\Progr\Android_Tools\gradle\bin\gradle.bat"
+set "KOZEN_APK=kozenBridge\build\outputs\apk\debug\kozenBridge-debug.apk"
+
 if "%KOZEN_ADB_AVAILABLE%"=="1" (
   echo [2/6] Building and installing Kozen bridge 0.5.3...
-  set "GRADLE_EXE="
-  for /f "delims=" %%G in ('where gradle.bat 2^>nul') do if not defined GRADLE_EXE set "GRADLE_EXE=%%G"
-  if not defined GRADLE_EXE if defined ANDROID_HOME if exist "%ANDROID_HOME%\gradle\bin\gradle.bat" set "GRADLE_EXE=%ANDROID_HOME%\gradle\bin\gradle.bat"
-  if not defined GRADLE_EXE if exist "C:\54\Dist\Progr\Android_Tools\gradle\bin\gradle.bat" set "GRADLE_EXE=C:\54\Dist\Progr\Android_Tools\gradle\bin\gradle.bat"
   if not defined GRADLE_EXE (
     echo [ERROR] Gradle not found for Kozen bridge build.
     pause
@@ -88,7 +90,6 @@ if "%KOZEN_ADB_AVAILABLE%"=="1" (
   )
   call "%GRADLE_EXE%" --no-daemon :kozenBridge:assembleDebug
   if errorlevel 1 exit /b 23
-  set "KOZEN_APK=kozenBridge\build\outputs\apk\debug\kozenBridge-debug.apk"
   if not exist "%KOZEN_APK%" exit /b 24
   adb -s "%KOZEN%" install -r "%KOZEN_APK%"
   if errorlevel 1 exit /b 25
