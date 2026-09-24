@@ -1,6 +1,6 @@
 # i-Retail Coffee One Love
 
-Текущая рабочая версия: **0.5.111-sbp-route-readonly-contract**.
+Текущая рабочая версия: **0.5.112-sbp-adapter-boundary**.
 
 Android-проект теперь расположен непосредственно в корне репозитория. Дополнительный каталог
 `iRetail_Android_UI_v0.5.8_smartskypos_probe_source` больше не используется.
@@ -934,3 +934,8 @@ v0.5.95:
 ## v0.5.111 — read-only контракт маршрута СБП
 
 Production bridge расширен безопасным чтением TerminalData: отдельно фиксируются карточный маршрут 00/payment и СБП-маршрут 42/qrPayment. Реальный qrPayment не вызывается. JL22-клиент получает read-only модель SBP route readiness; live-проверка нового bridge выполняется только когда Kozen доступен для обновления.
+
+
+## v0.5.112 — SbpPaymentAdapter boundary
+
+СБП отделён от UI через независимый адаптер. Dry-run остаётся единственной активной реализацией; production SmartSkyPOS qrPayment отсутствует. Состояние сессии, идемпотентность и безопасное подтверждение теперь принадлежат адаптеру, а не MainActivity.
