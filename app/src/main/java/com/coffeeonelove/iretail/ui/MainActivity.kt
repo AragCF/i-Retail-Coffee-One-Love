@@ -1981,20 +1981,45 @@ class MainActivity : Activity() {
     private fun renderLandscapePaymentProgress() {
         renderLandscapeHeader()
         val order = orderGateway.currentOrder()
+        val sbp = if (sbpDryRunMode) sbpDryRunSession.current() else null
         val title = when (currentScreen) {
             "PAYMENT_POS" -> cardPaymentStatus.ifBlank { "ПОДКЛЮЧЕНИЕ К POS-ТЕРМИНАЛУ…" }.uppercase(Locale.ROOT)
             "PAYMENT_CASH" -> "ВНЕСИТЕ НАЛИЧНЫЕ В КУПЮРОПРИЁМНИК"
-            "PAYMENT_ONLINE_QR" -> "СКАНИРУЙТЕ QR-КОД ДЛЯ ОПЛАТЫ"
+            "PAYMENT_ONLINE_QR" -> if (sbpDryRunMode) "СБП DRY RUN • СКАНИРУЙТЕ QR-КОД" else "СКАНИРУЙТЕ QR-КОД ДЛЯ ОПЛАТЫ"
+            "PAYMENT_ONLINE_CONFIRM" -> if (sbpDryRunMode) "СБП DRY RUN • ПОДТВЕРЖДЕНИЕ" else "ПРОВЕРЯЕМ ОПЛАТУ И ГОТОВИМ ЧЕК"
             else -> "ПРОВЕРЯЕМ ОПЛАТУ И ГОТОВИМ ЧЕК"
         }
         addLabel("Оплата заказа", RectSpec(650, 95, 620, 60), 30f, dark, Gravity.CENTER, true, Color.TRANSPARENT)
-        addLabel(title, RectSpec(230, 220, 1460, 130), 42f, dark, Gravity.CENTER, true, Color.TRANSPARENT)
-        addBox(RectSpec(685, 380, 550, 330), 0xFFF4F6F7.toInt(), 26f)
-        addLabel(if (currentScreen == "PAYMENT_ONLINE_QR") "QR" else "POS", RectSpec(785, 445, 350, 160), 56f, blueGray, Gravity.CENTER, true, Color.TRANSPARENT)
+        addLabel(title, RectSpec(230, 205, 1460, 105), 38f, dark, Gravity.CENTER, true, Color.TRANSPARENT)
+
+        if (currentScreen == "PAYMENT_ONLINE_QR" && sbpDryRunMode) {
+            val payload = sbp?.qrPayload.orEmpty()
+            addBox(RectSpec(710, 325, 500, 500), Color.WHITE, 24f)
+            if (payload.isNotBlank()) {
+                val qr = ImageView(this).apply {
+                    scaleType = ImageView.ScaleType.FIT_CENTER
+                    setBackgroundColor(Color.WHITE)
+                    setImageBitmap(SbpQrRenderer.render(payload, 640))
+                    contentDescription = "QR-код СБП DRY RUN"
+                }
+                dynamicLayer.addView(qr, scaledLayoutParams(RectSpec(755, 370, 410, 410)))
+                addLabel("Синтетический QR • денег не списывает", RectSpec(610, 795, 700, 42), 17f, blueGray, Gravity.CENTER, true, Color.TRANSPARENT)
+            } else {
+                addLabel("QR-код недоступен", RectSpec(785, 480, 350, 110), 30f, red, Gravity.CENTER, true, Color.TRANSPARENT)
+            }
+        } else if (currentScreen == "PAYMENT_ONLINE_CONFIRM" && sbpDryRunMode) {
+            addBox(RectSpec(650, 365, 620, 360), 0xFFF4F6F7.toInt(), 26f)
+            addLabel("QR ОТСКАНИРОВАН", RectSpec(735, 430, 450, 80), 34f, green, Gravity.CENTER, true, Color.TRANSPARENT)
+            addLabel("Нажмите здесь для синтетического подтверждения", RectSpec(710, 535, 500, 110), 22f, dark, Gravity.CENTER, true, Color.TRANSPARENT)
+        } else {
+            addBox(RectSpec(685, 380, 550, 330), 0xFFF4F6F7.toInt(), 26f)
+            addLabel(if (currentScreen == "PAYMENT_ONLINE_QR") "QR" else "POS", RectSpec(785, 445, 350, 160), 56f, blueGray, Gravity.CENTER, true, Color.TRANSPARENT)
+        }
+
         val total = order?.amountMinor ?: cartTotalMinor()
-        addLabel("Заказ ${order?.externalNumber ?: ""} • ${formatMoney(total)}", RectSpec(450, 735, 1020, 55), 22f, blueGray, Gravity.CENTER, false, Color.TRANSPARENT)
-        addLabel("К оплате", RectSpec(70, 890, 400, 60), 25f, dark, Gravity.LEFT or Gravity.CENTER_VERTICAL, true, Color.TRANSPARENT)
-        addLabel(formatMoney(total), RectSpec(1400, 880, 420, 75), 40f, dark, Gravity.RIGHT or Gravity.CENTER_VERTICAL, true, Color.TRANSPARENT)
+        addLabel("Заказ ${order?.externalNumber ?: ""} • ${formatMoney(total)}", RectSpec(450, 840, 1020, 50), 20f, blueGray, Gravity.CENTER, false, Color.TRANSPARENT)
+        addLabel("К оплате", RectSpec(70, 910, 400, 60), 25f, dark, Gravity.LEFT or Gravity.CENTER_VERTICAL, true, Color.TRANSPARENT)
+        addLabel(formatMoney(total), RectSpec(1400, 900, 420, 75), 40f, dark, Gravity.RIGHT or Gravity.CENTER_VERTICAL, true, Color.TRANSPARENT)
     }
 
     private fun renderLandscapePaymentCompleted() {
@@ -2085,9 +2110,49 @@ class MainActivity : Activity() {
                 if (cardPaymentBusy) toast("Дождитесь ответа терминала") else openScreen("PAYMENT_METHOD_ALL")
             }
         )
-        screenId == "PAYMENT_CASH" || screenId == "PAYMENT_ONLINE_QR" || screenId == "PAYMENT_ONLINE_CONFIRM" -> listOf(
-            area("Подтвердить оплату", 0, 80, 1920, 860) { finishPayment() },
+        screenId == "PAYMENT_CASH" -> listOf(
+            area("Способ оплаты недоступен", 0, 80, 1920, 860) { finishPayment() },
             area("Отмена оплаты", 0, 940, 420, 140) { openScreen("PAYMENT_METHOD_ALL") }
+        )
+        screenId == "PAYMENT_ONLINE_QR" -> if (sbpDryRunMode) listOf(
+            area("Синтетически отсканировать QR", 650, 300, 620, 560) {
+                val snapshot = sbpDryRunSession.markWaiting()
+                persistSbpDryRun("DRY_RUN_QR_SCANNED", snapshot)
+                openScreen("PAYMENT_ONLINE_CONFIRM")
+            },
+            area("Отменить СБП dry-run", 0, 940, 420, 140) {
+                persistSbpDryRun("DRY_RUN_CANCELLED", sbpDryRunSession.cancel())
+                sbpDryRunMode = false
+                openScreen("PAYMENT_METHOD_ALL")
+            }
+        ) else listOf(
+            area("Способ оплаты недоступен", 0, 80, 1920, 860) {
+                toast("СБП пока не подключён к подтверждаемому платёжному контуру")
+            },
+            area("Назад к способам оплаты", 0, 940, 420, 140) { openScreen("PAYMENT_METHOD_ALL") }
+        )
+        screenId == "PAYMENT_ONLINE_CONFIRM" -> if (sbpDryRunMode) listOf(
+            area("Синтетически подтвердить СБП", 650, 300, 620, 560) {
+                val snapshot = sbpDryRunSession.confirmSynthetic()
+                persistSbpDryRun("DRY_RUN_CONFIRMED", snapshot)
+                android.util.Log.i(
+                    "SbpDryRun",
+                    "DRY_RUN_CONFIRM_INVARIANTS runtimeOrderPaid=false fiscalCalled=false machineCalled=false realQrPaymentSent=false"
+                )
+                toast("СБП DRY RUN подтверждён синтетически. Заказ не оплачен.")
+                sbpDryRunMode = false
+                openScreen("PAYMENT_METHOD_ALL")
+            },
+            area("Отменить СБП dry-run", 0, 940, 420, 140) {
+                persistSbpDryRun("DRY_RUN_CANCELLED", sbpDryRunSession.cancel())
+                sbpDryRunMode = false
+                openScreen("PAYMENT_METHOD_ALL")
+            }
+        ) else listOf(
+            area("Способ оплаты недоступен", 0, 80, 1920, 860) {
+                toast("СБП пока не подключён к подтверждаемому платёжному контуру")
+            },
+            area("Назад к способам оплаты", 0, 940, 420, 140) { openScreen("PAYMENT_METHOD_ALL") }
         )
         screenId == "PAYMENT_COMPLETED" -> landscapePaymentCompletedHotspots()
         else -> landscapeCatalogHotspots()
