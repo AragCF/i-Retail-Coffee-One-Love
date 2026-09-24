@@ -1,6 +1,6 @@
 # i-Retail Coffee One Love
 
-Текущая рабочая версия: **0.5.105-kozen-bridge-retrigger**.
+Текущая рабочая версия: **0.5.106-aoa-preflight-warmup**.
 
 Android-проект теперь расположен непосредственно в корне репозитория. Дополнительный каталог
 `iRetail_Android_UI_v0.5.8_smartskypos_probe_source` больше не используется.
@@ -909,3 +909,8 @@ v0.5.95:
 ## Исправление v0.5.105 — повторный запуск Kozen Bridge после AOA-перехода
 
 Живой тест v0.5.104 доказал, что предварительная проверка доходит до AOA, но завершается `TIMEOUT_PING`: bridge на Kozen не успевает подняться после USB re-enumeration. Возвращён проверенный приём из старого AOA production-аудита: через несколько секунд после старта preflight Windows повторно выводит `BridgeActivity` на Kozen, чтобы она увидела уже появившийся USB accessory и запустила `ProductionBridgeService`. Финансовых команд этот шаг не отправляет.
+
+
+## Исправление v0.5.106 — прогрев AOA preflight
+
+Живой v0.5.105 дал точный код `WRITE_INCOMPLETE_PING_-1`: AOA-интерфейс на JL22 уже открыт, но первая bulk-запись выполняется раньше готовности accessory-side bridge на Kozen. Read-only preflight теперь повторяет только транспортные PING/INFO без PAYMENT, а Windows активнее поднимает Kozen BridgeActivity в первые секунды re-enumeration. Журнал Kozen очищается до запуска BridgeActivity, чтобы lifecycle-маркеры не терялись.
