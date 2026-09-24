@@ -47,7 +47,7 @@ import java.util.Set;
  */
 public class ProductionBridgeService extends Service {
     private static final String TAG = "IretailKozenBridge";
-    private static final String BRIDGE_VERSION = "0.5.4";
+    private static final String BRIDGE_VERSION = "0.5.5";
 
     private static final String SMARTSKY_ACTION = "com.skytech.smartskypos.ISmartSkyPos";
     private static final String SMARTSKY_PACKAGE = "com.skytech.smartskypos";
@@ -204,12 +204,12 @@ public class ProductionBridgeService extends Service {
             while ((line = reader.readLine()) != null) {
                 String request = line.trim();
                 if (request.isEmpty()) continue;
-                Log.i(TAG, "RX " + safe(request));
+                Log.i(TAG, "RX " + BridgeProtocolSanitizer.safeLogLine(request));
                 String response = handleRequest(request);
                 writer.write(response);
                 writer.write("\n");
                 writer.flush();
-                Log.i(TAG, "TX " + safe(response));
+                Log.i(TAG, "TX " + BridgeProtocolSanitizer.safeLogLine(response));
             }
             Log.i(TAG, "BRIDGE_EOF");
         } catch (Exception e) {
@@ -234,13 +234,14 @@ public class ProductionBridgeService extends Service {
         if ("INFO".equals(command)) {
             return "INFO " + id + " protocol=4 transport=AOA role=kozen-payment-bridge bridge=" + BRIDGE_VERSION +
                     " smartsky=" + (isSmartSkyReady() ? "bound" : "not_bound") +
-                    " commands=PING,INFO,GET_STATE,GET_TERMINAL_DATA,GET_SBP_ROUTE,PAYMENT,QR_PAYMENT_BLOCKED,GET_PAYMENT_STATUS,GET_LAST_TRANSACTION,GET_TRANSACTION" +
+                    " commands=PING,INFO,GET_STATE,GET_TERMINAL_DATA,GET_SBP_ROUTE,SBP_ECHO_QR,PAYMENT,QR_PAYMENT_BLOCKED,GET_PAYMENT_STATUS,GET_LAST_TRANSACTION,GET_TRANSACTION" +
                     " paymentPolicy=EXPLICIT_SINGLE_NO_AUTO_RETRY sbpLiveEnabled=" + LIVE_QR_PAYMENT_ENABLED +
-                    " sbpCallbackContract=CAPTURE_HASHED_V1";
+                    " sbpCallbackContract=CAPTURE_HASHED_V1 sbpWireContract=BASE64URL_REDACTED_V1";
         }
         if ("GET_STATE".equals(command)) return getStateResponse(id);
         if ("GET_TERMINAL_DATA".equals(command)) return getTerminalDataResponse(id);
         if ("GET_SBP_ROUTE".equals(command)) return getSbpRouteResponse(id);
+        if ("SBP_ECHO_QR".equals(command)) return sbpEchoQr(id, args);
         if ("PAYMENT".equals(command)) return payment(id, args);
         if ("QR_PAYMENT".equals(command)) return qrPaymentBlocked(id);
         if ("GET_PAYMENT_STATUS".equals(command)) return getPaymentStatus(id);
@@ -352,6 +353,34 @@ public class ProductionBridgeService extends Service {
             return "SBP_ROUTE " + id + " code=EXCEPTION available=false type=" +
                     token(e.getClass().getSimpleName()) + " message=" + token(safe(e.getMessage())) +
                     " liveEnabled=" + LIVE_QR_PAYMENT_ENABLED + " safety=READ_ONLY";
+        }
+    }
+
+    private String sbpEchoQr(String id, String args) {
+        if (!validRequestId(id)) {
+            return "SBP_QR " + token(id) + " code=BAD_REQUEST_ID synthetic=true liveEnabled=false";
+        }
+        String payloadB64 = arg(args, "payloadB64");
+        if (!SbpWireCodec.validEncoded(payloadB64)) {
+            return "SBP_QR " + token(id) + " code=BAD_PAYLOAD synthetic=true liveEnabled=false";
+        }
+        try {
+            String payload = SbpWireCodec.decode(payloadB64);
+            String qrId = "synthetic-" + id;
+            SbpQrCapture.Event event = sbpQrCapture.capture(qrId, payload);
+            SbpQrCapture.SafeSummary safe = event.safeSummary();
+            String qrIdB64 = SbpWireCodec.encode(qrId);
+            return "SBP_QR " + id +
+                    " code=0 qrIdB64=" + qrIdB64 +
+                    " payloadB64=" + payloadB64 +
+                    " payloadHash=" + safe.payloadHash +
+                    " payloadLength=" + safe.payloadLength +
+                    " synthetic=true liveEnabled=" + LIVE_QR_PAYMENT_ENABLED +
+                    " wireContract=BASE64URL_REDACTED_V1";
+        } catch (Exception e) {
+            return "SBP_QR " + token(id) + " code=EXCEPTION type=" +
+                    token(e.getClass().getSimpleName()) +
+                    " synthetic=true liveEnabled=false";
         }
     }
 
