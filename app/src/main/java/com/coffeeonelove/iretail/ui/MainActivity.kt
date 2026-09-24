@@ -92,7 +92,7 @@ class MainActivity : Activity() {
     private var currentLanguage = "RU"
     private var fiscalPositivePaymentTestMode = false
     private var fiscalPositivePaymentPreflightReady = false
-    private val sbpPaymentAdapter: SbpPaymentAdapter = DryRunSbpPaymentAdapter()
+    private lateinit var sbpPaymentAdapter: SbpPaymentAdapter
     private var sbpDryRunMode = false
 
     private val fiscalPositivePaymentTestProduct = Product(
@@ -213,6 +213,16 @@ class MainActivity : Activity() {
         contentRepository = IretailContentRepository(this)
         fiscalGateway = DryRunFiscalGateway(this)
         cardPaymentClient = KozenAoaPaymentClient(this)
+        sbpPaymentAdapter = DryRunSbpPaymentAdapter(SbpSessionStore(this))
+        sbpPaymentAdapter.recover()?.let { recovered ->
+            if (recovered.state == SbpPaymentState.UNCERTAIN) {
+                android.util.Log.w(
+                    "SbpRecovery",
+                    "RECOVERY_DETECTED_ON_CREATE session=${recovered.sessionId} amountMinor=${recovered.amountMinor} " +
+                        "generation=${recovered.generation} qrPayloadPresent=false realPaymentSent=${recovered.realPaymentSent}"
+                )
+            }
+        }
         if (intent?.getBooleanExtra("tls_chain_probe", false) == true) {
             IretailTlsChainProbe.runAsync(this)
         }
@@ -232,6 +242,8 @@ class MainActivity : Activity() {
         maybeRunAcquirerSnapshot(intent, "onCreate")
         maybeRunSbpDryRunSelfTest(intent, "onCreate")
         maybeRunSbpRouteSnapshot(intent, "onCreate")
+        maybeRunSbpRecoveryProbe(intent, "onCreate")
+        maybeRunSbpRecoveryClearDryRun(intent, "onCreate")
 
         if (fiscalPositivePaymentTestMode) {
             val persistedPos = MachineModeStore.load(this).realPosEnabled
@@ -277,6 +289,8 @@ class MainActivity : Activity() {
             maybeRunAcquirerSnapshot(intent, "onNewIntent")
             maybeRunSbpDryRunSelfTest(intent, "onNewIntent")
             maybeRunSbpRouteSnapshot(intent, "onNewIntent")
+            maybeRunSbpRecoveryProbe(intent, "onNewIntent")
+            maybeRunSbpRecoveryClearDryRun(intent, "onNewIntent")
         }
     }
 
@@ -334,6 +348,63 @@ class MainActivity : Activity() {
                 }
             }
         })
+    }
+
+    private fun maybeRunSbpRecoveryProbe(intent: android.content.Intent?, source: String) {
+        if (intent?.getBooleanExtra("sbp_recovery_probe", false) != true) return
+        intent.removeExtra("sbp_recovery_probe")
+
+        val debuggable = (applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE) != 0
+        val persisted = MachineModeStore.load(this)
+        if (!debuggable || !persisted.standalone || realPosEnabled) {
+            android.util.Log.e(
+                "SbpRecovery",
+                "RECOVERY_REJECTED source=$source debuggable=$debuggable standalone=${persisted.standalone} " +
+                    "realPos=$realPosEnabled noFinancialCommands=true"
+            )
+            return
+        }
+
+        val recovered = sbpPaymentAdapter.recover()
+        android.util.Log.i(
+            "SbpRecovery",
+            "RECOVERY_RESULT source=$source found=${recovered != null} " +
+                "session=${recovered?.sessionId ?: "-"} state=${recovered?.state ?: SbpPaymentState.IDLE} " +
+                "amountMinor=${recovered?.amountMinor ?: 0L} generation=${recovered?.generation ?: 0} " +
+                "adapter=${recovered?.adapterId ?: sbpPaymentAdapter.adapterId} " +
+                "qrIdPresent=${recovered?.qrId != null} qrPayloadPresent=${recovered?.qrPayload != null} " +
+                "realPaymentSent=${recovered?.realPaymentSent ?: false} noFinancialCommands=true"
+        )
+    }
+
+    private fun maybeRunSbpRecoveryClearDryRun(intent: android.content.Intent?, source: String) {
+        if (intent?.getBooleanExtra("sbp_recovery_clear_dryrun", false) != true) return
+        intent.removeExtra("sbp_recovery_clear_dryrun")
+
+        val debuggable = (applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE) != 0
+        val persisted = MachineModeStore.load(this)
+        val allowed =
+            debuggable &&
+            persisted.standalone &&
+            !realPosEnabled &&
+            sbpPaymentAdapter.adapterId == "dry-run" &&
+            !sbpPaymentAdapter.liveFinancialEnabled
+
+        if (!allowed) {
+            android.util.Log.e(
+                "SbpRecovery",
+                "RECOVERY_CLEAR_REJECTED source=$source adapter=${sbpPaymentAdapter.adapterId} " +
+                    "liveFinancialEnabled=${sbpPaymentAdapter.liveFinancialEnabled}"
+            )
+            return
+        }
+
+        sbpPaymentAdapter.reset()
+        sbpDryRunMode = false
+        android.util.Log.i(
+            "SbpRecovery",
+            "RECOVERY_CLEAR_OK source=$source adapter=dry-run noFinancialCommands=true"
+        )
     }
 
     private fun maybeRunSbpRouteSnapshot(intent: android.content.Intent?, source: String) {
@@ -422,6 +493,16 @@ class MainActivity : Activity() {
         orderGateway.startPayment(PaymentMethod.ONLINE)
         lastPaymentMethod = PaymentMethod.ONLINE
         val snapshot = sbpPaymentAdapter.start(order.amountMinor, order.externalNumber)
+        if (snapshot.state == SbpPaymentState.UNCERTAIN) {
+            sbpDryRunMode = false
+            android.util.Log.e(
+                "SbpDryRun",
+                "DRY_RUN_BLOCKED_UNRESOLVED session=${snapshot.sessionId} amountMinor=${snapshot.amountMinor} " +
+                    "generation=${snapshot.generation} qrPayloadPresent=false realPaymentSent=${snapshot.realPaymentSent}"
+            )
+            toast("Есть незавершённая СБП-сессия. Новый QR не создан.")
+            return
+        }
         android.util.Log.i(
             "SbpDryRun",
             "DRY_RUN_QR_READY source=$source session=${snapshot.sessionId} amountMinor=${snapshot.amountMinor} " +
