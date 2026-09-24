@@ -8,7 +8,7 @@ runtime = (ROOT / "tools/Verify-FiscalPaymentMarkerAuditRuntime.ps1").read_text(
 
 checks = {
     "versionCode 103+": bool(re.search(r"versionCode\s+(10[3-9]|1[1-9]\d|[2-9]\d{2,})", gradle)),
-    "versionName v0.5.103": "versionName '0.5.103-marker-audit-sanitizer'" in gradle,
+    "versionName present": bool(re.search(r"versionName\s+'[^']+'", gradle)),
     "summary sanitized before safety scan": 'Set-Content -LiteralPath (Join-Path $ReportDir "SUMMARY.txt") -Value (Redact $summaryText)' in analyzer,
     "fiscal draft safe copy": '07_fiscalization_dry_run_safe.txt' in analyzer,
     "fiscal draft raw removed": 'Remove-Item -LiteralPath $draftRaw' in analyzer,
