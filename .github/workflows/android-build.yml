@@ -270,13 +270,21 @@ jobs:
       - name: Verify v0.5.102 payment marker audit
         run: python3 tools/verify_v0_5_102_payment_marker_audit.py
 
+      - name: Verify v0.5.103 marker audit sanitizer
+        run: python3 tools/verify_v0_5_103_marker_audit_sanitizer.py
+
+      - name: Verify marker audit sanitizer runtime
+        shell: pwsh
+        run: ./tools/Verify-FiscalPaymentMarkerAuditRuntime.ps1
+
       - name: Verify controlled-payment PowerShell syntax
         shell: pwsh
         run: |
           $files = @(
             "tools/Assert-FiscalPositivePayment1Rub.ps1",
             "tools/Sanitize-FiscalPositivePaymentReport.ps1",
-            "tools/Analyze-FiscalPaymentMarkerAudit.ps1"
+            "tools/Analyze-FiscalPaymentMarkerAudit.ps1",
+            "tools/Verify-FiscalPaymentMarkerAuditRuntime.ps1"
           )
           foreach ($file in $files) {
             [void][scriptblock]::Create((Get-Content -Raw -LiteralPath $file))
@@ -291,6 +299,6 @@ jobs:
         if: success()
         uses: actions/upload-artifact@v4
         with:
-          name: iRetail-v0.5.102-debug-apk
+          name: iRetail-v0.5.103-debug-apk
           path: app/build/outputs/apk/debug/*.apk
           if-no-files-found: error
