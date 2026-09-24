@@ -15,7 +15,7 @@ checks={
     "generic SBP state machine": "enum class SbpPaymentState" in sbp,
     "adapter interface exists": "interface SbpPaymentAdapter" in sbp,
     "adapter exposes live flag": "val liveFinancialEnabled: Boolean" in sbp,
-    "dry-run adapter implements boundary": "class DryRunSbpPaymentAdapter : SbpPaymentAdapter" in sbp,
+    "dry-run adapter implements boundary": bool(re.search(r"class\s+DryRunSbpPaymentAdapter(?:\s*\([^)]*\))?\s*:\s*SbpPaymentAdapter", sbp, re.S)),
     "dry-run live financial disabled": 'override val liveFinancialEnabled: Boolean = false' in sbp,
     "dry-run never sets real payment true": "realPaymentSent = true" not in sbp,
     "dry-run has no SmartSkyPOS dependency": "import com.skytech" not in sbp and "KozenAoaPaymentClient" not in sbp and ".qrPayment(" not in sbp,
