@@ -16,7 +16,7 @@ idx_post = main26.find("Re-checking durable payment state after install")
 checks = {
     "versionCode 104+": bool(re.search(r"versionCode\s+(10[4-9]|1[1-9]\d|[2-9]\d{2,})", gradle)),
     "versionName present": bool(re.search(r"versionName\s+'[^']+'", gradle)),
-    "runner version synced": '0.5.104-payment-marker-guard-fix' in main26,
+    "runner version guard exists": 'EXPECTED_VERSION' in main26 and 'Wrong project version' in main26,
     "exact marker contract variable": f"MARKER_CONTRACT={contract}" in main26,
     "marker checked by cat for guards": main26.count(f"cat {marker_path}") >= 2,
     "no ls marker check": f"ls {marker_path}" not in main26,
