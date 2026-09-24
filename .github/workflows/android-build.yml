@@ -8,6 +8,15 @@ on:
   pull_request:
 
 jobs:
+  diag-latest-acquirer-snapshot:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Print latest safe acquirer snapshot
+        run: python3 tools/diag_print_latest_acquirer_snapshot.py
+
   s3-admin-auth-result-analysis:
     runs-on: ubuntu-latest
     timeout-minutes: 5
