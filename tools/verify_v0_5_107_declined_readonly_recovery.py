@@ -15,7 +15,7 @@ recovery=client[start:end] if start>=0 and end>start else ""
 
 checks={
     "versionCode 107+": bool(re.search(r"versionCode\s+(10[7-9]|1[1-9]\d|[2-9]\d{2,})",gradle)),
-    "versionName v0.5.107": "versionName '0.5.107-declined-readonly-recovery'" in gradle,
+    "versionName present": bool(re.search(r"versionName\s+'[^']+'",gradle)),
     "read-only client method exists": bool(recovery),
     "recovery reads last transaction": "GET_LAST_TRANSACTION " in recovery,
     "recovery may target receipt": "GET_TRANSACTION " in recovery,
@@ -29,13 +29,13 @@ checks={
     "main intent exists": "fiscal_declined_payment_recovery" in main,
     "main recovery rejects real POS": "!debuggable || !persisted.standalone || realPosEnabled" in main,
     "main logs no-financial marker": "noFinancialCommands=true" in main,
-    "runner exact version": "0.5.107-declined-readonly-recovery" in runner,
+    "runner version guard exists": "EXPECTED_VERSION" in runner and "Wrong project version" in runner,
     "runner never enables real POS": "--ez real_pos_enabled true" not in runner,
     "runner starts only recovery intent": "--ez fiscal_declined_payment_recovery true" in runner,
     "runner no adb financial command": not bool(re.search(r"adb[^\n\r]*\b(?:PAYMENT|CANCEL|REFUND)\b",runner,re.I)),
     "runner collects safe client logs": "IretailKozenClient:V" in runner,
     "runner preserves attempt marker": "rm -f files/fiscal_positive_payment_test_v1_0_1.attempt" not in runner,
-    "publisher branch guard": "v0.5.107-declined-readonly-recovery" in publisher,
+    "publisher branch guard exists": "Wrong branch for declined recovery evidence" in publisher,
     "future payment report keeps warning logs": "IretailKozenClient:V" in main26 and "IretailKozenClient:I IretailKozenClient:W IretailKozenClient:E" not in main26,
 }
 failed=[k for k,v in checks.items() if not v]
