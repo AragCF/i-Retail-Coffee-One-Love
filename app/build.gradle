@@ -11,8 +11,8 @@ android {
         applicationId 'com.coffeeonelove.iretail'
         minSdk 23
         targetSdk 35
-        versionCode 104
-        versionName '0.5.104-payment-marker-guard-fix'
+        versionCode 105
+        versionName '0.5.105-kozen-bridge-retrigger'
     }
 
     compileOptions {
