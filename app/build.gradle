@@ -11,8 +11,8 @@ android {
         applicationId 'com.coffeeonelove.iretail'
         minSdk 23
         targetSdk 35
-        versionCode 117
-        versionName '0.5.117-jl22-wait-loop'
+        versionCode 118
+        versionName '0.5.118-sbp-android6-restore-fix'
     }
 
     compileOptions {
