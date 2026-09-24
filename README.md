@@ -1,6 +1,6 @@
 # i-Retail Coffee One Love
 
-Текущая рабочая версия: **0.5.112-sbp-adapter-boundary**.
+Текущая рабочая версия: **0.5.113-sbp-recovery-store**.
 
 Android-проект теперь расположен непосредственно в корне репозитория. Дополнительный каталог
 `iRetail_Android_UI_v0.5.8_smartskypos_probe_source` больше не используется.
@@ -939,3 +939,8 @@ Production bridge расширен безопасным чтением TerminalD
 ## v0.5.112 — SbpPaymentAdapter boundary
 
 СБП отделён от UI через независимый адаптер. Dry-run остаётся единственной активной реализацией; production SmartSkyPOS qrPayment отсутствует. Состояние сессии, идемпотентность и безопасное подтверждение теперь принадлежат адаптеру, а не MainActivity.
+
+
+## v0.5.113 — долговечное восстановление СБП
+
+Активная СБП-сессия сохраняется без QR payload. После restart незавершённые QR_READY / WAITING_CONFIRMATION восстанавливаются как UNCERTAIN, новый QR автоматически не создаётся. Добавлен безопасный recovery smoke-test без финансовых команд.
