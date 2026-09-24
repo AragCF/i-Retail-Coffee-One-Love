@@ -18,7 +18,7 @@ checks={
     "store has no QR payload key": 'KEY_QR' not in store and 'putString("qr' not in store.lower(),
     "store unresolved includes financial flag": 'get() = realPaymentSent || state in setOf(' in store,
     "adapter can recover": 'override fun recover(): SbpPaymentSnapshot?' in sbp,
-    "active persisted session becomes uncertain": 'if (stored.unresolved) SbpPaymentState.UNCERTAIN' in sbp,
+    "active persisted session becomes uncertain": 'stored.unresolved -> SbpPaymentState.UNCERTAIN' in sbp,
     "recovered QR id absent": 'qrId = null' in sbp,
     "recovered QR payload absent": 'qrPayload = null' in sbp,
     "new QR blocked while uncertain": 'recovered.state == SbpPaymentState.UNCERTAIN' in sbp,
