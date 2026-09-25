@@ -12,8 +12,13 @@ main = (ROOT / "app/src/main/java/com/coffeeonelove/iretail/ui/MainActivity.kt")
 contract = (ROOT / "app/src/main/java/com/coffeeonelove/iretail/ui/SbpPaymentContract.kt").read_text(encoding="utf-8")
 preflight = (ROOT / "MAIN_36_SBP_QR_SOURCE_PREFLIGHT.bat").read_text(encoding="utf-8")
 
+version_code_match = re.search(r"versionCode\s+(\d+)", gradle)
+version_name_match = re.search(r"versionName\s+'([^']+)'", gradle)
+version_code = int(version_code_match.group(1)) if version_code_match else 0
+version_name = version_name_match.group(1) if version_name_match else ""
+
 checks = {
-    "app version 0.5.121+": bool(re.search(r"versionCode\\s+(12[1-9]|1[3-9]\\d|[2-9]\\d{2,})", gradle)) and bool(re.search(r"versionName\\s+'0\\.5\\.12[1-9][^']*'|versionName\\s+'0\\.5\\.[1-9][3-9][0-9][^']*'", gradle)),
+    "app version 0.5.121+": version_code >= 121 and bool(version_name),
     "bridge version 0.5.7": 'BRIDGE_VERSION = "0.5.7"' in bridge,
     "bridge APK metadata 0.5.7": "versionCode 11" in bridge_gradle and "versionName '0.5.7-sbp-qr-source-probe'" in bridge_gradle,
     "bridge UI version truthful": "Kozen Payment Bridge 0.5.7" in bridge_ui,
