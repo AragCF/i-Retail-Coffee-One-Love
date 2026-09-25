@@ -47,7 +47,7 @@ import java.util.Set;
  */
 public class ProductionBridgeService extends Service {
     private static final String TAG = "IretailKozenBridge";
-    private static final String BRIDGE_VERSION = "0.5.6";
+    private static final String BRIDGE_VERSION = "0.5.7";
 
     private static final String SMARTSKY_ACTION = "com.skytech.smartskypos.ISmartSkyPos";
     private static final String SMARTSKY_PACKAGE = "com.skytech.smartskypos";
@@ -64,10 +64,13 @@ public class ProductionBridgeService extends Service {
 
     private static final String SUPPORTED_CURRENCY = "643";
     private static final boolean LIVE_QR_PAYMENT_ENABLED = false;
+    private static final boolean LIVE_QR_GENERATION_PROBE_ENABLED = true;
+    private static final String LIVE_QR_PROBE_TOKEN = "LIVE_SBP_QR_1RUB";
     private static final BigDecimal MAX_AMOUNT = new BigDecimal("999999.99");
 
     private static final String PREFS = "iretail_payment_bridge_v1";
     private static final String PREF_ACTIVE_REQUEST = "active_request";
+    private static final String PREF_ACTIVE_SBP_REQUEST = "active_sbp_request";
 
     private final Object accessoryLock = new Object();
     private final Object paymentLock = new Object();
@@ -234,8 +237,9 @@ public class ProductionBridgeService extends Service {
         if ("INFO".equals(command)) {
             return "INFO " + id + " protocol=4 transport=AOA role=kozen-payment-bridge bridge=" + BRIDGE_VERSION +
                     " smartsky=" + (isSmartSkyReady() ? "bound" : "not_bound") +
-                    " commands=PING,INFO,GET_STATE,GET_TERMINAL_DATA,GET_SBP_ROUTE,SBP_ECHO_QR,GET_SBP_QR_EVENT,ACK_SBP_QR_EVENT,PAYMENT,QR_PAYMENT_BLOCKED,GET_PAYMENT_STATUS,GET_LAST_TRANSACTION,GET_TRANSACTION" +
+                    " commands=PING,INFO,GET_STATE,GET_TERMINAL_DATA,GET_SBP_ROUTE,SBP_ECHO_QR,GET_SBP_QR_EVENT,ACK_SBP_QR_EVENT,PAYMENT,QR_PAYMENT_BLOCKED,START_SBP_QR_PROBE,GET_SBP_PROBE_STATUS,GET_PAYMENT_STATUS,GET_LAST_TRANSACTION,GET_TRANSACTION" +
                     " paymentPolicy=EXPLICIT_SINGLE_NO_AUTO_RETRY sbpLiveEnabled=" + LIVE_QR_PAYMENT_ENABLED +
+                    " sbpProbeEnabled=" + LIVE_QR_GENERATION_PROBE_ENABLED +
                     " sbpCallbackContract=CAPTURE_HASHED_V1 sbpWireContract=BASE64URL_REDACTED_V1" +
                     " sbpEventContract=QR_EVENT_PEEK_ACK_V1";
         }
@@ -247,6 +251,8 @@ public class ProductionBridgeService extends Service {
         if ("ACK_SBP_QR_EVENT".equals(command)) return ackSbpQrEvent(id, args);
         if ("PAYMENT".equals(command)) return payment(id, args);
         if ("QR_PAYMENT".equals(command)) return qrPaymentBlocked(id);
+        if ("START_SBP_QR_PROBE".equals(command)) return startSbpQrGenerationProbe(id, args);
+        if ("GET_SBP_PROBE_STATUS".equals(command)) return getSbpProbeStatus(id);
         if ("GET_PAYMENT_STATUS".equals(command)) return getPaymentStatus(id);
         if ("GET_LAST_TRANSACTION".equals(command)) return getLastTransactionResponse(id, arg(args, "terminalId"));
         if ("GET_TRANSACTION".equals(command)) return getTransactionResponse(id, arg(args, "terminalId"), arg(args, "receiptNumber"));
@@ -435,6 +441,204 @@ public class ProductionBridgeService extends Service {
                 LIVE_QR_PAYMENT_ENABLED + " callbackContract=CAPTURE_HASHED_V1 noFinancialCommand=true";
     }
 
+    /**
+     * Controlled one-ruble live QR generation probe.
+     *
+     * This is deliberately NOT the normal production QR_PAYMENT path:
+     *  - exact amount 1.00 RUB only;
+     *  - explicit probe token is mandatory;
+     *  - one requestId can invoke Binder transaction #19 at most once;
+     *  - the Binder call runs on a separate worker so AOA remains available for QR callback delivery;
+     *  - no automatic retry is ever performed.
+     */
+    private String startSbpQrGenerationProbe(String requestId, String args) {
+        synchronized (paymentLock) {
+            if (!LIVE_QR_GENERATION_PROBE_ENABLED) return sbpProbeBlocked(requestId, "PROBE_DISABLED");
+            if (!validRequestId(requestId)) return sbpProbeBlocked(requestId, "BAD_REQUEST_ID");
+
+            String probeToken = arg(args, "probeToken");
+            if (!LIVE_QR_PROBE_TOKEN.equals(probeToken)) return sbpProbeBlocked(requestId, "BAD_PROBE_TOKEN");
+
+            BigDecimal amount;
+            try { amount = normalizeAmount(arg(args, "amount")); }
+            catch (Exception e) { return sbpProbeBlocked(requestId, "BAD_AMOUNT"); }
+            if (amount.compareTo(new BigDecimal("1.00")) != 0) return sbpProbeBlocked(requestId, "PROBE_AMOUNT_MUST_BE_1_00");
+            if (!SUPPORTED_CURRENCY.equals(arg(args, "currency"))) return sbpProbeBlocked(requestId, "UNSUPPORTED_CURRENCY");
+
+            SharedPreferences prefs = getSharedPreferences(PREFS, MODE_PRIVATE);
+            String storedResponse = prefs.getString(sbpProbeResponseKey(requestId), null);
+            String storedStatus = prefs.getString(sbpProbeStatusKey(requestId), null);
+            if (storedResponse != null) return storedResponse + " replayed=true";
+            if ("STARTED".equals(storedStatus) || "UNCERTAIN".equals(storedStatus)) {
+                return "SBP_PROBE_RESULT " + requestId +
+                        " status=" + storedStatus + " code=PREVIOUS_UNRESOLVED noRetry=true";
+            }
+
+            String activeCard = prefs.getString(PREF_ACTIVE_REQUEST, "");
+            if (activeCard != null && !activeCard.isEmpty()) {
+                return sbpProbeBlocked(requestId, "CARD_REQUEST_UNRESOLVED");
+            }
+            String activeSbp = prefs.getString(PREF_ACTIVE_SBP_REQUEST, "");
+            if (activeSbp != null && !activeSbp.isEmpty() && !activeSbp.equals(requestId)) {
+                return "SBP_PROBE_RESULT " + requestId +
+                        " status=BLOCKED code=ANOTHER_SBP_REQUEST_UNRESOLVED active=" + token(activeSbp) +
+                        " noRetry=true";
+            }
+
+            try {
+                int state = readState();
+                if (state != 0) {
+                    return "SBP_PROBE_RESULT " + requestId +
+                            " status=BLOCKED code=STATE_NOT_READY state=" + state + " noRetry=true";
+                }
+
+                TerminalData fresh = readTerminalData();
+                PaymentRoute route = findRoute(fresh, "42", "qrPayment", null, SUPPORTED_CURRENCY);
+                if (route == null || route.tid == null || route.tid.isEmpty()) {
+                    return sbpProbeBlocked(requestId, "FRESH_SBP_ROUTE_NOT_FOUND");
+                }
+
+                prefs.edit()
+                        .putString(sbpProbeStatusKey(requestId), "STARTED")
+                        .putString(PREF_ACTIVE_SBP_REQUEST, requestId)
+                        .putString(sbpProbeAmountKey(requestId), amount.toPlainString())
+                        .putString(sbpProbeTidKey(requestId), route.tid)
+                        .putBoolean(sbpProbeQrReadyKey(requestId), false)
+                        .putLong(sbpProbeStartedKey(requestId), System.currentTimeMillis())
+                        .apply();
+
+                final String workerRequestId = requestId;
+                final BigDecimal workerAmount = amount;
+                final String workerTid = route.tid;
+                Thread worker = new Thread(
+                        () -> runSbpQrGenerationProbe(workerRequestId, workerAmount, workerTid, SUPPORTED_CURRENCY),
+                        "iretail-sbp-qr-probe-" + sdkTransactionId(requestId));
+                worker.start();
+
+                Log.w(TAG, "SBP_PROBE_CALL_BEGIN requestId=" + requestId +
+                        " amount=1.00 currency=" + SUPPORTED_CURRENCY +
+                        " tidPresent=true binderTransaction=" + TX_QR_PAYMENT +
+                        " noAutoRetry=true doNotScan=true");
+                return "SBP_PROBE_RESULT " + requestId +
+                        " status=STARTED code=0 amount=1.00 currency=" + SUPPORTED_CURRENCY +
+                        " qrReady=false noRetry=true doNotScan=true";
+            } catch (Exception e) {
+                String response = "SBP_PROBE_RESULT " + requestId +
+                        " status=FAILED code=PRECHECK_EXCEPTION type=" + token(e.getClass().getSimpleName()) +
+                        " message=" + token(safe(e.getMessage())) + " noRetry=true";
+                prefs.edit()
+                        .putString(sbpProbeStatusKey(requestId), "FAILED")
+                        .putString(sbpProbeResponseKey(requestId), response)
+                        .remove(PREF_ACTIVE_SBP_REQUEST)
+                        .apply();
+                return response;
+            }
+        }
+    }
+
+    private void runSbpQrGenerationProbe(String requestId, BigDecimal amount, String tid, String currency) {
+        SharedPreferences prefs = getSharedPreferences(PREFS, MODE_PRIVATE);
+        try {
+            Bundle result = callSbpQrPayment(requestId, amount, tid, currency);
+            ResultSnapshot snapshot = ResultSnapshot.from(result);
+            String status = classify(snapshot);
+            String response = "SBP_PROBE_RESULT " + requestId +
+                    " status=" + status +
+                    " code=" + snapshot.code +
+                    " codePresent=" + snapshot.codePresent +
+                    " approved=" + snapshot.approvedText() +
+                    " approvedPresent=" + snapshot.approvedPresent +
+                    " message=" + token(snapshot.message) +
+                    " rc=" + token(snapshot.rc) +
+                    " rrn=" + token(snapshot.rrn) +
+                    " amount=" + token(snapshot.amount) +
+                    " currency=" + token(snapshot.currency) +
+                    " terminalIdPresent=" + (snapshot.terminalId != null && !snapshot.terminalId.isEmpty()) +
+                    " receiptPresent=" + (snapshot.receipt != null && !snapshot.receipt.isEmpty()) +
+                    " transactionIdPresent=" + (snapshot.transactionId != null && !snapshot.transactionId.isEmpty()) +
+                    " qrReady=" + prefs.getBoolean(sbpProbeQrReadyKey(requestId), false) +
+                    " noRetry=true";
+
+            SharedPreferences.Editor editor = prefs.edit()
+                    .putString(sbpProbeStatusKey(requestId), status)
+                    .putString(sbpProbeResponseKey(requestId), response);
+            if (!"UNCERTAIN".equals(status)) editor.remove(PREF_ACTIVE_SBP_REQUEST);
+            editor.apply();
+
+            Log.w(TAG, "SBP_PROBE_CALL_RESULT requestId=" + requestId +
+                    " status=" + status + " code=" + snapshot.code +
+                    " approved=" + snapshot.approvedText() + " rc=" + token(snapshot.rc) +
+                    " qrReady=" + prefs.getBoolean(sbpProbeQrReadyKey(requestId), false) +
+                    " noAutoRetry=true");
+        } catch (Exception e) {
+            String response = "SBP_PROBE_RESULT " + requestId +
+                    " status=UNCERTAIN code=EXCEPTION type=" + token(e.getClass().getSimpleName()) +
+                    " message=" + token(safe(e.getMessage())) +
+                    " qrReady=" + prefs.getBoolean(sbpProbeQrReadyKey(requestId), false) +
+                    " noRetry=true";
+            prefs.edit()
+                    .putString(sbpProbeStatusKey(requestId), "UNCERTAIN")
+                    .putString(sbpProbeResponseKey(requestId), response)
+                    .putString(PREF_ACTIVE_SBP_REQUEST, requestId)
+                    .apply();
+            Log.e(TAG, "SBP_PROBE_CALL_UNCERTAIN requestId=" + requestId +
+                    " noAutoRetry=true " + e.getClass().getSimpleName() + ": " + safe(e.getMessage()));
+        }
+    }
+
+    private Bundle callSbpQrPayment(String requestId, BigDecimal amount, String tid, String currency) throws Exception {
+        IBinder binder = requireBinder();
+        Bundle params = new Bundle();
+        params.putSerializable("amount", amount);
+        params.putString("terminalId", tid);
+        params.putString("currencyCode", currency);
+        params.putString("id", sdkTransactionId(requestId));
+
+        Parcel data = Parcel.obtain();
+        Parcel reply = Parcel.obtain();
+        try {
+            data.writeInterfaceToken(SMARTSKY_DESCRIPTOR);
+            data.writeInt(1);
+            data.writeBundle(params);
+            data.writeStrongBinder(new SbpTransactionCallback());
+            if (!binder.transact(TX_QR_PAYMENT, data, reply, 0)) {
+                throw new IllegalStateException("SBP_QR_TRANSACT_FALSE");
+            }
+            reply.readException();
+            int present = reply.readInt();
+            if (present == 0) throw new IllegalStateException("SBP_QR_NULL_RESULT");
+            Bundle result = reply.readBundle(getClassLoader());
+            if (result == null) throw new IllegalStateException("SBP_QR_BUNDLE_NULL");
+            result.setClassLoader(getClassLoader());
+            return result;
+        } finally {
+            data.recycle();
+            reply.recycle();
+        }
+    }
+
+    private String getSbpProbeStatus(String requestId) {
+        if (!validRequestId(requestId)) return sbpProbeBlocked(requestId, "BAD_REQUEST_ID");
+        SharedPreferences prefs = getSharedPreferences(PREFS, MODE_PRIVATE);
+        String response = prefs.getString(sbpProbeResponseKey(requestId), null);
+        String status = prefs.getString(sbpProbeStatusKey(requestId), null);
+        boolean qrReady = prefs.getBoolean(sbpProbeQrReadyKey(requestId), false);
+        if (response != null) return response + " statusQuery=true";
+        if (status != null) {
+            return "SBP_PROBE_RESULT " + requestId +
+                    " status=" + token(status) + " code=NO_FINAL_RESULT qrReady=" + qrReady +
+                    " noRetry=true statusQuery=true";
+        }
+        return "SBP_PROBE_RESULT " + requestId +
+                " status=UNKNOWN code=NOT_FOUND qrReady=false noRetry=true statusQuery=true";
+    }
+
+    private static String sbpProbeBlocked(String id, String code) {
+        return "SBP_PROBE_RESULT " + token(id) +
+                " status=BLOCKED code=" + code + " qrReady=false noRetry=true";
+    }
+
+
     private PaymentRoute findPaymentRoute(TerminalData data, String requiredTid, String requiredCurrency) {
         return findRoute(data, "00", "payment", requiredTid, requiredCurrency);
     }
@@ -483,6 +687,11 @@ public class ProductionBridgeService extends Service {
             }
             if ("STARTED".equals(storedStatus) || "UNCERTAIN".equals(storedStatus)) {
                 return "PAYMENT_RESULT " + requestId + " status=UNCERTAIN_RECOVERY_REQUIRED code=PREVIOUS_UNRESOLVED approved=null noRetry=true";
+            }
+
+            String activeSbp = prefs.getString(PREF_ACTIVE_SBP_REQUEST, "");
+            if (activeSbp != null && !activeSbp.isEmpty()) {
+                return "PAYMENT_RESULT " + requestId + " status=BLOCKED code=SBP_REQUEST_UNRESOLVED active=" + token(activeSbp) + " approved=null noRetry=true";
             }
 
             String active = prefs.getString(PREF_ACTIVE_REQUEST, "");
@@ -779,6 +988,11 @@ public class ProductionBridgeService extends Service {
                     String qrId = data.readString();
                     String qrPayload = data.readString();
                     SbpQrCapture.Event event = sbpQrCapture.capture(qrId, qrPayload, "smartsky-callback");
+                    SharedPreferences probePrefs = getSharedPreferences(PREFS, MODE_PRIVATE);
+                    String activeProbe = probePrefs.getString(PREF_ACTIVE_SBP_REQUEST, "");
+                    if (activeProbe != null && !activeProbe.isEmpty()) {
+                        probePrefs.edit().putBoolean(sbpProbeQrReadyKey(activeProbe), true).apply();
+                    }
                     SbpQrCapture.SafeSummary safe = event.safeSummary();
                     Log.i(TAG, "SBP_CALLBACK_QR sequence=" + event.sequence +
                             " qrIdHash=" + safe.qrIdHash +
@@ -920,6 +1134,13 @@ public class ProductionBridgeService extends Service {
         if (s.length() < 8) s = (s + "00000000").substring(0, 8);
         return s.substring(Math.max(0, s.length() - 8));
     }
+
+    private static String sbpProbeStatusKey(String id) { return "sbp." + id + ".status"; }
+    private static String sbpProbeResponseKey(String id) { return "sbp." + id + ".response"; }
+    private static String sbpProbeStartedKey(String id) { return "sbp." + id + ".started"; }
+    static String sbpProbeAmountKey(String id) { return "sbp." + id + ".amount"; }
+    static String sbpProbeTidKey(String id) { return "sbp." + id + ".tid"; }
+    static String sbpProbeQrReadyKey(String id) { return "sbp." + id + ".qr_ready"; }
 
     private static String paymentStatusKey(String id) { return "payment." + id + ".status"; }
     private static String paymentResponseKey(String id) { return "payment." + id + ".response"; }
