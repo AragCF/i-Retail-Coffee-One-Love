@@ -11,8 +11,8 @@ android {
         applicationId 'com.coffeeonelove.iretail'
         minSdk 23
         targetSdk 35
-        versionCode 120
-        versionName '0.5.120-sbp-dryrun-phase-timeout'
+        versionCode 121
+        versionName '0.5.121-sbp-qr-source-probe'
     }
 
     compileOptions {
