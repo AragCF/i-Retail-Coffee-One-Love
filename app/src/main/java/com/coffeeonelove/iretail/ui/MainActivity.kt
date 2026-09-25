@@ -1223,7 +1223,11 @@ class MainActivity : Activity() {
 
     private fun visualCoffeeProducts(): List<Product> {
         val remoteCoffee = catalog.filter { it.available && it.category == "coffee" }
-        val preferred = remoteCoffee.ifEmpty { localCoffeeFallbackProducts() }
+        val preferred = if (contentRepository.isRemoteCatalogEnabled()) {
+            remoteCoffee
+        } else {
+            remoteCoffee.ifEmpty { localCoffeeFallbackProducts() }
+        }
         fun pick(vararg words: String): Product? {
             return preferred.firstOrNull { product ->
                 val source = (product.name + " " + product.volume).lowercase(Locale.ROOT).replace("ё", "е")
@@ -1320,18 +1324,30 @@ class MainActivity : Activity() {
     }
 
     private fun catalogStatusText(): String {
-        return if (catalogHasApiButNoCoffee) {
-            "I-Retail: кофе не найдено, показан макет"
-        } else {
-            catalogDataSource
+        return when {
+            catalogDataSource == "I-Retail pending" -> "I-Retail: синхронизация…"
+            catalogHasApiButNoCoffee -> "I-Retail: кофейных позиций нет"
+            contentRepository.isRemoteCatalogEnabled() && catalog.isEmpty() -> "I-Retail: каталог пуст"
+            else -> catalogDataSource
         }
     }
 
     private fun catalogVisibleStatusText(): String {
-        if (catalogHasApiButNoCoffee) {
-            return "Канал ${catalogApiChannelId.ifBlank { "?" }} отдал ${catalogApiOffersCount} товаров, но среди них нет кофе. Показан кофейный набор из макета."
+        if (catalogDataSource == "I-Retail pending") {
+            return "Получаем актуальный каталог из I-Retail…"
         }
-        return if (!catalogDataSource.startsWith("I-Retail ZIP")) {
+        if (catalogHasApiButNoCoffee) {
+            return "Канал ${catalogApiChannelId.ifBlank { "?" }} отдал ${catalogApiOffersCount} товаров, но среди них нет кофейных позиций."
+        }
+        if (contentRepository.isRemoteCatalogEnabled() && catalog.isEmpty()) {
+            val clean = catalogMessage.replace(Regex("\\s+"), " ").trim()
+            return if (catalogDataSource == "I-Retail unavailable") {
+                if (clean.isBlank()) "Каталог I-Retail сейчас недоступен." else clean
+            } else {
+                "В I-Retail для этого канала сейчас нет доступных кофейных напитков."
+            }
+        }
+        return if (!contentRepository.isRemoteCatalogEnabled()) {
             val clean = catalogMessage.replace(Regex("\\s+"), " ").trim()
             if (clean.isBlank()) "Источник: локальный макет" else "Источник: локальный макет — $clean"
         } else {
@@ -1354,6 +1370,18 @@ class MainActivity : Activity() {
             titleTextSize = 17f,
             priceTextSize = 18f
         )
+        if (products.isEmpty()) {
+            addRoundedLabel(
+                "Меню временно пусто",
+                RectSpec(150, gridRect.y + 250, 780, 110),
+                28f,
+                dark,
+                Gravity.CENTER,
+                true,
+                0xFFF8F8F8.toInt(),
+                18f
+            )
+        }
         if (products.size > 8) addCatalogScrollHint(gridRect, products.size)
         val statusText = catalogVisibleStatusText()
         if (statusText.isNotBlank()) {
@@ -2033,6 +2061,18 @@ class MainActivity : Activity() {
             titleTextSize = if (hasCart) 17f else 18f,
             priceTextSize = 18f
         )
+        if (products.isEmpty()) {
+            addRoundedLabel(
+                "Меню временно пусто",
+                RectSpec(rect.x + 420, rect.y + 220, 900, 120),
+                34f,
+                dark,
+                Gravity.CENTER,
+                true,
+                0xFFF8F8F8.toInt(),
+                20f
+            )
+        }
         if (products.size > 8) addCatalogScrollHint(rect, products.size)
         val statusText = catalogVisibleStatusText()
         if (statusText.isNotBlank()) {
