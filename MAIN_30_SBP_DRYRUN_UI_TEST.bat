@@ -5,7 +5,7 @@ cd /d "%~dp0"
 set "EXPECTED_VERSION="
 for /f "tokens=2" %%V in ('findstr /C:"versionName " "app\build.gradle"') do if not defined EXPECTED_VERSION set "EXPECTED_VERSION=%%V"
 set "EXPECTED_VERSION=%EXPECTED_VERSION:'=%"
-if /I not "%EXPECTED_VERSION%"=="0.5.119-sbp-landscape-qr" (
+if /I not "%EXPECTED_VERSION%"=="0.5.120-sbp-dryrun-phase-timeout" (
   echo [ERROR] Wrong project version: %EXPECTED_VERSION%
   pause
   exit /b 11
@@ -63,17 +63,58 @@ if errorlevel 1 exit /b 23
 echo.
 echo ============================================================
 echo USE THE COFFEE-MACHINE SCREEN NOW
-echo 1. Confirm that a square QR code is visible on the JL22 screen.
-echo 2. Scan it with any QR scanner/camera. It is synthetic and must NOT charge money.
-echo 3. The decoded text should begin with SBP-DRY-RUN.
-echo 4. Tap the large QR area once.
-echo 5. On the confirmation screen tap the large confirmation area once.
+echo Phase 1:
+echo   If the QR screen is shown, scan the QR and tap the QR area.
+echo   The decoded text must begin with SBP-DRY-RUN.
+echo Phase 2:
+echo   When "QR scanned" / confirmation is shown, tap the central
+echo   confirmation area once.
+echo.
+echo If an earlier session is recovered already in WAITING state,
+echo Phase 1 is skipped automatically and you only confirm Phase 2.
 echo No payment and no bank authorization are needed.
 echo ============================================================
 echo.
 
 set "WAIT_LOG=%TEMP%\iretail_sbp_dryrun_wait.log"
-set "OUTCOME=DRY_RUN_TIMEOUT"
+set "OUTCOME=DRY_RUN_QR_TIMEOUT"
+
+echo [WAIT 1/2] Waiting up to 180 seconds for QR scan/tap...
+for /l %%S in (1,1,180) do (
+  adb -s "%JL22%" logcat -d -v brief SbpDryRun:V IretailMachineMode:I FiscalGateway:V AndroidRuntime:E *:S > "%WAIT_LOG%" 2>&1
+  findstr /C:"DRY_RUN_CONFIRMED" "%WAIT_LOG%" >nul 2>nul
+  if not errorlevel 1 (
+    set "OUTCOME=DRY_RUN_OK"
+    goto DRY_DONE
+  )
+  findstr /C:"DRY_RUN_QR_SCANNED" "%WAIT_LOG%" >nul 2>nul
+  if not errorlevel 1 goto WAIT_CONFIRM
+  findstr /R /C:"DRY_RUN_RECOVERED .* state=WAITING " "%WAIT_LOG%" >nul 2>nul
+  if not errorlevel 1 goto WAIT_CONFIRM
+  findstr /C:"DRY_RUN_REJECTED" "%WAIT_LOG%" >nul 2>nul
+  if not errorlevel 1 (
+    set "OUTCOME=DRY_RUN_REJECTED"
+    goto DRY_DONE
+  )
+  findstr /C:"FATAL EXCEPTION:" "%WAIT_LOG%" >nul 2>nul
+  if not errorlevel 1 (
+    set "OUTCOME=DRY_RUN_CRASH"
+    goto DRY_DONE
+  )
+  findstr /C:"NoClassDefFoundError" "%WAIT_LOG%" >nul 2>nul
+  if not errorlevel 1 (
+    set "OUTCOME=DRY_RUN_CRASH"
+    goto DRY_DONE
+  )
+  timeout /t 1 /nobreak >nul
+)
+goto DRY_DONE
+
+:WAIT_CONFIRM
+echo.
+echo [WAIT 2/2] QR scan/tap accepted.
+echo [WAIT 2/2] You now have a fresh 180 seconds to tap the confirmation area.
+set "OUTCOME=DRY_RUN_CONFIRM_TIMEOUT"
 for /l %%S in (1,1,180) do (
   adb -s "%JL22%" logcat -d -v brief SbpDryRun:V IretailMachineMode:I FiscalGateway:V AndroidRuntime:E *:S > "%WAIT_LOG%" 2>&1
   findstr /C:"DRY_RUN_CONFIRMED" "%WAIT_LOG%" >nul 2>nul
