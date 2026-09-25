@@ -18,6 +18,12 @@ object SbpProductionContract {
     const val LIVE_QR_GENERATION_PROBE_AMOUNT_MINOR = 100L
 }
 
+/** Independent payment sources. Presentation and source are intentionally orthogonal. */
+enum class SbpPaymentSource {
+    KOZEN_SMARTSKY,
+    DIRECT_SERVER
+}
+
 /** Mandatory customer-facing SBP presentation modes. */
 enum class SbpPresentationMode {
     KOZEN_TERMINAL,
