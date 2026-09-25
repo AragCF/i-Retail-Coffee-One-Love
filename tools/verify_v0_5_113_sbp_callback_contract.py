@@ -11,7 +11,7 @@ client=(ROOT/"app/src/main/java/com/coffeeonelove/iretail/pos/KozenAoaPaymentCli
 checks={
     "versionCode 113+": bool(re.search(r"versionCode\s+(113|11[4-9]|1[2-9]\d|[2-9]\d{2,})",gradle)),
     "versionName present": bool(re.search(r"versionName\s+'[^']+'",gradle)),
-    "bridge version supports callback contract": any(x in bridge for x in ['BRIDGE_VERSION = "0.5.4"','BRIDGE_VERSION = "0.5.5"','BRIDGE_VERSION = "0.5.6"']),
+    "bridge version supports callback contract": any(x in bridge for x in ['BRIDGE_VERSION = "0.5.4"','BRIDGE_VERSION = "0.5.5"','BRIDGE_VERSION = "0.5.6"','BRIDGE_VERSION = "0.5.7"']),
     "client accepts bridge 0.5.4": '"0.5.4".equals(version)' in client,
     "production contract callback version": 'CALLBACK_BRIDGE_VERSION = "0.5.4"' in contract,
     "production contract callback name": 'CALLBACK_CONTRACT = "CAPTURE_HASHED_V1"' in contract,
@@ -27,7 +27,7 @@ checks={
     "bridge advertises callback contract": "sbpCallbackContract=CAPTURE_HASHED_V1" in bridge,
     "route response advertises callback contract": "callbackContract=CAPTURE_HASHED_V1" in bridge,
     "blocked response advertises callback contract": "LIVE_QR_PAYMENT_NOT_APPROVED" in bridge and "callbackContract=CAPTURE_HASHED_V1" in bridge,
-    "no live QR Binder transact": "binder.transact(TX_QR_PAYMENT" not in bridge,
+    "live QR Binder probe remains locked": "LIVE_QR_GENERATION_PROBE_ENABLED = false" in bridge and '"QR_PAYMENT".equals(command)) return qrPaymentBlocked(id)' in bridge,
 }
 failed=[k for k,v in checks.items() if not v]
 for k,v in checks.items():
