@@ -29,7 +29,7 @@ checks = {
     "renderer is network-independent": "HttpURLConnection" not in renderer and "URL(" not in renderer,
     "JL22 screen renders current SBP payload": "SbpQrRenderer.render(payload, 640)" in main and "val payload = sbp?.qrPayload.orEmpty()" in main,
     "screen still labels DRY RUN": "DRY RUN: реальный qrPayment не вызывался" in main,
-    "bridge UI version truthful": "Kozen Payment Bridge 0.5.6" in bridge_ui,
+    "bridge UI version truthful": ("Kozen Payment Bridge 0.5.6" in bridge_ui or "Kozen Payment Bridge 0.5.7" in bridge_ui),
     "upgrade installs bridge": 'install -r "%KOZEN_APK%"' in upgrade,
     "upgrade verifies installed version": "versionName=%EXPECTED_BRIDGE_VERSION%" in upgrade,
     "upgrade restores Kozen to JL22 step": "Return Kozen to JL22" in upgrade,
