@@ -41,7 +41,7 @@ checks = {
     "screen QR uses callback payload contract": "onQrReading(qrId, payload)" in dual_contract,
     "event runner targets current version": bool(version_name) and version_name in runner,
     "QR screen runner targets current version": bool(version_name) and version_name in qr_runner,
-    "QR screen runner asks for actual scan": "Scan it with any QR scanner/camera" in qr_runner and "SBP-DRY-RUN" in qr_runner,
+    "QR screen runner asks for actual scan": "scan the QR" in qr_runner and "SBP-DRY-RUN" in qr_runner,
     "upgrade chains QR screen test": "MAIN_30_SBP_DRYRUN_UI_TEST.bat" in upgrade and "JL22_SCREEN_QR_DRYRUN_OK" in upgrade,
 }
 
