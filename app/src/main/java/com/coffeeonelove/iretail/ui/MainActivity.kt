@@ -528,7 +528,7 @@ class MainActivity : Activity() {
                         "available=${result.available} operationType=${result.operationType} " +
                         "transactionType=${result.transactionType} currency=${result.currency} " +
                         "tidPresent=${result.tidPresent} liveEnabled=${result.liveEnabled} " +
-                        "noFinancialCommands=true"
+                        "probeEnabled=${result.probeEnabled} noFinancialCommands=true"
                 )
                 toast(
                     when {
