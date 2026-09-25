@@ -336,6 +336,12 @@ jobs:
       - name: Analyze committed SBP channel inventory
         run: python3 tools/analyze_sbp_channel_inventory_report.py
 
+      - name: Verify v0.5.125 SBP channel/service docs audit
+        run: python3 tools/verify_v0_5_125_sbp_channel_service_doc_audit.py
+
+      - name: Analyze committed SBP channel/service docs
+        run: python3 tools/analyze_sbp_channel_service_docs_report.py
+
       - name: Analyze committed direct SBP service report
         run: python3 tools/analyze_sbp_direct_services_report.py
 
@@ -360,6 +366,7 @@ jobs:
             "tools/iRetailDirectSbpReadonlyAudit.ps1",
             "tools/iRetailDirectSbpServicesAudit.ps1",
             "tools/iRetailSbpChannelInventory.ps1",
+            "tools/iRetailSbpChannelServiceDocsAudit.ps1",
             "tools/Publish-TestArtifact.ps1"
           )
           foreach ($file in $files) {
@@ -387,6 +394,6 @@ jobs:
         if: success()
         uses: actions/upload-artifact@v4
         with:
-          name: iRetail-v0.5.124-debug-apk
+          name: iRetail-v0.5.125-debug-apk
           path: app/build/outputs/apk/debug/*.apk
           if-no-files-found: error
