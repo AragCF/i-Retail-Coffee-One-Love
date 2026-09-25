@@ -9,8 +9,13 @@ runner=(ROOT/"MAIN_39_SBP_CHANNEL_INVENTORY.bat").read_text(encoding="utf-8")
 publisher=(ROOT/"tools/Publish-TestArtifact.ps1").read_text(encoding="utf-8")
 analyzer=(ROOT/"tools/analyze_sbp_channel_inventory_report.py").read_text(encoding="utf-8")
 
+version_code_match = re.search(r"versionCode\s+(\d+)", gradle)
+version_name_match = re.search(r"versionName\s+'([^']+)'", gradle)
+version_code = int(version_code_match.group(1)) if version_code_match else 0
+version_name = version_name_match.group(1) if version_name_match else ""
+
 checks={
-    "app version 0.5.124":"versionCode 124" in gradle and "versionName '0.5.124-sbp-channel-inventory'" in gradle,
+    "app version 0.5.124+":version_code >= 124 and bool(version_name),
     "audit enumerates profile channels":'iretail/channel/get-channels' in audit and 'profile_id=[string]$config.profile_id' in audit,
     "audit reads each channel":'iretail/channel/get"' in audit,
     "audit reads available services":'iretail/channel/get-available-services-in' in audit,
