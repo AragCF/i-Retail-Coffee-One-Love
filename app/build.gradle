@@ -11,8 +11,8 @@ android {
         applicationId 'com.coffeeonelove.iretail'
         minSdk 23
         targetSdk 35
-        versionCode 119
-        versionName '0.5.119-sbp-landscape-qr'
+        versionCode 120
+        versionName '0.5.120-sbp-dryrun-phase-timeout'
     }
 
     compileOptions {
