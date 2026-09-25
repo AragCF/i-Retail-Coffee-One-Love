@@ -1,7 +1,7 @@
 @echo off
 setlocal EnableExtensions DisableDelayedExpansion
 
-rem i-Retail Android UI v0.5.122 direct server SBP audit
+rem i-Retail Android UI v0.5.123 direct SBP service audit
 rem Windows CLI debug APK build script.
 rem
 rem Important:
@@ -23,7 +23,7 @@ if errorlevel 1 (
     exit /b 9
 )
 
-set "SCRIPT_VERSION=0.5.122-sbp-direct-server-audit"
+set "SCRIPT_VERSION=0.5.123-sbp-direct-services-audit"
 set "DO_CLEAN=0"
 set "DO_HARD_CLEAN=0"
 
