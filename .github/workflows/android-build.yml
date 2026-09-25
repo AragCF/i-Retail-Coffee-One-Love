@@ -330,6 +330,9 @@ jobs:
       - name: Verify v0.5.123 direct SBP services audit
         run: python3 tools/verify_v0_5_123_sbp_direct_services_audit.py
 
+      - name: Analyze committed direct SBP service report
+        run: python3 tools/analyze_sbp_direct_services_report.py
+
       - name: Verify SBP wire sanitizer runtime
         shell: pwsh
         run: ./tools/Verify-SbpWireSanitizerRuntime.ps1
