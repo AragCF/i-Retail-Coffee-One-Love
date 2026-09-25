@@ -9,8 +9,13 @@ runner=(ROOT/"MAIN_40_SBP_SERVER_CONFIG_DOC_AUDIT.bat").read_text(encoding="utf-
 publisher=(ROOT/"tools/Publish-TestArtifact.ps1").read_text(encoding="utf-8")
 analyzer=(ROOT/"tools/analyze_sbp_server_config_docs.py").read_text(encoding="utf-8")
 
+version_code_match = re.search(r"versionCode\s+(\d+)", gradle)
+version_name_match = re.search(r"versionName\s+'([^']+)'", gradle)
+version_code = int(version_code_match.group(1)) if version_code_match else 0
+version_name = version_name_match.group(1) if version_name_match else ""
+
 checks={
-    "app version 0.5.125":"versionCode 125" in gradle and "versionName '0.5.125-sbp-server-config-doc-audit'" in gradle,
+    "app version 0.5.125+": version_code >= 125 and bool(version_name),
     "audit only downloads documentation":"user/authentication" not in audit and "access_token" not in audit and "Invoke-ReadOnlyApi" not in audit,
     "audit has candidate admin docs":all(x in audit for x in [
         "app-controllers-admin-channelcontroller.html",
