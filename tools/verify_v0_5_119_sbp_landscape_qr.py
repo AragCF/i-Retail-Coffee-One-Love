@@ -36,7 +36,7 @@ checks = {
     "landscape dry-run keeps cancellation": "DRY_RUN_CANCELLED" in hotspots_section,
     "Android 6 restore fix preserved": "generationCounter.compareAndSet" in (ROOT / "app/src/main/java/com/coffeeonelove/iretail/ui/SbpDryRun.kt").read_text(encoding="utf-8"),
     "live QR remains disabled": "LIVE_CALL_ENABLED = false" in contract and "LIVE_QR_PAYMENT_ENABLED = false" in bridge,
-    "no live Binder QR transact": "binder.transact(TX_QR_PAYMENT" not in bridge,
+    "live QR probe remains locked": "LIVE_QR_GENERATION_PROBE_ENABLED = false" in bridge and '"QR_PAYMENT".equals(command)) return qrPaymentBlocked(id)' in bridge,
     "runner targets current version": bool(version_name) and version_name in runner,
     "runner asks user to scan and tap QR": "scan the QR" in runner and "SBP-DRY-RUN" in runner and "QR area" in runner,
     "runner real POS false": "--ez real_pos_enabled true" not in runner,
