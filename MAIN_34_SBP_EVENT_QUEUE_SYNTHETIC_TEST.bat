@@ -5,7 +5,7 @@ cd /d "%~dp0"
 set "EXPECTED_VERSION="
 for /f "tokens=2" %%V in ('findstr /C:"versionName " "app\build.gradle"') do if not defined EXPECTED_VERSION set "EXPECTED_VERSION=%%V"
 set "EXPECTED_VERSION=%EXPECTED_VERSION:'=%"
-if /I not "%EXPECTED_VERSION%"=="0.5.120-sbp-dryrun-phase-timeout" (
+if /I not "%EXPECTED_VERSION%"=="0.5.121-sbp-qr-source-probe" (
   echo [ERROR] Wrong project version: %EXPECTED_VERSION%
   pause
   exit /b 11
@@ -44,7 +44,7 @@ if not defined GRADLE_CMD for /f "delims=" %%G in ('where gradle.bat 2^>nul') do
 if not defined GRADLE_CMD for /f "delims=" %%G in ('where gradle 2^>nul') do if not defined GRADLE_CMD set "GRADLE_CMD=%%G"
 if not defined GRADLE_CMD (echo [ERROR] Gradle was not found.& pause& exit /b 22)
 
-echo [2/7] Preparing Kozen bridge 0.5.6 when ADB is available...
+echo [2/7] Preparing Kozen bridge 0.5.7 when ADB is available...
 if "%KOZEN_ADB_AVAILABLE%"=="1" (
   call "%GRADLE_CMD%" --no-daemon --stacktrace :kozenBridge:assembleDebug
   if errorlevel 1 exit /b 23
