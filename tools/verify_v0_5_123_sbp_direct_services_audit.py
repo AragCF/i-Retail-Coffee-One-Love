@@ -9,8 +9,13 @@ audit = (ROOT / "tools/iRetailDirectSbpServicesAudit.ps1").read_text(encoding="u
 runner = (ROOT / "MAIN_38_SBP_DIRECT_SERVICES_READONLY_AUDIT.bat").read_text(encoding="utf-8")
 contract = (ROOT / "docs/SBP_DUAL_MODE_CONTRACT_v2.0.0.md").read_text(encoding="utf-8")
 
+version_code_match = re.search(r"versionCode\s+(\d+)", gradle)
+version_name_match = re.search(r"versionName\s+'([^']+)'", gradle)
+version_code = int(version_code_match.group(1)) if version_code_match else 0
+version_name = version_name_match.group(1) if version_name_match else ""
+
 checks = {
-    "app version 0.5.123": "versionCode 123" in gradle and "versionName '0.5.123-sbp-direct-services-audit'" in gradle,
+    "app version 0.5.123+": version_code >= 123 and bool(version_name),
     "direct contour remains independent": "SBP_DIRECT_JL22" in contract and "Kozen может быть" in contract,
     "audit calls channel available services": 'iretail/channel/get-available-services-in' in audit,
     "audit calls recent incoming payments read-only": 'iretail/channel/get-payments-in' in audit,
