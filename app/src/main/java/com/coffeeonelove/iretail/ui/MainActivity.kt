@@ -1870,10 +1870,46 @@ class MainActivity : Activity() {
 
 
     private fun renderPaymentMethodsOverlay() {
-        // Способы оплаты, иконки и кнопка «Назад» уже отрисованы в макете.
-        // Добавляем только сумму, аккуратно над карточками, без повторного текста поверх кнопок.
         val discountText = loyaltyPaymentSuffix()
-        addLabel("Сумма к оплате: ${formatMoney(cartTotalMinor())}$discountText", RectSpec(120, 360, 840, 70), 23f, 0xFF333333.toInt(), Gravity.CENTER, true, 0xF2FFFFFF.toInt())
+        addLabel(
+            "Сумма к оплате: ${formatMoney(cartTotalMinor())}$discountText",
+            RectSpec(120, 350, 840, 62),
+            23f,
+            dark,
+            Gravity.CENTER,
+            true,
+            0xF2FFFFFF.toInt()
+        )
+        addRoundedLabel(
+            paymentConfigSummary(),
+            RectSpec(120, 415, 840, 48),
+            15f,
+            blueGray,
+            Gravity.CENTER,
+            false,
+            0xFFF8F8F8.toInt(),
+            10f
+        )
+
+        val options = listOf(
+            PaymentMethod.CARD to RectSpec(175, 465, 710, 215),
+            PaymentMethod.CASH to RectSpec(175, 740, 710, 215),
+            PaymentMethod.ONLINE to RectSpec(175, 1020, 710, 215)
+        )
+        options.forEach { (method, rect) ->
+            if (!paymentMethodAllowedByServer(method)) {
+                addRoundedLabel(
+                    paymentMethodBlockedCaption(method),
+                    RectSpec(rect.x + 35, rect.y + 60, rect.width - 70, 95),
+                    19f,
+                    blueGray,
+                    Gravity.CENTER,
+                    true,
+                    0xEEFFFFFF.toInt(),
+                    16f
+                )
+            }
+        }
     }
 
     private fun renderPaymentProgressOverlay() {
@@ -2201,12 +2237,30 @@ class MainActivity : Activity() {
 
     private fun renderLandscapePaymentMethods() {
         renderLandscapeHeader()
-        addLabel("Выберите способ оплаты", RectSpec(540, 115, 840, 70), 32f, dark, Gravity.CENTER, true, Color.TRANSPARENT)
+        addLabel("Выберите способ оплаты", RectSpec(540, 105, 840, 70), 32f, dark, Gravity.CENTER, true, Color.TRANSPARENT)
         val discountText = loyaltyPaymentSuffix()
-        addLabel("Сумма к оплате: ${formatMoney(cartTotalMinor())}$discountText", RectSpec(560, 220, 800, 55), 23f, dark, Gravity.CENTER, true, Color.TRANSPARENT)
-        val cards = listOf("💳  Банковская карта", "◎  Наличные", "✓  СберСпасибо")
-        cards.forEachIndexed { index, title ->
-            addRoundedLabel(title, RectSpec(260 + index * 475, 390, 430, 150), 27f, dark, Gravity.CENTER, true, Color.WHITE, 20f)
+        addLabel("Сумма к оплате: ${formatMoney(cartTotalMinor())}$discountText", RectSpec(560, 195, 800, 55), 23f, dark, Gravity.CENTER, true, Color.TRANSPARENT)
+        addRoundedLabel(
+            paymentConfigSummary(),
+            RectSpec(560, 260, 800, 52),
+            16f,
+            blueGray,
+            Gravity.CENTER,
+            false,
+            0xFFF8F8F8.toInt(),
+            10f
+        )
+
+        val cards = listOf(
+            Triple(PaymentMethod.CARD, "💳  Банковская карта", 260),
+            Triple(PaymentMethod.CASH, "◎  Наличные", 735),
+            Triple(PaymentMethod.ONLINE, "▣  Онлайн / QR", 1210)
+        )
+        cards.forEach { (method, title, x) ->
+            val allowed = paymentMethodAllowedByServer(method)
+            val bg = if (allowed) Color.WHITE else 0xFFF0F0F0.toInt()
+            val text = if (allowed) title else "$title\n${paymentMethodBlockedCaption(method)}"
+            addRoundedLabel(text, RectSpec(x, 390, 430, 150), if (allowed) 27f else 20f, if (allowed) dark else blueGray, Gravity.CENTER, true, bg, 20f)
         }
         addRoundedLabel("← Назад к заказу", RectSpec(700, 700, 520, 105), 26f, dark, Gravity.CENTER, true, Color.WHITE, 18f)
     }
@@ -3043,6 +3097,48 @@ class MainActivity : Activity() {
         openScreen("PAYMENT_METHOD_ALL")
     }
 
+    private fun enabledPaymentSlugs(): Set<String> =
+        paymentMethods
+            .filter { it.enabled }
+            .map { it.slug.trim().lowercase(Locale.ROOT) }
+            .filter { it.isNotBlank() }
+            .toSet()
+
+    private fun paymentMethodAllowedByServer(method: PaymentMethod): Boolean {
+        if (fiscalPositivePaymentTestMode) return true
+        if (!paymentConfigReady) return false
+        if (paymentConfigChannelEnabled == false || paymentConfigRelatedEnabled == false) return false
+
+        val slugs = enabledPaymentSlugs()
+        return when (method) {
+            PaymentMethod.CARD -> slugs.any { it == "external_plastic_cards" || it == "external_plastic_nonitgerated" }
+            PaymentMethod.CASH -> slugs.any { it == "external" || it == "cash" }
+            PaymentMethod.ONLINE -> slugs.any { it == "sbp" || it == "sbp_low_risk" || it == "payin_payout" }
+            PaymentMethod.SBER_SPASIBO -> slugs.any { it == "i_bonus" }
+        }
+    }
+
+    private fun paymentMethodBlockedCaption(method: PaymentMethod): String {
+        if (!paymentConfigReady) return "Настройки I-Retail недоступны"
+        if (paymentConfigChannelEnabled == false || paymentConfigRelatedEnabled == false) return "Канал выключен в I-Retail"
+        return when (method) {
+            PaymentMethod.CARD -> "Не разрешено каналом I-Retail"
+            PaymentMethod.CASH -> "Не разрешено каналом I-Retail"
+            PaymentMethod.ONLINE -> "Онлайн-оплата не подключена к каналу"
+            PaymentMethod.SBER_SPASIBO -> "Служба лояльности не разрешена каналом"
+        }
+    }
+
+    private fun paymentConfigSummary(): String {
+        if (!paymentConfigReady) return paymentConfigMessage
+        val states = mutableListOf<String>()
+        if (paymentConfigChannelEnabled == false || paymentConfigRelatedEnabled == false) states += "канал выключен"
+        if (paymentConfigShopVerified == false) states += "магазин не верифицирован"
+        if (paymentConfigUserVerified == false) states += "пользователь не верифицирован"
+        val suffix = if (states.isEmpty()) "" else " • " + states.joinToString(", ")
+        return "I-Retail: доступно служб ${paymentMethods.count { it.enabled }}$suffix"
+    }
+
     private fun startPayment(method: PaymentMethod) {
         if (cart.isEmpty()) {
             toast("Нельзя оплатить пустой заказ")
@@ -3050,6 +3146,15 @@ class MainActivity : Activity() {
         }
         fiscalPositivePaymentTestBlockReason()?.let { reason ->
             android.util.Log.e("FiscalPositivePaymentTest", "TEST_BLOCKED stage=payment_method reason=$reason")
+            toast(reason)
+            return
+        }
+        if (!paymentMethodAllowedByServer(method)) {
+            val reason = paymentMethodBlockedCaption(method)
+            android.util.Log.w(
+                "IretailChannelConfig",
+                "PAYMENT_BLOCKED method=$method configReady=$paymentConfigReady reason=${reason.replace(" ", "_")}"
+            )
             toast(reason)
             return
         }
@@ -3467,7 +3572,7 @@ class MainActivity : Activity() {
         statusLabel.visibility = if (demoStatusVisible) View.VISIBLE else View.GONE
         if (demoStatusVisible) {
             val total = cartTotalMinor()
-            statusLabel.text = "UI v0.5.37 | $currentScreen | товаров: ${cart.sumOf { it.quantity }} | сумма: $total ₽ | данные: $catalogDataSource | $catalogMessage | карта: Kozen; прочие способы: отключены"
+            statusLabel.text = "UI v0.5.126 | $currentScreen | товаров: ${cart.sumOf { it.quantity }} | сумма: $total ₽ | данные: $catalogDataSource | $catalogMessage | I-Retail services: ${paymentMethods.count { it.enabled }} | configReady=$paymentConfigReady"
         }
     }
 
