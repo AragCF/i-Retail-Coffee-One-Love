@@ -1,7 +1,7 @@
 @echo off
 setlocal EnableExtensions DisableDelayedExpansion
 
-rem i-Retail Android UI v0.5.121 SBP QR source probe
+rem i-Retail Android UI v0.5.122 direct server SBP audit
 rem Windows CLI debug APK build script.
 rem
 rem Important:
@@ -23,7 +23,7 @@ if errorlevel 1 (
     exit /b 9
 )
 
-set "SCRIPT_VERSION=0.5.121-sbp-qr-source-probe"
+set "SCRIPT_VERSION=0.5.122-sbp-direct-server-audit"
 set "DO_CLEAN=0"
 set "DO_HARD_CLEAN=0"
 
