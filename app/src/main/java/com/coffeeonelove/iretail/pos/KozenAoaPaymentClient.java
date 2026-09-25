@@ -540,7 +540,8 @@ public final class KozenAoaPaymentClient {
                         throw new IOException("INCOMPATIBLE_BRIDGE");
                     }
 
-                    if (!"0.5.5".equals(bridgeVersion) && !"0.5.6".equals(bridgeVersion)) {
+                    if (!"0.5.5".equals(bridgeVersion) && !"0.5.6".equals(bridgeVersion) &&
+                        !"0.5.7".equals(bridgeVersion)) {
                         result = SbpWireRoundTripResult.failed("BRIDGE_UPGRADE_REQUIRED", bridgeVersion);
                         Log.w(TAG,
                                 "SBP_WIRE_PENDING bridge=" + bridgeVersion +
@@ -661,7 +662,7 @@ public final class KozenAoaPaymentClient {
                     throw new IOException("INCOMPATIBLE_BRIDGE");
                 }
 
-                if (!"0.5.6".equals(bridgeVersion)) {
+                if (!"0.5.6".equals(bridgeVersion) && !"0.5.7".equals(bridgeVersion)) {
                     result = SbpQrEventResult.failed("BRIDGE_UPGRADE_REQUIRED", bridgeVersion);
                 } else if (!"QR_EVENT_PEEK_ACK_V1".equals(value(info, "sbpEventContract"))) {
                     result = SbpQrEventResult.failed("EVENT_CONTRACT_MISMATCH", bridgeVersion);
