@@ -24,6 +24,7 @@ public class BridgeActivity extends Activity {
     private static final String ACTION_USB_PERMISSION = "com.coffeeonelove.iretail.kozenbridge.USB_PERMISSION";
     private static final String PREFS = "iretail_payment_bridge_v1";
     private static final String PREF_ACTIVE_REQUEST = "active_request";
+    private static final String PREF_ACTIVE_SBP_REQUEST = "active_sbp_request";
     private static final long BRIDGE_START_DEBOUNCE_MS = 2000L;
 
     private UsbManager usbManager;
@@ -37,15 +38,23 @@ public class BridgeActivity extends Activity {
         @Override public void run() {
             try {
                 SharedPreferences prefs = getSharedPreferences(PREFS, MODE_PRIVATE);
-                String active = prefs.getString(PREF_ACTIVE_REQUEST, "");
-                if (active != null && !active.isEmpty()) {
-                    lastSeenRequest = active;
-                    String response = prefs.getString("payment." + active + ".response", null);
-                    if (response != null) showPaymentResult(active, response);
-                    else showPaymentPrompt(active, prefs);
-                } else if (lastSeenRequest != null && !lastSeenRequest.isEmpty()) {
-                    String response = prefs.getString("payment." + lastSeenRequest + ".response", null);
-                    if (response != null) showPaymentResult(lastSeenRequest, response);
+                String activeSbp = prefs.getString(PREF_ACTIVE_SBP_REQUEST, "");
+                if (activeSbp != null && !activeSbp.isEmpty()) {
+                    lastSeenRequest = activeSbp;
+                    String response = prefs.getString("sbp." + activeSbp + ".response", null);
+                    if (response != null) showSbpProbeResult(activeSbp, response);
+                    else showSbpProbePrompt(activeSbp, prefs);
+                } else {
+                    String active = prefs.getString(PREF_ACTIVE_REQUEST, "");
+                    if (active != null && !active.isEmpty()) {
+                        lastSeenRequest = active;
+                        String response = prefs.getString("payment." + active + ".response", null);
+                        if (response != null) showPaymentResult(active, response);
+                        else showPaymentPrompt(active, prefs);
+                    } else if (lastSeenRequest != null && !lastSeenRequest.isEmpty()) {
+                        String response = prefs.getString("payment." + lastSeenRequest + ".response", null);
+                        if (response != null) showPaymentResult(lastSeenRequest, response);
+                    }
                 }
             } catch (Exception e) {
                 Log.w(TAG, "PAYMENT_UI_POLL_ERROR " + e.getClass().getSimpleName());
@@ -100,7 +109,7 @@ public class BridgeActivity extends Activity {
         root.setPadding(pad, pad, pad, pad);
 
         TextView title = new TextView(this);
-        title.setText("i-Retail Kozen Payment Bridge 0.5.6\nUSB/AOA → SmartSkyPOS");
+        title.setText("i-Retail Kozen Payment Bridge 0.5.7\nUSB/AOA → SmartSkyPOS");
         title.setTextSize(22f);
         root.addView(title);
 
@@ -165,6 +174,25 @@ public class BridgeActivity extends Activity {
         startService(service);
         setStatus("Соединение с JL22 установлено.\nОжидание команды.");
         Log.i(TAG, "PRODUCTION_BRIDGE_SERVICE_START requested");
+    }
+
+    private void showSbpProbePrompt(String requestId, SharedPreferences prefs) {
+        String amount = prefs.getString(ProductionBridgeService.sbpProbeAmountKey(requestId), "1.00");
+        boolean qrReady = prefs.getBoolean(ProductionBridgeService.sbpProbeQrReadyKey(requestId), false);
+        String text = qrReady
+                ? "СБП PROBE " + money(amount) + "\n\nQR ПОЛУЧЕН\nНЕ СКАНИРОВАТЬ\n\nQR ПОКАЗЫВАЕТСЯ НА JL22\n\n" + requestId
+                : "СБП PROBE " + money(amount) + "\n\nОЖИДАНИЕ QR ОТ SmartSkyPOS\n\nНЕ СКАНИРОВАТЬ\n\n" + requestId;
+        renderLarge(text, qrReady ? 28f : 24f,
+                "SBP_PROBE_UI requestId=" + requestId + " qrReady=" + qrReady + " rawPayloadLogged=false");
+    }
+
+    private void showSbpProbeResult(String requestId, String response) {
+        String statusValue = value(response, "status");
+        String text = "СБП PROBE ЗАВЕРШЁН\n" +
+                (statusValue == null ? "-" : statusValue) +
+                "\n\nНЕ ПОВТОРЯТЬ АВТОМАТИЧЕСКИ\n\n" + requestId;
+        renderLarge(text, 24f, "SBP_PROBE_UI_RESULT requestId=" + requestId +
+                " status=" + statusValue + " rawPayloadLogged=false");
     }
 
     private void showPaymentPrompt(String requestId, SharedPreferences prefs) {
