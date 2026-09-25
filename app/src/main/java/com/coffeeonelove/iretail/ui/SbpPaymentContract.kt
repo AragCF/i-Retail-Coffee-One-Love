@@ -14,7 +14,7 @@ object SbpProductionContract {
     const val LIVE_QR_PROBE_BRIDGE_VERSION = "0.5.7"
     const val EVENT_CONTRACT = "QR_EVENT_PEEK_ACK_V1"
     const val LIVE_CALL_ENABLED = false
-    const val LIVE_QR_GENERATION_PROBE_ENABLED = true
+    const val LIVE_QR_GENERATION_PROBE_ENABLED = false
     const val LIVE_QR_GENERATION_PROBE_AMOUNT_MINOR = 100L
 }
 
