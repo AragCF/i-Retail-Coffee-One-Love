@@ -23,8 +23,9 @@ require("Статус: APPROVED" in contract, "approved server-managed contract 
 # Catalog: valid empty server catalog must be accepted and local demo products must not reappear.
 require("structureValid" in gateways, "catalog structural validation missing")
 require('INVALID_CATALOG_STRUCTURE' in gateways, "catalog invalid-structure state missing")
-require('parsed.products.isEmpty()' not in gateways.split('private fun parseCatalogZip', 1)[0],
+require('if (parsed.offersCount <= 0 || parsed.products.isEmpty())' not in gateways,
         "fresh catalog path still rejects an empty product list")
+require('"EMPTY_CATALOG"' not in gateways, "empty catalog is still classified as an error")
 require('return if (apiConfig.enabled) emptyList() else loadProductsFromXmlAsset()' in gateways,
         "remote-enabled cold start must not fall back to XML products")
 require('if (contentRepository.isRemoteCatalogEnabled())' in main and
