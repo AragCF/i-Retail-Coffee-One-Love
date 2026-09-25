@@ -2,8 +2,8 @@
 setlocal EnableExtensions DisableDelayedExpansion
 cd /d "%~dp0"
 
-set "EXPECTED_APP_VERSION=0.5.120-sbp-dryrun-phase-timeout"
-set "EXPECTED_BRIDGE_VERSION=0.5.6-sbp-event-queue"
+set "EXPECTED_APP_VERSION=0.5.121-sbp-qr-source-probe"
+set "EXPECTED_BRIDGE_VERSION=0.5.7-sbp-qr-source-probe"
 set "JL22="
 set "KOZEN="
 set "KOZEN_IP="
@@ -65,7 +65,7 @@ if not defined GRADLE_CMD (
 )
 
 echo.
-echo [1/7] Building Kozen Bridge 0.5.6...
+echo [1/7] Building Kozen Bridge 0.5.7...
 call "%GRADLE_CMD%" --no-daemon --stacktrace :kozenBridge:assembleDebug
 if errorlevel 1 (
   echo [ERROR] Kozen Bridge build failed.
@@ -82,7 +82,7 @@ if not exist "%KOZEN_APK%" (
 )
 
 echo.
-echo [2/7] Installing Kozen Bridge 0.5.6...
+echo [2/7] Installing Kozen Bridge 0.5.7...
 adb -s "%KOZEN%" install -r "%KOZEN_APK%"
 if errorlevel 1 (
   echo [ERROR] Kozen Bridge installation failed.
