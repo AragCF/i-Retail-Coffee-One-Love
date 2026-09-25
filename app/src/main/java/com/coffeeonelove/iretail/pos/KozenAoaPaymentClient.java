@@ -66,6 +66,9 @@ public final class KozenAoaPaymentClient {
     private static final String PREF_UNRESOLVED_AMOUNT = "unresolved_amount";
     private static final String PREF_UNRESOLVED_TID = "unresolved_tid";
     private static final String PREF_UNRESOLVED_SINCE = "unresolved_since";
+    private static final String PREF_SBP_PROBE_UNRESOLVED_ID = "sbp_probe_unresolved_request_id";
+    private static final String PREF_SBP_PROBE_UNRESOLVED_SINCE = "sbp_probe_unresolved_since";
+    private static final String SBP_PROBE_TOKEN = "LIVE_SBP_QR_1RUB";
 
     private final Context context;
     private final UsbManager usbManager;
@@ -117,6 +120,12 @@ public final class KozenAoaPaymentClient {
 
     public interface SbpQrEventListener {
         void onResult(SbpQrEventResult result);
+    }
+
+    public interface SbpLiveQrProbeListener {
+        void onStatus(String message);
+        void onQrReady(SbpQrEventResult event);
+        void onFinal(PaymentResult result);
     }
 
     public static final class SbpQrEventResult {
@@ -1096,6 +1105,283 @@ public final class KozenAoaPaymentClient {
     }
 
     /**
+     * Start one controlled real SmartSkyPOS QR generation probe for exactly 1.00 RUB.
+     *
+     * START_SBP_QR_PROBE is written at most once. After that the client only reads
+     * callback events and status. The user must NOT scan the generated QR in this probe.
+     */
+    public void startSbpLiveQrGenerationProbe(SbpLiveQrProbeListener listener) {
+        if (listener == null) return;
+        if (shutdown) {
+            main.post(() -> listener.onFinal(PaymentResult.local(
+                    "-", "FAILED", "CLIENT_SHUTDOWN", "Платёжный клиент остановлен")));
+            return;
+        }
+        if (!busy.compareAndSet(false, true)) {
+            main.post(() -> listener.onFinal(PaymentResult.local(
+                    "-", "BLOCKED", "LOCAL_BUSY", "Предыдущая операция ещё не завершена")));
+            return;
+        }
+
+        executor.execute(() -> {
+            try {
+                performSbpLiveQrGenerationProbe(listener);
+            } finally {
+                busy.set(false);
+            }
+        });
+    }
+
+    private void performSbpLiveQrGenerationProbe(SbpLiveQrProbeListener listener) {
+        String previous = prefs().getString(PREF_SBP_PROBE_UNRESOLVED_ID, "");
+        if (!previous.isEmpty()) {
+            postSbpProbeStatus(listener, "Проверяем ранее начатую СБП-пробу " + previous + "…");
+            try {
+                ensureLink();
+                String bridge = verifyBridge();
+                if (!"0.5.7".equals(bridge)) {
+                    postSbpProbeFinal(listener, PaymentResult.local(
+                            previous, "BLOCKED", "BRIDGE_UPGRADE_REQUIRED",
+                            "Для живой СБП-пробы нужен Kozen Bridge 0.5.7"));
+                    return;
+                }
+                PaymentResult recovered = querySbpProbeStatus(previous);
+                if (recovered.isFinal()) {
+                    clearSbpProbeUnresolved();
+                    postSbpProbeFinal(listener, recovered);
+                } else {
+                    postSbpProbeFinal(listener, PaymentResult.local(
+                            previous, "UNCERTAIN_RECOVERY_REQUIRED", "PREVIOUS_SBP_PROBE_UNRESOLVED",
+                            "Предыдущая СБП-проба остаётся незавершённой. Новый qrPayment не отправлен."));
+                }
+            } catch (Exception e) {
+                closeLink();
+                postSbpProbeFinal(listener, PaymentResult.local(
+                        previous, "UNCERTAIN_RECOVERY_REQUIRED", "SBP_PROBE_RECOVERY_FAILED",
+                        "Не удалось проверить предыдущую СБП-пробу: " + safe(e.getMessage())));
+            }
+            return;
+        }
+
+        String requestId = "sbp-" + newRequestId().substring(3);
+        boolean probeWriteAttempted = false;
+        try {
+            postSbpProbeStatus(listener, "Подключаемся к Kozen и проверяем маршрут СБП…");
+            ensureLink();
+            String bridge = verifyBridge();
+            if (!"0.5.7".equals(bridge)) {
+                postSbpProbeFinal(listener, PaymentResult.local(
+                        requestId, "BLOCKED", "BRIDGE_UPGRADE_REQUIRED",
+                        "Для живой СБП-пробы нужен Kozen Bridge 0.5.7"));
+                return;
+            }
+
+            String info = requestResponse("INFO " + nextWireId(), "INFO ", 12000L);
+            if (!"true".equalsIgnoreCase(value(info, "sbpProbeEnabled"))) {
+                postSbpProbeFinal(listener, PaymentResult.local(
+                        requestId, "BLOCKED", "SBP_PROBE_DISABLED",
+                        "Kozen Bridge не разрешает контролируемую СБП-пробу"));
+                return;
+            }
+
+            String state = requestResponse("GET_STATE " + nextWireId(), "STATE ", 12000L);
+            if (!"0".equals(value(state, "code")) || !"0".equals(value(state, "state"))) {
+                postSbpProbeFinal(listener, PaymentResult.local(
+                        requestId, "BLOCKED", "STATE_NOT_READY", "SmartSkyPOS не готов"));
+                return;
+            }
+
+            String terminalData = requestResponse(
+                    "GET_TERMINAL_DATA " + nextWireId(), "TERMINAL_DATA ", 15000L);
+            boolean routeOk =
+                    "0".equals(value(terminalData, "code")) &&
+                    "true".equalsIgnoreCase(value(terminalData, "sbp")) &&
+                    "42".equals(value(terminalData, "sbpType")) &&
+                    "qrPayment".equalsIgnoreCase(value(terminalData, "sbpTransactionType")) &&
+                    CURRENCY.equals(value(terminalData, "sbpCurrency")) &&
+                    "true".equalsIgnoreCase(value(terminalData, "sbpTidPresent"));
+            if (!routeOk) {
+                postSbpProbeFinal(listener, PaymentResult.local(
+                        requestId, "BLOCKED", "FRESH_SBP_ROUTE_NOT_FOUND",
+                        "SmartSkyPOS не объявил маршрут 42/qrPayment/643"));
+                return;
+            }
+
+            persistSbpProbeUnresolved(requestId);
+            String command = "START_SBP_QR_PROBE " + requestId +
+                    " amount=1.00 currency=" + CURRENCY +
+                    " probeToken=" + SBP_PROBE_TOKEN;
+            probeWriteAttempted = true;
+            int sent = bulkWrite(command + "\n", 3000);
+            Log.w(TAG, "SBP_PROBE_TX_ONCE requestId=" + requestId +
+                    " amount=1.00 bytes=" + sent + " noAutoRetry=true doNotScan=true");
+            if (sent != command.getBytes(StandardCharsets.UTF_8).length + 1) {
+                throw new IOException("SBP_PROBE_WRITE_INCOMPLETE_" + sent);
+            }
+
+            String startLine = readMatching("SBP_PROBE_RESULT " + requestId, 15000L);
+            if (startLine == null) {
+                postSbpProbeFinal(listener, PaymentResult.local(
+                        requestId, "UNCERTAIN", "SBP_PROBE_START_TIMEOUT",
+                        "Команда СБП отправлена, но подтверждение старта не получено. Повтор запрещён."));
+                return;
+            }
+            PaymentResult start = PaymentResult.fromLine(requestId, startLine);
+            if (!"STARTED".equals(start.status)) {
+                if (start.isFinal()) clearSbpProbeUnresolved();
+                postSbpProbeFinal(listener, start);
+                return;
+            }
+
+            postSbpProbeStatus(listener,
+                    "Реальная СБП-сессия 1 ₽ запущена. Ждём onQrReading. QR НЕ СКАНИРОВАТЬ.");
+
+            SbpQrEventResult qrEvent = null;
+            long qrDeadline = System.currentTimeMillis() + 60000L;
+            while (!shutdown && System.currentTimeMillis() < qrDeadline) {
+                SbpQrEventResult candidate = readSbpQrEventOnceNoBusy();
+                if (candidate.ok) {
+                    if (!"smartsky-callback".equals(candidate.source)) {
+                        Log.w(TAG, "SBP_PROBE_IGNORED_EVENT source=" + candidate.source +
+                                " sequence=" + candidate.sequence + " rawPayloadLogged=false");
+                    } else {
+                        qrEvent = candidate;
+                        break;
+                    }
+                } else if (!"EMPTY".equals(candidate.code)) {
+                    throw new IOException("SBP_PROBE_EVENT_" + candidate.code);
+                }
+                Thread.sleep(300L);
+            }
+
+            if (qrEvent == null) {
+                PaymentResult status = querySbpProbeStatus(requestId);
+                if (status.isFinal()) clearSbpProbeUnresolved();
+                postSbpProbeFinal(listener, status.isFinal() ? status : PaymentResult.local(
+                        requestId, "UNCERTAIN", "SBP_QR_CALLBACK_TIMEOUT",
+                        "SmartSkyPOS не передал QR callback за 60 секунд. Повтор запрещён."));
+                return;
+            }
+
+            final SbpQrEventResult ready = qrEvent;
+            main.post(() -> listener.onQrReady(ready));
+            Log.w(TAG, "SBP_PROBE_QR_READY requestId=" + requestId +
+                    " sequence=" + qrEvent.sequence +
+                    " payloadHash=" + qrEvent.payloadHash +
+                    " payloadLength=" + qrEvent.payloadLength +
+                    " qrIdHash=" + WireProtocolSanitizer.shortHash(qrEvent.qrId) +
+                    " rawPayloadLogged=false doNotScan=true");
+
+            // Do not send any cancellation/refund/retry here. Observe the single original
+            // transaction until SmartSkyPOS produces a final result or this local watch expires.
+            long finalDeadline = System.currentTimeMillis() + 180000L;
+            while (!shutdown && System.currentTimeMillis() < finalDeadline) {
+                PaymentResult status = querySbpProbeStatus(requestId);
+                if (status.isFinal()) {
+                    clearSbpProbeUnresolved();
+                    postSbpProbeFinal(listener, status);
+                    return;
+                }
+                Thread.sleep(2000L);
+            }
+
+            postSbpProbeFinal(listener, PaymentResult.local(
+                    requestId, "UNCERTAIN", "SBP_PROBE_FINAL_TIMEOUT",
+                    "QR получен, но окончательный результат SmartSkyPOS ещё неизвестен. Повтор запрещён."));
+        } catch (Exception e) {
+            Log.e(TAG, "SBP_PROBE_CLIENT_ERROR requestId=" + requestId +
+                    " writeAttempted=" + probeWriteAttempted + " " +
+                    e.getClass().getSimpleName() + ": " + safe(e.getMessage()));
+            closeLink();
+            if (probeWriteAttempted) {
+                postSbpProbeFinal(listener, PaymentResult.local(
+                        requestId, "UNCERTAIN", "TRANSPORT_AFTER_SBP_PROBE",
+                        "Связь потеряна после запуска СБП. Повторять qrPayment нельзя."));
+            } else {
+                clearSbpProbeUnresolvedIfRequest(requestId);
+                postSbpProbeFinal(listener, PaymentResult.local(
+                        requestId, "FAILED", "TRANSPORT_BEFORE_SBP_PROBE",
+                        "СБП-команда не была отправлена: " + safe(e.getMessage())));
+            }
+        }
+    }
+
+    private SbpQrEventResult readSbpQrEventOnceNoBusy() throws Exception {
+        String eventId = nextWireId();
+        String line = requestResponse(
+                "GET_SBP_QR_EVENT " + eventId,
+                "SBP_EVENT " + eventId,
+                12000L);
+        String code = tokenOrDash(value(line, "code"));
+        if ("EMPTY".equals(code)) return SbpQrEventResult.failed("EMPTY", "0.5.7");
+        if (!"0".equals(code)) throw new IOException("SBP_EVENT_" + code);
+        if (!"QR_EVENT_PEEK_ACK_V1".equals(value(line, "eventContract"))) {
+            throw new IOException("SBP_EVENT_CONTRACT");
+        }
+
+        long sequence = Long.parseLong(tokenOrDash(value(line, "sequence")));
+        String payload = SbpWireCodec.decode(value(line, "payloadB64"));
+        String qrId = SbpWireCodec.decode(value(line, "qrIdB64"));
+        String payloadHash = tokenOrDash(value(line, "payloadHash"));
+        int payloadLength = Integer.parseInt(tokenOrDash(value(line, "payloadLength")));
+        String source = tokenOrDash(value(line, "source"));
+        int queueSize = Integer.parseInt(tokenOrDash(value(line, "queueSize")));
+        long dropped = Long.parseLong(tokenOrDash(value(line, "dropped")));
+
+        if (payloadLength != payload.length() ||
+                !payloadHash.equals(WireProtocolSanitizer.shortHash(payload))) {
+            throw new IOException("SBP_EVENT_INTEGRITY");
+        }
+
+        boolean acked = acknowledgeSbpQrEvent(sequence);
+        return new SbpQrEventResult(
+                acked, acked ? "OK" : "ACK_REJECTED", "0.5.7",
+                sequence, qrId, payload, payloadHash, payloadLength,
+                source, queueSize, dropped, acked);
+    }
+
+    private PaymentResult querySbpProbeStatus(String requestId) throws Exception {
+        String line = requestResponse(
+                "GET_SBP_PROBE_STATUS " + requestId,
+                "SBP_PROBE_RESULT " + requestId,
+                15000L);
+        return PaymentResult.fromLine(requestId, line);
+    }
+
+    private void persistSbpProbeUnresolved(String requestId) {
+        prefs().edit()
+                .putString(PREF_SBP_PROBE_UNRESOLVED_ID, requestId)
+                .putLong(PREF_SBP_PROBE_UNRESOLVED_SINCE, System.currentTimeMillis())
+                .apply();
+    }
+
+    private void clearSbpProbeUnresolved() {
+        prefs().edit()
+                .remove(PREF_SBP_PROBE_UNRESOLVED_ID)
+                .remove(PREF_SBP_PROBE_UNRESOLVED_SINCE)
+                .apply();
+    }
+
+    private void clearSbpProbeUnresolvedIfRequest(String requestId) {
+        if (requestId.equals(prefs().getString(PREF_SBP_PROBE_UNRESOLVED_ID, ""))) {
+            clearSbpProbeUnresolved();
+        }
+    }
+
+    private void postSbpProbeStatus(SbpLiveQrProbeListener listener, String message) {
+        Log.i(TAG, "SBP_PROBE_STATUS " + safe(message));
+        main.post(() -> listener.onStatus(message));
+    }
+
+    private void postSbpProbeFinal(SbpLiveQrProbeListener listener, PaymentResult result) {
+        Log.w(TAG, "SBP_PROBE_FINAL requestId=" + result.requestId +
+                " status=" + result.status + " code=" + result.code +
+                " approved=" + result.approved + " rc=" + result.rc +
+                " noAutoRetry=true");
+        main.post(() -> listener.onFinal(result));
+    }
+
+    /**
      * Start one real card payment for the supplied ruble amount.
      * The amount is normalized to two decimals. This method never retries PAYMENT.
      */
@@ -1282,7 +1568,7 @@ public final class KozenAoaPaymentClient {
     private static boolean isSupportedBridgeVersion(String version) {
         return "0.5.2".equals(version) || "0.5.3".equals(version) ||
                 "0.5.4".equals(version) || "0.5.5".equals(version) ||
-                "0.5.6".equals(version);
+                "0.5.6".equals(version) || "0.5.7".equals(version);
     }
 
     private PaymentResult queryPaymentStatus(String requestId) throws Exception {
