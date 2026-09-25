@@ -95,6 +95,9 @@ class MainActivity : Activity() {
     private val sbpDryRunSession = SbpDryRunSession()
     private lateinit var sbpSessionStore: SbpSessionStore
     private var sbpDryRunMode = false
+    private var sbpLiveQrProbeMode = false
+    private var sbpLiveQrProbePayload: String? = null
+    private var sbpLiveQrProbeStatus = ""
 
     private val fiscalPositivePaymentTestProduct = Product(
         id = "s3-fiscal-positive-test-1rub",
@@ -236,6 +239,7 @@ class MainActivity : Activity() {
         maybeRunSbpWireSyntheticTest(intent, "onCreate")
         maybeRunSbpEventQueueSyntheticTest(intent, "onCreate")
         maybeRunSbpDryRunSelfTest(intent, "onCreate")
+        maybeRunSbpLiveQrGenerationProbe(intent, "onCreate")
 
         if (fiscalPositivePaymentTestMode) {
             val persistedPos = MachineModeStore.load(this).realPosEnabled
@@ -283,6 +287,7 @@ class MainActivity : Activity() {
             maybeRunSbpWireSyntheticTest(intent, "onNewIntent")
             maybeRunSbpEventQueueSyntheticTest(intent, "onNewIntent")
             maybeRunSbpDryRunSelfTest(intent, "onNewIntent")
+            maybeRunSbpLiveQrGenerationProbe(intent, "onNewIntent")
         }
     }
 
@@ -539,6 +544,102 @@ class MainActivity : Activity() {
                 )
             }
         })
+    }
+
+    private fun maybeRunSbpLiveQrGenerationProbe(intent: android.content.Intent?, source: String) {
+        if (intent?.getBooleanExtra("sbp_live_qr_generation_probe", false) != true) return
+        intent.removeExtra("sbp_live_qr_generation_probe")
+
+        val debuggable = (applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE) != 0
+        val persisted = MachineModeStore.load(this)
+        if (!debuggable || !persisted.standalone || !realPosEnabled ||
+            !SbpProductionContract.LIVE_QR_GENERATION_PROBE_ENABLED) {
+            android.util.Log.e(
+                "SbpLiveQrProbe",
+                "PROBE_REJECTED source=$source debuggable=$debuggable standalone=${persisted.standalone} " +
+                    "realPos=$realPosEnabled probeEnabled=${SbpProductionContract.LIVE_QR_GENERATION_PROBE_ENABLED} " +
+                    "financialCallSent=false"
+            )
+            return
+        }
+
+        sbpDryRunMode = false
+        sbpLiveQrProbeMode = true
+        sbpLiveQrProbePayload = null
+        sbpLiveQrProbeStatus = "STARTING"
+        cart.clear()
+
+        val product = Product(
+            id = "sbp-live-qr-probe-1rub",
+            offerId = "sbp-live-qr-probe-1rub",
+            name = "SBP LIVE QR PROBE",
+            volume = "1 pc",
+            price = 1,
+            category = "coffee",
+            available = true,
+            priceMinor = SbpProductionContract.LIVE_QR_GENERATION_PROBE_AMOUNT_MINOR,
+            basePriceMinor = SbpProductionContract.LIVE_QR_GENERATION_PROBE_AMOUNT_MINOR
+        )
+        cart.add(CartLine(product = product, quantity = 1))
+        orderGateway.createOrder(cart, 100L, 0L, null)
+        orderGateway.startPayment(PaymentMethod.ONLINE)
+        lastPaymentMethod = PaymentMethod.ONLINE
+
+        android.util.Log.w(
+            "SbpLiveQrProbe",
+            "PROBE_START source=$source amountMinor=100 realPos=true " +
+                "bridgeRequired=${SbpProductionContract.LIVE_QR_PROBE_BRIDGE_VERSION} " +
+                "doNotScan=true noAutoRetry=true runtimeOrderPaid=false fiscalCalled=false machineCalled=false"
+        )
+
+        cardPaymentClient.startSbpLiveQrGenerationProbe(
+            object : KozenAoaPaymentClient.SbpLiveQrProbeListener {
+                override fun onStatus(message: String) {
+                    sbpLiveQrProbeStatus = message
+                    android.util.Log.i(
+                        "SbpLiveQrProbe",
+                        "PROBE_STATUS messageHash=${message.hashCode()} rawPayloadLogged=false"
+                    )
+                }
+
+                override fun onQrReady(event: KozenAoaPaymentClient.SbpQrEventResult) {
+                    if (!event.ok || event.payload.isNullOrBlank()) {
+                        android.util.Log.e(
+                            "SbpLiveQrProbe",
+                            "PROBE_QR_REJECTED code=${event.code} bridge=${event.bridgeVersion} " +
+                                "rawPayloadLogged=false noAutoRetry=true"
+                        )
+                        return
+                    }
+                    sbpLiveQrProbePayload = event.payload
+                    sbpLiveQrProbeStatus = "QR_READY_DO_NOT_SCAN"
+                    android.util.Log.w(
+                        "SbpLiveQrProbe",
+                        "PROBE_QR_READY bridge=${event.bridgeVersion} sequence=${event.sequence} " +
+                            "source=${event.source} payloadHash=${event.payloadHash} " +
+                            "payloadLength=${event.payloadLength} acked=${event.acked} " +
+                            "rawPayloadLogged=false doNotScan=true runtimeOrderPaid=false fiscalCalled=false machineCalled=false"
+                    )
+                    openScreen("PAYMENT_ONLINE_QR")
+                    toast("Живой QR получен от SmartSkyPOS. НЕ СКАНИРОВАТЬ.")
+                }
+
+                override fun onFinal(result: KozenAoaPaymentClient.PaymentResult) {
+                    sbpLiveQrProbeStatus = result.status
+                    android.util.Log.w(
+                        "SbpLiveQrProbe",
+                        "PROBE_FINAL requestId=${result.requestId} status=${result.status} code=${result.code} " +
+                            "approved=${result.approved} rc=${result.rc} amount=${result.amount} " +
+                            "runtimeOrderPaid=false fiscalCalled=false machineCalled=false noAutoRetry=true"
+                    )
+                    if (result.isApproved()) {
+                        toast("ВНИМАНИЕ: SmartSkyPOS сообщил одобрение. Заказ намеренно НЕ помечен оплаченным.")
+                    } else {
+                        toast("СБП-проба завершена: ${result.status}. Автоповтора нет.")
+                    }
+                }
+            }
+        )
     }
 
     private fun maybeRunSbpDryRunSelfTest(intent: android.content.Intent?, source: String) {
