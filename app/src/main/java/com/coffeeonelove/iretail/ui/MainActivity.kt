@@ -1783,7 +1783,11 @@ class MainActivity : Activity() {
         val statusText = when (currentScreen) {
             "PAYMENT_POS" -> cardPaymentStatus.ifBlank { "Подключение к POS-терминалу…" }
             "PAYMENT_CASH" -> "Ожидание внесения наличных"
-            "PAYMENT_ONLINE_QR" -> if (sbpDryRunMode) "СБП DRY RUN • синтетический QR" else "Сканируйте QR-код для оплаты"
+            "PAYMENT_ONLINE_QR" -> when {
+                sbpDryRunMode -> "СБП DRY RUN • синтетический QR"
+                sbpLiveQrProbeMode -> "СБП LIVE PROBE • НЕ СКАНИРОВАТЬ"
+                else -> "Сканируйте QR-код для оплаты"
+            }
             "PAYMENT_ONLINE_CONFIRM" -> if (sbpDryRunMode) "СБП DRY RUN • синтетическое подтверждение" else "Проверяем оплату и готовим чек"
             else -> "Проверяем оплату и готовим чек"
         }
@@ -1808,6 +1812,24 @@ class MainActivity : Activity() {
             }
             addLabel("Состояние: ${sbp?.state ?: SbpDryRunState.IDLE}", RectSpec(245, 1050, 590, 50), 17f, blueGray, Gravity.CENTER, false, Color.TRANSPARENT)
             addLabel("DRY RUN: реальный qrPayment не вызывался", RectSpec(225, 1110, 630, 55), 17f, red, Gravity.CENTER, true, Color.TRANSPARENT)
+        }
+
+        if (sbpLiveQrProbeMode && currentScreen == "PAYMENT_ONLINE_QR") {
+            addBox(RectSpec(190, 410, 700, 790), Color.WHITE, 24f)
+            val payload = sbpLiveQrProbePayload.orEmpty()
+            if (payload.isNotBlank()) {
+                val qr = ImageView(this).apply {
+                    scaleType = ImageView.ScaleType.FIT_CENTER
+                    setBackgroundColor(Color.WHITE)
+                    setImageBitmap(SbpQrRenderer.render(payload, 640))
+                    contentDescription = "Живой QR СБП — не сканировать"
+                }
+                dynamicLayer.addView(qr, scaledLayoutParams(RectSpec(290, 470, 500, 500)))
+            } else {
+                addLabel("Ожидание QR от SmartSkyPOS", RectSpec(260, 610, 560, 120), 25f, blueGray, Gravity.CENTER, true, Color.TRANSPARENT)
+            }
+            addLabel("ЖИВОЙ QR • НЕ СКАНИРОВАТЬ", RectSpec(225, 995, 630, 60), 20f, red, Gravity.CENTER, true, Color.TRANSPARENT)
+            addLabel("Проверка источника QR • 1,00 ₽", RectSpec(225, 1060, 630, 50), 17f, dark, Gravity.CENTER, false, Color.TRANSPARENT)
         }
 
         // В исходном POS-макете сумма была статичной. Закрываем нижний финансовый блок и
@@ -2086,7 +2108,11 @@ class MainActivity : Activity() {
         val title = when (currentScreen) {
             "PAYMENT_POS" -> cardPaymentStatus.ifBlank { "ПОДКЛЮЧЕНИЕ К POS-ТЕРМИНАЛУ…" }.uppercase(Locale.ROOT)
             "PAYMENT_CASH" -> "ВНЕСИТЕ НАЛИЧНЫЕ В КУПЮРОПРИЁМНИК"
-            "PAYMENT_ONLINE_QR" -> if (sbpDryRunMode) "СБП DRY RUN • СКАНИРУЙТЕ QR-КОД" else "СКАНИРУЙТЕ QR-КОД ДЛЯ ОПЛАТЫ"
+            "PAYMENT_ONLINE_QR" -> when {
+                sbpDryRunMode -> "СБП DRY RUN • СКАНИРУЙТЕ QR-КОД"
+                sbpLiveQrProbeMode -> "СБП LIVE PROBE • QR НЕ СКАНИРОВАТЬ"
+                else -> "СКАНИРУЙТЕ QR-КОД ДЛЯ ОПЛАТЫ"
+            }
             "PAYMENT_ONLINE_CONFIRM" -> if (sbpDryRunMode) "СБП DRY RUN • ПОДТВЕРЖДЕНИЕ" else "ПРОВЕРЯЕМ ОПЛАТУ И ГОТОВИМ ЧЕК"
             else -> "ПРОВЕРЯЕМ ОПЛАТУ И ГОТОВИМ ЧЕК"
         }
@@ -2108,6 +2134,21 @@ class MainActivity : Activity() {
             } else {
                 addLabel("QR-код недоступен", RectSpec(785, 480, 350, 110), 30f, red, Gravity.CENTER, true, Color.TRANSPARENT)
             }
+        } else if (currentScreen == "PAYMENT_ONLINE_QR" && sbpLiveQrProbeMode) {
+            val payload = sbpLiveQrProbePayload.orEmpty()
+            addBox(RectSpec(710, 325, 500, 500), Color.WHITE, 24f)
+            if (payload.isNotBlank()) {
+                val qr = ImageView(this).apply {
+                    scaleType = ImageView.ScaleType.FIT_CENTER
+                    setBackgroundColor(Color.WHITE)
+                    setImageBitmap(SbpQrRenderer.render(payload, 640))
+                    contentDescription = "Живой QR СБП — не сканировать"
+                }
+                dynamicLayer.addView(qr, scaledLayoutParams(RectSpec(755, 370, 410, 410)))
+            } else {
+                addLabel("Ожидание QR от SmartSkyPOS", RectSpec(735, 480, 450, 100), 26f, blueGray, Gravity.CENTER, true, Color.TRANSPARENT)
+            }
+            addLabel("ЖИВОЙ QR • НЕ СКАНИРОВАТЬ", RectSpec(590, 795, 740, 46), 20f, red, Gravity.CENTER, true, Color.TRANSPARENT)
         } else if (currentScreen == "PAYMENT_ONLINE_CONFIRM" && sbpDryRunMode) {
             addBox(RectSpec(650, 365, 620, 360), 0xFFF4F6F7.toInt(), 26f)
             addLabel("QR ОТСКАНИРОВАН", RectSpec(735, 430, 450, 80), 34f, green, Gravity.CENTER, true, Color.TRANSPARENT)
@@ -2226,6 +2267,11 @@ class MainActivity : Activity() {
                 sbpDryRunMode = false
                 openScreen("PAYMENT_METHOD_ALL")
             }
+        ) else if (sbpLiveQrProbeMode) listOf(
+            area("Живой QR — не сканировать", 0, 80, 1920, 860) {
+                toast("Живой QR получен. В этой пробе его НЕ СКАНИРУЕМ.")
+            },
+            area("Назад к способам оплаты", 0, 940, 420, 140) { openScreen("PAYMENT_METHOD_ALL") }
         ) else listOf(
             area("Способ оплаты недоступен", 0, 80, 1920, 860) {
                 toast("СБП пока не подключён к подтверждаемому платёжному контуру")
@@ -2452,6 +2498,11 @@ class MainActivity : Activity() {
                 sbpDryRunMode = false
                 openScreen("PAYMENT_METHOD_ALL")
             }
+        ) else if (sbpLiveQrProbeMode) listOf(
+            area("Живой QR — не сканировать", 0, 0, 1080, 1700) {
+                toast("Живой QR получен. В этой пробе его НЕ СКАНИРУЕМ.")
+            },
+            area("Назад к способам оплаты", 0, 1700, 300, 220) { openScreen("PAYMENT_METHOD_ALL") }
         ) else listOf(
             area("Способ оплаты недоступен", 0, 0, 1080, 1700) {
                 toast("СБП пока не подключён к подтверждаемому платёжному контуру")
