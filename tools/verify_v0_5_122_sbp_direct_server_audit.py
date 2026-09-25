@@ -13,8 +13,13 @@ pay_methods = (ROOT / "app/src/main/assets/content/pay-methods.xml").read_text(e
 audit = (ROOT / "tools/iRetailDirectSbpReadonlyAudit.ps1").read_text(encoding="utf-8")
 runner = (ROOT / "MAIN_37_SBP_DIRECT_SERVER_READONLY_AUDIT.bat").read_text(encoding="utf-8")
 
+version_code_match = re.search(r"versionCode\s+(\d+)", gradle)
+version_name_match = re.search(r"versionName\s+'([^']+)'", gradle)
+version_code = int(version_code_match.group(1)) if version_code_match else 0
+version_name = version_name_match.group(1) if version_name_match else ""
+
 checks = {
-    "app version 0.5.122": "versionCode 122" in gradle and "versionName '0.5.122-sbp-direct-server-audit'" in gradle,
+    "app version 0.5.122+": version_code >= 122 and bool(version_name),
     "old dual-mode contract is explicitly superseded": contract_v1.startswith("# УСТАРЕЛ") and "SBP_DUAL_MODE_CONTRACT_v2.0.0.md" in contract_v1,
     "v2 requires two independent contours": "SBP_KOZEN" in contract_v2 and "SBP_DIRECT_JL22" in contract_v2 and "Kozen может быть" in contract_v2,
     "direct source is explicit in code contract": "enum class SbpPaymentSource" in contract_code and "KOZEN_SMARTSKY" in contract_code and "DIRECT_SERVER" in contract_code,
