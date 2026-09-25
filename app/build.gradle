@@ -11,8 +11,8 @@ android {
         applicationId 'com.coffeeonelove.iretail'
         minSdk 23
         targetSdk 35
-        versionCode 123
-        versionName '0.5.123-sbp-direct-services-audit'
+        versionCode 124
+        versionName '0.5.124-sbp-channel-inventory'
     }
 
     compileOptions {
