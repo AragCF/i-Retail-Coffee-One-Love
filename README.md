@@ -1,6 +1,6 @@
 # i-Retail Coffee One Love
 
-Текущая рабочая версия: **0.5.124-sbp-channel-inventory**.
+Текущая рабочая версия: **0.5.125-sbp-server-config-doc-audit**.
 
 Android-проект теперь расположен непосредственно в корне репозитория. Дополнительный каталог
 `iRetail_Android_UI_v0.5.8_smartskypos_probe_source` больше не используется.
@@ -1179,3 +1179,35 @@ Kozen bridge получает отдельный безопасный capture-к
 - автоматически публикует ZIP в Git.
 
 После `AUTO_PUBLISH_OK` ручная передача ZIP не требуется.
+
+
+## v0.5.125 — аудит серверной настройки СБП
+
+Автоматически опубликованный отчёт v0.5.124 доказал:
+
+- profile_id=2512 содержит два канала;
+- оба канала выключены;
+- оба связанных PayIn-PayOut магазина не верифицированы;
+- ни один канал не имеет `sbp` или `sbp_low_risk`;
+- configured channel 5676 («Выставка») имеет `shop_verified=false`, `channel_enable=false`, `related_enabled=false`;
+- второй канал 5994 также выключен, не верифицирован и без СБП.
+
+Это переводит текущий блокер прямого СБП из Android-кода в серверную конфигурацию торговой точки.
+
+Добавлен:
+
+`MAIN_40_SBP_SERVER_CONFIG_DOC_AUDIT.bat`
+
+Он скачивает только публичную актуальную API-документацию административных и пользовательских контроллеров channel/shop/service/profile/trade-point и ищет:
+
+- verify / verified / verification;
+- enable / enabled / disable;
+- привязку payment service/service-in;
+- online/offline shop;
+- `lock_service`;
+- `sbp`, `sbp_low_risk`;
+- create/update/save/edit/bind/activate.
+
+Сценарий не авторизуется, ничего не меняет и автоматически публикует ZIP в Git.
+
+Цель: установить, существует ли документированный API для включения/верификации магазина и привязки СБП. Если такого API нет, следующим результатом будет точное обращение в поддержку i-Retail/PayIn-PayOut с channel/profile/shop фактами.
