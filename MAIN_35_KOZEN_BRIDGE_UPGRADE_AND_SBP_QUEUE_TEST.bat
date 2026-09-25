@@ -2,7 +2,7 @@
 setlocal EnableExtensions DisableDelayedExpansion
 cd /d "%~dp0"
 
-set "EXPECTED_APP_VERSION=0.5.124-sbp-channel-inventory"
+set "EXPECTED_APP_VERSION=0.5.125-sbp-channel-service-doc-audit"
 set "EXPECTED_BRIDGE_VERSION=0.5.7-sbp-qr-source-probe"
 set "JL22="
 set "KOZEN="
