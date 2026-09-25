@@ -11,8 +11,8 @@ android {
         applicationId 'com.coffeeonelove.iretail'
         minSdk 23
         targetSdk 35
-        versionCode 121
-        versionName '0.5.121-sbp-qr-source-probe'
+        versionCode 122
+        versionName '0.5.122-sbp-direct-server-audit'
     }
 
     compileOptions {
