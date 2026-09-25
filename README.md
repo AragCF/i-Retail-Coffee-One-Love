@@ -1,6 +1,6 @@
 # i-Retail Coffee One Love
 
-Текущая рабочая версия: **0.5.122-sbp-direct-server-audit**.
+Текущая рабочая версия: **0.5.123-sbp-direct-services-audit**.
 
 Android-проект теперь расположен непосредственно в корне репозитория. Дополнительный каталог
 `iRetail_Android_UI_v0.5.8_smartskypos_probe_source` больше не используется.
@@ -1124,3 +1124,29 @@ Kozen bridge получает отдельный безопасный capture-к
 - формирует безопасный ZIP для следующей реализации `DirectSbpPaymentClient`.
 
 Доказательства: `docs/SBP_DIRECT_SERVER_EVIDENCE_v0.5.122.md`.
+
+
+## Автоматическая публикация диагностических артефактов
+
+С v0.5.123 новые диагностические сценарии с итоговыми ZIP/отчётами обязаны самостоятельно публиковать результат в текущую Git-ветку.
+
+Общий механизм:
+
+`tools/Publish-TestArtifact.ps1`
+
+Он добавляет только конкретный артефакт и его SHA-256 sidecar, создаёт отдельный commit и делает push. `git add .` не используется.
+
+После успешного `AUTO_PUBLISH_OK` ручная передача ZIP в чат не требуется.
+
+Политика: `docs/AUTOMATIC_ARTIFACT_PUBLICATION.md`.
+
+### Direct SBP — следующий read-only этап
+
+`MAIN_38_SBP_DIRECT_SERVICES_READONLY_AUDIT.bat`:
+
+- не использует Kozen, SmartSkyPOS, AOA или ADB;
+- читает фактически доступные платёжные службы канала через `iretail/channel/get-available-services-in`;
+- читает только существующие входящие платежи через `iretail/channel/get-payments-in`;
+- проверяет текущую документацию `payment-in/create`, `payment-in/get-status`, `order/get-payment-data`;
+- не создаёт платёж/заказ/возврат;
+- сам публикует итоговый ZIP в Git.
