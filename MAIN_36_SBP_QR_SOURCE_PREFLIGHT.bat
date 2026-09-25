@@ -91,13 +91,20 @@ for /l %%S in (1,1,120) do (
   adb -s "%JL22%" logcat -d -v brief SbpRouteAudit:V IretailKozenClient:V AndroidRuntime:E *:S > "%WAIT_LOG%" 2>&1
   findstr /C:"ROUTE_RESULT ok=true" "%WAIT_LOG%" >nul 2>nul
   if not errorlevel 1 (
-    findstr /C:"available=true" "%WAIT_LOG%" >nul 2>nul || (set "OUTCOME=ROUTE_NOT_AVAILABLE"& goto PREFLIGHT_DONE)
-    findstr /C:"operationType=42" "%WAIT_LOG%" >nul 2>nul || (set "OUTCOME=BAD_OPERATION_TYPE"& goto PREFLIGHT_DONE)
-    findstr /C:"transactionType=qrPayment" "%WAIT_LOG%" >nul 2>nul || (set "OUTCOME=BAD_TRANSACTION_TYPE"& goto PREFLIGHT_DONE)
-    findstr /C:"currency=643" "%WAIT_LOG%" >nul 2>nul || (set "OUTCOME=BAD_CURRENCY"& goto PREFLIGHT_DONE)
-    findstr /C:"tidPresent=true" "%WAIT_LOG%" >nul 2>nul || (set "OUTCOME=TID_MISSING"& goto PREFLIGHT_DONE)
-    findstr /C:"liveEnabled=false" "%WAIT_LOG%" >nul 2>nul || (set "OUTCOME=NORMAL_LIVE_NOT_LOCKED"& goto PREFLIGHT_DONE)
-    findstr /C:"probeEnabled=false" "%WAIT_LOG%" >nul 2>nul || (set "OUTCOME=PROBE_NOT_LOCKED"& goto PREFLIGHT_DONE)
+    findstr /C:"available=true" "%WAIT_LOG%" >nul 2>nul
+    if errorlevel 1 goto FAIL_ROUTE_NOT_AVAILABLE
+    findstr /C:"operationType=42" "%WAIT_LOG%" >nul 2>nul
+    if errorlevel 1 goto FAIL_BAD_OPERATION_TYPE
+    findstr /C:"transactionType=qrPayment" "%WAIT_LOG%" >nul 2>nul
+    if errorlevel 1 goto FAIL_BAD_TRANSACTION_TYPE
+    findstr /C:"currency=643" "%WAIT_LOG%" >nul 2>nul
+    if errorlevel 1 goto FAIL_BAD_CURRENCY
+    findstr /C:"tidPresent=true" "%WAIT_LOG%" >nul 2>nul
+    if errorlevel 1 goto FAIL_TID_MISSING
+    findstr /C:"liveEnabled=false" "%WAIT_LOG%" >nul 2>nul
+    if errorlevel 1 goto FAIL_NORMAL_LIVE_NOT_LOCKED
+    findstr /C:"probeEnabled=false" "%WAIT_LOG%" >nul 2>nul
+    if errorlevel 1 goto FAIL_PROBE_NOT_LOCKED
     set "OUTCOME=PREFLIGHT_OK"
     goto PREFLIGHT_DONE
   )
@@ -108,6 +115,35 @@ for /l %%S in (1,1,120) do (
   )
   timeout /t 1 /nobreak >nul
 )
+
+
+:FAIL_ROUTE_NOT_AVAILABLE
+set "OUTCOME=ROUTE_NOT_AVAILABLE"
+goto PREFLIGHT_DONE
+
+:FAIL_BAD_OPERATION_TYPE
+set "OUTCOME=BAD_OPERATION_TYPE"
+goto PREFLIGHT_DONE
+
+:FAIL_BAD_TRANSACTION_TYPE
+set "OUTCOME=BAD_TRANSACTION_TYPE"
+goto PREFLIGHT_DONE
+
+:FAIL_BAD_CURRENCY
+set "OUTCOME=BAD_CURRENCY"
+goto PREFLIGHT_DONE
+
+:FAIL_TID_MISSING
+set "OUTCOME=TID_MISSING"
+goto PREFLIGHT_DONE
+
+:FAIL_NORMAL_LIVE_NOT_LOCKED
+set "OUTCOME=NORMAL_LIVE_NOT_LOCKED"
+goto PREFLIGHT_DONE
+
+:FAIL_PROBE_NOT_LOCKED
+set "OUTCOME=PROBE_NOT_LOCKED"
+goto PREFLIGHT_DONE
 
 :PREFLIGHT_DONE
 echo [6/7] Restoring safe Standalone...
