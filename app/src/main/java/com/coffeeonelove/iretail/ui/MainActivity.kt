@@ -1816,17 +1816,12 @@ class MainActivity : Activity() {
         addLabel("КАРТА ЛОЯЛЬНОСТИ", RectSpec(150, 410, 780, 70), 27f, dark, Gravity.CENTER, true, Color.TRANSPARENT)
         addLabel("Баланс", RectSpec(170, 520, 250, 50), 21f, blueGray, Gravity.LEFT or Gravity.CENTER_VERTICAL, false, Color.TRANSPARENT)
         addLabel(balance, RectSpec(420, 505, 480, 70), 32f, green, Gravity.RIGHT or Gravity.CENTER_VERTICAL, true, Color.TRANSPARENT)
-        addLabel("Доступно к списанию", RectSpec(170, 610, 430, 50), 19f, blueGray, Gravity.LEFT or Gravity.CENTER_VERTICAL, false, Color.TRANSPARENT)
-        val availableForOrder = available.coerceAtMost(
-            (cartGrossTotalMinor() / 100L).coerceAtMost(Int.MAX_VALUE.toLong()).toInt()
-        )
-        addLabel(formatMoney(availableForOrder.toLong() * 100L), RectSpec(600, 598, 300, 65), 27f, dark, Gravity.RIGHT or Gravity.CENTER_VERTICAL, true, Color.TRANSPARENT)
+        addLabel("Баланс бонусов", RectSpec(170, 610, 430, 50), 19f, blueGray, Gravity.LEFT or Gravity.CENTER_VERTICAL, false, Color.TRANSPARENT)
+        addLabel(formatMoney(available.toLong() * 100L), RectSpec(600, 598, 300, 65), 27f, dark, Gravity.RIGHT or Gravity.CENTER_VERTICAL, true, Color.TRANSPARENT)
         if (coupons > 0) addLabel("Купонов: $coupons", RectSpec(170, 690, 730, 44), 19f, dark, Gravity.CENTER, false, Color.TRANSPARENT)
-        val hint = if (available > 0) "Нажмите «Применить бонусы», чтобы уменьшить сумму заказа." else "Карта уже привязана к заказу. Бонусов для списания сейчас нет."
-        addLabel(hint, RectSpec(170, 760, 730, 100), 19f, blueGray, Gravity.CENTER, false, Color.TRANSPARENT)
-        val btnColor = if (available > 0) green else blueGray
-        val buttonText = if (available > 0) "Применить бонусы" else "Вернуться в заказ"
-        addRoundedLabel(buttonText, RectSpec(170, 900, 730, 92), 22f, Color.WHITE, Gravity.CENTER, true, btnColor, 16f)
+        val hint = "Карта привязана к заказу. Сумму списания бонусов должен подтвердить сервер; Android её самостоятельно не рассчитывает."
+        addLabel(hint, RectSpec(170, 750, 730, 120), 18f, blueGray, Gravity.CENTER, false, Color.TRANSPARENT)
+        addRoundedLabel("Вернуться в заказ", RectSpec(170, 900, 730, 92), 22f, Color.WHITE, Gravity.CENTER, true, blueGray, 16f)
     }
 
     private fun renderLoyaltyGetCardOverlay() {
@@ -2206,22 +2201,19 @@ class MainActivity : Activity() {
         renderLandscapeHeader()
         val balance = loyaltyGateway.balanceLabel ?: "0 бонусов"
         val available = loyaltyGateway.availableBonusAmount
-            .coerceAtMost((cartGrossTotalMinor() / 100L).coerceAtMost(Int.MAX_VALUE.toLong()).toInt())
         addLabel("Карта лояльности", RectSpec(650, 95, 620, 60), 30f, dark, Gravity.CENTER, true, Color.TRANSPARENT)
         addRoundedLabel("←", RectSpec(22, 14, 64, 64), 32f, Color.WHITE, Gravity.CENTER, true, green, 0f)
         addBox(RectSpec(520, 220, 880, 520), Color.WHITE, 28f)
         addLabel("КЛИЕНТ НАЙДЕН", RectSpec(600, 255, 720, 60), 28f, green, Gravity.CENTER, true, Color.TRANSPARENT)
         addLabel("Баланс", RectSpec(620, 360, 260, 50), 24f, blueGray, Gravity.LEFT or Gravity.CENTER_VERTICAL, false, Color.TRANSPARENT)
         addLabel(balance, RectSpec(890, 345, 360, 70), 36f, dark, Gravity.RIGHT or Gravity.CENTER_VERTICAL, true, Color.TRANSPARENT)
-        addLabel("Доступно к списанию", RectSpec(620, 455, 420, 50), 22f, blueGray, Gravity.LEFT or Gravity.CENTER_VERTICAL, false, Color.TRANSPARENT)
+        addLabel("Баланс бонусов", RectSpec(620, 455, 420, 50), 22f, blueGray, Gravity.LEFT or Gravity.CENTER_VERTICAL, false, Color.TRANSPARENT)
         addLabel(formatMoney(available.toLong() * 100L), RectSpec(1060, 442, 190, 68), 30f, dark, Gravity.RIGHT or Gravity.CENTER_VERTICAL, true, Color.TRANSPARENT)
         val couponsText = if (loyaltyGateway.couponsCount > 0) "Купонов: ${loyaltyGateway.couponsCount}" else "Активных купонов нет"
         addLabel(couponsText, RectSpec(620, 545, 630, 44), 21f, blueGray, Gravity.CENTER, false, Color.TRANSPARENT)
-        val hint = if (available > 0) "Бонусы будут переданы в заказ как ibonus_discount_sum." else "Карта уже привязана к заказу. Бонусов для списания сейчас нет."
-        addLabel(hint, RectSpec(610, 615, 700, 60), 18f, blueGray, Gravity.CENTER, false, Color.TRANSPARENT)
-        val btnColor = if (available > 0) green else blueGray
-        val buttonText = if (available > 0) "Применить бонусы" else "Вернуться в заказ"
-        addRoundedLabel(buttonText, RectSpec(700, 770, 520, 92), 25f, Color.WHITE, Gravity.CENTER, true, btnColor, 14f)
+        val hint = "Карта привязана. Списание бонусов будет доступно после подключения серверного расчёта лояльности."
+        addLabel(hint, RectSpec(610, 610, 700, 75), 18f, blueGray, Gravity.CENTER, false, Color.TRANSPARENT)
+        addRoundedLabel("Вернуться в заказ", RectSpec(700, 770, 520, 92), 25f, Color.WHITE, Gravity.CENTER, true, blueGray, 14f)
     }
 
     private fun renderLandscapeLoyaltyGetCard() {
@@ -3537,7 +3529,7 @@ class MainActivity : Activity() {
             if (full) "До скидки ${formatMoney(cartGrossTotalMinor())} • iBonus −${formatMoney(discount)}" else "iBonus −${formatMoney(discount)}"
         } else {
             val balance = loyaltyGateway.balanceLabel?.takeIf { it.isNotBlank() } ?: "0 бонусов"
-            "Карта лояльности • $balance • скидка 0 ₽"
+            "Карта лояльности • $balance • списание бонусов не подтверждено сервером"
         }
     }
 
@@ -3545,18 +3537,15 @@ class MainActivity : Activity() {
         val discount = orderDiscountMinor()
         return when {
             discount > 0 -> " • iBonus −${formatMoney(discount)}"
-            loyaltyGateway.attachedToOrder -> " • карта лояльности, скидка 0 ₽"
+            loyaltyGateway.attachedToOrder -> " • карта лояльности, бонусы не списаны"
             else -> ""
         }
     }
 
     private fun applyLoyaltyBonusAndReturn() {
-        val maxBonusRub = (cartGrossTotalMinor() / 100L).coerceAtMost(Int.MAX_VALUE.toLong()).toInt()
-        val bonus = loyaltyGateway.applyBonus(maxBonusRub)
-        if (bonus > 0) {
-            toast("Бонусы применены: ${formatMoney(bonus.toLong() * 100L)}")
-        } else if (loyaltyGateway.loggedIn) {
-            toast("Карта лояльности применена. Бонусов для списания нет")
+        loyaltyGateway.applyBonus(0)
+        if (loyaltyGateway.loggedIn) {
+            toast("Карта лояльности привязана. Списание бонусов пока не выполняется без подтверждённого серверного расчёта.")
         } else {
             toast("Сначала введите код карты")
         }
