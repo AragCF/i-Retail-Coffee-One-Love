@@ -1,7 +1,7 @@
 @echo off
 setlocal EnableExtensions DisableDelayedExpansion
 
-rem i-Retail Android UI v0.5.124 SBP channel inventory
+rem i-Retail Android UI v0.5.125 SBP server config docs audit
 rem Windows CLI debug APK build script.
 rem
 rem Important:
@@ -23,7 +23,7 @@ if errorlevel 1 (
     exit /b 9
 )
 
-set "SCRIPT_VERSION=0.5.124-sbp-channel-inventory"
+set "SCRIPT_VERSION=0.5.125-sbp-server-config-doc-audit"
 set "DO_CLEAN=0"
 set "DO_HARD_CLEAN=0"
 
