@@ -24,9 +24,10 @@ checks={
     "normal online payment still blocked": 'if (method != PaymentMethod.CARD)' in main,
     "no qrPayment call in main UI": ".qrPayment(" not in main,
     "no qrPayment call in SmartSkyPosGateway": ".qrPayment(" not in gateway,
-    "production bridge cannot execute live QR payment": (
-        "binder.transact(TX_QR_PAYMENT" not in bridge and
+    "production QR path remains blocked by default": (
         "LIVE_QR_PAYMENT_ENABLED = false" in bridge and
+        "LIVE_QR_GENERATION_PROBE_ENABLED = false" in bridge and
+        '"QR_PAYMENT".equals(command)) return qrPaymentBlocked(id)' in bridge and
         "LIVE_QR_PAYMENT_NOT_APPROVED" in bridge
     ),
     "runner keeps real POS false": "--ez real_pos_enabled true" not in runner,
