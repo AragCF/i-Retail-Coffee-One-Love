@@ -11,8 +11,8 @@ android {
         applicationId 'com.coffeeonelove.iretail'
         minSdk 23
         targetSdk 35
-        versionCode 125
-        versionName '0.5.125-sbp-server-config-doc-audit'
+        versionCode 126
+        versionName '0.5.126-server-managed-integrations'
     }
 
     compileOptions {
