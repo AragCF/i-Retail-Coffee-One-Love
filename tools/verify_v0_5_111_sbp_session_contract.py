@@ -33,9 +33,10 @@ checks={
     "normal online payment still blocked": 'if (method != PaymentMethod.CARD)' in main,
     "no qrPayment call in main": ".qrPayment(" not in main,
     "no qrPayment call in gateway": ".qrPayment(" not in gateway,
-    "bridge cannot execute live QR payment": (
-        "binder.transact(TX_QR_PAYMENT" not in bridge and
+    "production QR remains blocked and probe locked": (
         "LIVE_QR_PAYMENT_ENABLED = false" in bridge and
+        "LIVE_QR_GENERATION_PROBE_ENABLED = false" in bridge and
+        '"QR_PAYMENT".equals(command)) return qrPaymentBlocked(id)' in bridge and
         "LIVE_QR_PAYMENT_NOT_APPROVED" in bridge
     ),
     "recovery runner exact version": "0.5.111-sbp-session-contract" in runner,
