@@ -52,6 +52,7 @@ class MainActivity : Activity() {
     private lateinit var statusLabel: TextView
 
     private val handler = Handler(Looper.getMainLooper())
+    private val syncHandler = Handler(Looper.getMainLooper())
     private val orderGateway = LocalRetailOrderGateway()
     private val machineGateway = LocalMachineGateway()
     private val loyaltyGateway = LocalLoyaltyGateway()
@@ -66,6 +67,22 @@ class MainActivity : Activity() {
     private lateinit var contentRepository: IretailContentRepository
     private var catalog: List<Product> = emptyList()
     private var paymentMethods: List<PayMethod> = emptyList()
+    private var paymentConfigReady = false
+    private var paymentConfigMessage = "Настройки способов оплаты ещё не загружены"
+    private var paymentConfigChannelEnabled: Boolean? = null
+    private var paymentConfigRelatedEnabled: Boolean? = null
+    private var paymentConfigUserVerified: Boolean? = null
+    private var paymentConfigShopVerified: Boolean? = null
+    private val serverRefreshIntervalMs = 5L * 60L * 1000L
+    private val periodicServerRefresh = object : Runnable {
+        override fun run() {
+            if (::contentRepository.isInitialized && !fiscalPositivePaymentTestMode) {
+                refreshCatalogFromIretail(silent = true)
+                refreshChannelConfigFromIretail(silent = true)
+            }
+            syncHandler.postDelayed(this, serverRefreshIntervalMs)
+        }
+    }
     private var catalogDataSource = "content XML"
     private var catalogMessage = "локальный XML-макет"
     private var catalogApiOffersCount = 0
@@ -215,6 +232,12 @@ class MainActivity : Activity() {
         window.setFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN, WindowManager.LayoutParams.FLAG_FULLSCREEN)
         hideSystemUi()
         contentRepository = IretailContentRepository(this)
+        catalogDataSource = if (contentRepository.isRemoteCatalogEnabled()) "I-Retail pending" else "content XML"
+        catalogMessage = if (contentRepository.isRemoteCatalogEnabled()) {
+            "Ожидание серверного каталога I-Retail"
+        } else {
+            "Удалённый каталог отключён"
+        }
         fiscalGateway = DryRunFiscalGateway(this)
         cardPaymentClient = KozenAoaPaymentClient(this)
         sbpSessionStore = SbpSessionStore(this)
@@ -251,6 +274,7 @@ class MainActivity : Activity() {
             startFiscalPositivePaymentPreflight()
         } else {
             refreshCatalogFromIretail()
+            refreshChannelConfigFromIretail()
         }
     }
 
@@ -294,10 +318,15 @@ class MainActivity : Activity() {
     override fun onStart() {
         super.onStart()
         MainUiVisibility.started = true
+        syncHandler.removeCallbacks(periodicServerRefresh)
+        if (!fiscalPositivePaymentTestMode) {
+            syncHandler.postDelayed(periodicServerRefresh, serverRefreshIntervalMs)
+        }
         if (machineModeConfig.standalone) ForegroundKeeperService.ensureRunning(this)
     }
 
     override fun onStop() {
+        syncHandler.removeCallbacks(periodicServerRefresh)
         MainUiVisibility.started = false
         super.onStop()
     }
@@ -869,7 +898,7 @@ class MainActivity : Activity() {
         }
     }
 
-    private fun refreshCatalogFromIretail() {
+    private fun refreshCatalogFromIretail(silent: Boolean = false) {
         contentRepository.refreshProductsAsync { result ->
             handler.post {
                 android.util.Log.i(
@@ -882,25 +911,66 @@ class MainActivity : Activity() {
                 catalogDataSource = result.source
                 catalogMessage = result.message
                 catalogApiChannelId = result.channelId
-                if (result.success && result.products.isNotEmpty()) {
+
+                if (result.success) {
                     catalog = result.products
-                    catalogApiOffersCount = result.products.size
+                    catalogApiOffersCount = result.offersCount
                     catalogApiCoffeeCount = result.products.count { it.category == "coffee" }
-                    catalogHasApiButNoCoffee = result.source.startsWith("I-Retail") && catalogApiCoffeeCount == 0
-                    catalogMessage = if (catalogHasApiButNoCoffee) {
-                        "I-Retail: канал ${result.channelId.ifBlank { "?" }} отдал ${result.offersCount} товаров, кофейных позиций не найдено"
-                    } else {
-                        result.message
+                    catalogHasApiButNoCoffee =
+                        result.source.startsWith("I-Retail") &&
+                            result.offersCount > 0 &&
+                            catalogApiCoffeeCount == 0
+
+                    catalogMessage = when {
+                        result.products.isEmpty() -> "I-Retail: каталог пуст"
+                        catalogHasApiButNoCoffee ->
+                            "I-Retail: канал ${result.channelId.ifBlank { "?" }} отдал ${result.offersCount} товаров, кофейных позиций не найдено"
+                        else -> result.message
                     }
-                    if (currentScreen == "SCREEN_SAVER_COFFEE" || currentScreen == "SCREEN_SAVER_LOYALTY" || currentScreen == "SCREEN_PROMO_DOUBLE_CASHBACK") {
+
+                    if (!silent &&
+                        (currentScreen == "SCREEN_SAVER_COFFEE" ||
+                            currentScreen == "SCREEN_SAVER_LOYALTY" ||
+                            currentScreen == "SCREEN_PROMO_DOUBLE_CASHBACK")
+                    ) {
                         openScreen("CATALOG_DEFAULT")
                     } else {
                         rerenderCurrentScreen()
                     }
-                    toast(catalogMessage)
+                    if (!silent) toast(catalogMessage)
                 } else {
+                    if (!silent) toast(result.message)
+                    rerenderCurrentScreen()
                     updateStatusLabel()
                 }
+            }
+        }
+    }
+
+    private fun refreshChannelConfigFromIretail(silent: Boolean = false) {
+        contentRepository.refreshChannelConfigAsync { result ->
+            handler.post {
+                paymentConfigReady = result.success
+                paymentMethods = if (result.success) result.paymentMethods else emptyList()
+                paymentConfigMessage = result.message
+                paymentConfigChannelEnabled = result.channelEnabled
+                paymentConfigRelatedEnabled = result.relatedEnabled
+                paymentConfigUserVerified = result.userVerified
+                paymentConfigShopVerified = result.shopVerified
+
+                android.util.Log.i(
+                    "IretailChannelConfig",
+                    "REFRESH success=${result.success} source=${result.source} channel=${result.channelId} " +
+                        "services=${result.paymentMethods.size} channelEnabled=${result.channelEnabled} " +
+                        "relatedEnabled=${result.relatedEnabled} userVerified=${result.userVerified} " +
+                        "shopVerified=${result.shopVerified} failure=${result.failureReason ?: "-"}"
+                )
+
+                if (currentScreen == "PAYMENT_METHOD_ALL" || currentScreen == "PAYMENT_METHOD_NO_CASH") {
+                    rerenderCurrentScreen()
+                }
+                if (!silent && !result.success) toast(result.message)
+                updateStatusLabel()
             }
         }
     }
