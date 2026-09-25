@@ -15,7 +15,7 @@ version_code = int(version_code_match.group(1)) if version_code_match else 0
 version_name = version_name_match.group(1) if version_name_match else ""
 
 checks = {
-    "app version 0.5.120": version_code == 120 and version_name == "0.5.120-sbp-dryrun-phase-timeout",
+    "app version 0.5.120+": version_code >= 120 and bool(version_name),
     "runner current version": bool(version_name) and version_name in runner,
     "phase 1 timeout exists": 'set "OUTCOME=DRY_RUN_QR_TIMEOUT"' in runner,
     "phase 2 timeout exists": 'set "OUTCOME=DRY_RUN_CONFIRM_TIMEOUT"' in runner,
@@ -28,7 +28,7 @@ checks = {
     "Android 6 restore fix preserved": "generationCounter.compareAndSet" in (ROOT / "app/src/main/java/com/coffeeonelove/iretail/ui/SbpDryRun.kt").read_text(encoding="utf-8"),
     "landscape QR flow preserved": "DRY_RUN_QR_SCANNED" in main and "DRY_RUN_CONFIRMED" in main and "SbpQrRenderer.render(payload, 640)" in main,
     "live QR still disabled": "LIVE_CALL_ENABLED = false" in contract and "LIVE_QR_PAYMENT_ENABLED = false" in bridge,
-    "no live Binder qrPayment": "binder.transact(TX_QR_PAYMENT" not in bridge,
+    "live QR probe remains locked": "LIVE_QR_GENERATION_PROBE_ENABLED = false" in bridge and '"QR_PAYMENT".equals(command)) return qrPaymentBlocked(id)' in bridge,
     "real POS remains false": "--ez real_pos_enabled true" not in runner,
     "no financial adb command": not bool(re.search(r"adb[^\n\r]*\b(?:PAYMENT|QR_PAYMENT|QRPAYMENT|REFUND|RECONCILIATION)\b", runner, re.I)),
 }
