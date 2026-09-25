@@ -1,6 +1,6 @@
 # i-Retail Coffee One Love
 
-Текущая рабочая версия: **0.5.123-sbp-direct-services-audit**.
+Текущая рабочая версия: **0.5.124-sbp-channel-inventory**.
 
 Android-проект теперь расположен непосредственно в корне репозитория. Дополнительный каталог
 `iRetail_Android_UI_v0.5.8_smartskypos_probe_source` больше не используется.
@@ -1150,3 +1150,32 @@ Kozen bridge получает отдельный безопасный capture-к
 - проверяет текущую документацию `payment-in/create`, `payment-in/get-status`, `order/get-payment-data`;
 - не создаёт платёж/заказ/возврат;
 - сам публикует итоговый ZIP в Git.
+
+
+## v0.5.124 — инвентаризация каналов для прямого СБП
+
+Живой read-only аудит v0.5.123 доказал для configured channel 5676:
+
+- глобальный i-Retail знает `sbp` и `sbp_low_risk`;
+- сам канал 5676 их не получает через `iretail/channel/get-available-services-in`;
+- доступны только `external`, `external_plastic_cards`, `payme_alfa`, `goswiff`;
+- `user_verified=true`, но `shop_verified=false`;
+- текущий профиль также не помечает SBP как used.
+
+Чтобы не гадать, нужен ли другой channel_id или серверная настройка текущей торговой точки, добавлен:
+
+`MAIN_39_SBP_CHANNEL_INVENTORY.bat`
+
+Он:
+
+- получает все каналы profile_id=2512;
+- для каждого читает `iretail/channel/get`;
+- для каждого читает `iretail/channel/get-available-services-in`;
+- фиксирует channel/related enabled, shop_verified/user_verified;
+- перечисляет доступные service slugs;
+- отдельно выделяет каналы с `sbp*`;
+- ничего не изменяет;
+- не использует Kozen/ADB;
+- автоматически публикует ZIP в Git.
+
+После `AUTO_PUBLISH_OK` ручная передача ZIP не требуется.
