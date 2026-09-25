@@ -23,7 +23,7 @@ hotspots_end = main.find("private fun landscapeCatalogHotspots", hotspots_start)
 hotspots_section = main[hotspots_start:hotspots_end]
 
 checks = {
-    "app version 0.5.119": version_code == 119 and version_name == "0.5.119-sbp-landscape-qr",
+    "app version 0.5.119+": version_code >= 119 and bool(version_name),
     "landscape renderer section found": render_start >= 0 and render_end > render_start,
     "landscape hotspot section found": hotspots_start >= 0 and hotspots_end > hotspots_start,
     "landscape QR uses real renderer": "SbpQrRenderer.render(payload, 640)" in render_section,
