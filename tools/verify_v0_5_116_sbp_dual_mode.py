@@ -24,7 +24,7 @@ checks = {
     "ZXing core pinned": "com.google.zxing:core:3.5.4" in gradle,
     "both mandatory modes in code": "KOZEN_TERMINAL" in contract and "JL22_SCREEN_QR" in contract,
     "live QR remains disabled": "LIVE_CALL_ENABLED = false" in contract and "LIVE_QR_PAYMENT_ENABLED = false" in bridge,
-    "no Binder qrPayment transact": "binder.transact(TX_QR_PAYMENT" not in bridge,
+    "production qrPayment remains blocked and probe locked": "LIVE_QR_GENERATION_PROBE_ENABLED = false" in bridge and '"QR_PAYMENT".equals(command)) return qrPaymentBlocked(id)' in bridge,
     "local QR renderer": "QRCodeWriter" in renderer and "BarcodeFormat.QR_CODE" in renderer and "Bitmap.createBitmap" in renderer,
     "renderer is network-independent": "HttpURLConnection" not in renderer and "URL(" not in renderer,
     "JL22 screen renders current SBP payload": "SbpQrRenderer.render(payload, 640)" in main and "val payload = sbp?.qrPayload.orEmpty()" in main,
