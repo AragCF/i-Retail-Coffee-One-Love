@@ -1,6 +1,6 @@
 # i-Retail Coffee One Love
 
-Текущая рабочая версия: **0.5.121-sbp-qr-source-probe**.
+Текущая рабочая версия: **0.5.122-sbp-direct-server-audit**.
 
 Android-проект теперь расположен непосредственно в корне репозитория. Дополнительный каталог
 `iRetail_Android_UI_v0.5.8_smartskypos_probe_source` больше не используется.
@@ -1083,3 +1083,44 @@ Kozen bridge получает отдельный безопасный capture-к
 Это только read-only проверка маршрута и предохранителей; финансовая команда не отправляется.
 
 Контракт: `docs/SBP_LIVE_QR_GENERATION_PROBE_CONTRACT_v1.0.0.md`.
+
+
+## v0.5.122 — прямой СБП на JL22 без Kozen
+
+Уточнено обязательное архитектурное требование: два СБП-контура являются **независимыми источниками платежа**, а не только двумя местами отображения одного Kozen QR.
+
+1. `SBP_KOZEN`:
+   `JL22 → AOA → Kozen / SmartSkyPOS → банк`.
+
+2. `SBP_DIRECT_JL22`:
+   `JL22 → серверный i-Retail / PayIn-PayOut СБП-контур → QR → экран JL22 → серверный статус`.
+
+Прямой контур обязан работать, когда Kozen выключен или физически отсутствует.
+
+Исторический `docs/SBP_DUAL_MODE_CONTRACT_v1.0.0.md` помечен как устаревший. Актуальный контракт:
+
+`docs/SBP_DUAL_MODE_CONTRACT_v2.0.0.md`
+
+Найдены документальные основания прямого пути:
+
+- старый TSO содержит `iretail/channel/get-available-services-in`;
+- старый TSO содержит `iretail/order/create-payment-for-order`;
+- `pay-methods.xml` содержит включённый RUB `payin_payout` как отдельный Online-способ;
+- актуальный i-Retail API документирует `iretail/payment-in/create`;
+- живой service-in список ранее возвращал `sbp` и `sbp_low_risk`.
+
+Но текущий профиль 2512 ранее показывал как used только `external` и `external_plastic_cards`. Поэтому slug и точный create/status контракт нельзя выбирать догадкой.
+
+Добавлен безопасный аудит:
+
+`MAIN_37_SBP_DIRECT_SERVER_READONLY_AUDIT.bat`
+
+Он **не использует Kozen, SmartSkyPOS, AOA или ADB**, не создаёт заказ/платёж/payment-in и только:
+
+- скачивает текущие apiDoc order/payment-in/channel/service-in;
+- ищет актуальный контракт online/SBP create/status;
+- авторизуется в i-Retail;
+- читает service-in и channel metadata;
+- формирует безопасный ZIP для следующей реализации `DirectSbpPaymentClient`.
+
+Доказательства: `docs/SBP_DIRECT_SERVER_EVIDENCE_v0.5.122.md`.
