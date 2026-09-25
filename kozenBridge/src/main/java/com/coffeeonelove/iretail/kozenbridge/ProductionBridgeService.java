@@ -64,7 +64,7 @@ public class ProductionBridgeService extends Service {
 
     private static final String SUPPORTED_CURRENCY = "643";
     private static final boolean LIVE_QR_PAYMENT_ENABLED = false;
-    private static final boolean LIVE_QR_GENERATION_PROBE_ENABLED = true;
+    private static final boolean LIVE_QR_GENERATION_PROBE_ENABLED = false;
     private static final String LIVE_QR_PROBE_TOKEN = "LIVE_SBP_QR_1RUB";
     private static final BigDecimal MAX_AMOUNT = new BigDecimal("999999.99");
 
