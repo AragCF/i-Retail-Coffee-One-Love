@@ -38,7 +38,7 @@ checks = {
     "live QR remains disabled": "LIVE_CALL_ENABLED = false" in contract and "LIVE_QR_PAYMENT_ENABLED = false" in bridge,
     "no live Binder QR transact": "binder.transact(TX_QR_PAYMENT" not in bridge,
     "runner targets current version": bool(version_name) and version_name in runner,
-    "runner asks user to scan and tap QR": "Scan it with any QR scanner/camera" in runner and "Tap the large QR area once" in runner,
+    "runner asks user to scan and tap QR": "scan the QR" in runner and "SBP-DRY-RUN" in runner and "QR area" in runner,
     "runner real POS false": "--ez real_pos_enabled true" not in runner,
     "runner sends no financial command": not bool(re.search(r"adb[^\n\r]*\b(?:PAYMENT|QR_PAYMENT|QRPAYMENT|REFUND|RECONCILIATION)\b", runner, re.I)),
 }
