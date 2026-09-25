@@ -208,10 +208,11 @@ public final class KozenAoaPaymentClient {
         public final String currency;
         public final boolean tidPresent;
         public final boolean liveEnabled;
+        public final boolean probeEnabled;
 
         private SbpRouteResult(boolean ok, String code, String bridgeVersion, boolean available,
                                String operationType, String transactionType, String currency,
-                               boolean tidPresent, boolean liveEnabled) {
+                               boolean tidPresent, boolean liveEnabled, boolean probeEnabled) {
             this.ok = ok;
             this.code = tokenOrDash(code);
             this.bridgeVersion = tokenOrDash(bridgeVersion);
@@ -221,10 +222,11 @@ public final class KozenAoaPaymentClient {
             this.currency = tokenOrDash(currency);
             this.tidPresent = tidPresent;
             this.liveEnabled = liveEnabled;
+            this.probeEnabled = probeEnabled;
         }
 
         static SbpRouteResult failed(String code, String bridgeVersion) {
-            return new SbpRouteResult(false, code, bridgeVersion, false, "-", "-", "-", false, false);
+            return new SbpRouteResult(false, code, bridgeVersion, false, "-", "-", "-", false, false, false);
         }
     }
 
@@ -841,7 +843,8 @@ public final class KozenAoaPaymentClient {
                             value(line, "transactionType"),
                             value(line, "currency"),
                             "true".equalsIgnoreCase(value(line, "tidPresent")),
-                            "true".equalsIgnoreCase(value(line, "liveEnabled"))
+                            "true".equalsIgnoreCase(value(line, "liveEnabled")),
+                            "true".equalsIgnoreCase(value(info, "sbpProbeEnabled"))
                     );
 
                     Log.i(TAG,
@@ -853,6 +856,7 @@ public final class KozenAoaPaymentClient {
                             " currency=" + result.currency +
                             " tidPresent=" + result.tidPresent +
                             " liveEnabled=" + result.liveEnabled +
+                            " probeEnabled=" + result.probeEnabled +
                             " noFinancialCommands=true");
                     break;
                 } catch (Exception e) {
