@@ -27,9 +27,14 @@ class IretailContentRepository(private val context: Context) {
     private val apiConfig: IretailApiConfig by lazy { loadApiConfig() }
     private val cacheFile: File by lazy { File(context.filesDir, "iretail_catalog_cache.zip") }
 
+    fun isRemoteCatalogEnabled(): Boolean = apiConfig.enabled
+
     fun loadProducts(): List<Product> {
-        val cached = try { parseCatalogZip(cacheFile.readBytes()).products } catch (_: Exception) { emptyList() }
-        return cached.ifEmpty { loadProductsFromXmlAsset() }
+        if (cacheFile.exists()) {
+            val cached = try { parseCatalogZip(cacheFile.readBytes()) } catch (_: Exception) { null }
+            if (cached?.structureValid == true) return cached.products
+        }
+        return if (apiConfig.enabled) emptyList() else loadProductsFromXmlAsset()
     }
 
     fun refreshProductsAsync(onResult: (CatalogRefreshResult) -> Unit) {
@@ -67,8 +72,8 @@ class IretailContentRepository(private val context: Context) {
                     throw CatalogStageException("parse", safeCatalogFailureReason(e), safeCatalogFailureDetail(e))
                 }
 
-                if (parsed.offersCount <= 0 || parsed.products.isEmpty()) {
-                    throw CatalogStageException("validate", "EMPTY_CATALOG", "catalog-empty")
+                if (!parsed.structureValid) {
+                    throw CatalogStageException("validate", "INVALID_CATALOG_STRUCTURE", "catalog-structure-missing")
                 }
 
                 try {
@@ -80,7 +85,11 @@ class IretailContentRepository(private val context: Context) {
                 CatalogRefreshResult(
                     success = true,
                     products = parsed.products,
-                    message = "I-Retail: загружено ${parsed.products.size} товаров из ${parsed.offersCount} предложений",
+                    message = if (parsed.products.isEmpty()) {
+                        "I-Retail: каталог пуст"
+                    } else {
+                        "I-Retail: загружено ${parsed.products.size} товаров из ${parsed.offersCount} предложений"
+                    },
                     source = "I-Retail ZIP",
                     categoriesCount = parsed.categoriesCount,
                     offersCount = parsed.offersCount,
@@ -92,11 +101,15 @@ class IretailContentRepository(private val context: Context) {
                 val failureReason = stageError?.safeReason ?: safeCatalogFailureReason(e)
                 val failureDetail = stageError?.safeDetail ?: safeCatalogFailureDetail(e)
                 val cached = try { parseCatalogZip(cacheFile.readBytes()) } catch (_: Exception) { null }
-                if (cached != null && cached.products.isNotEmpty()) {
+                if (cached?.structureValid == true) {
                     CatalogRefreshResult(
                         success = true,
                         products = cached.products,
-                        message = "I-Retail недоступен, показан сохранённый каталог",
+                        message = if (cached.products.isEmpty()) {
+                            "I-Retail недоступен, сохранённый каталог пуст"
+                        } else {
+                            "I-Retail недоступен, показан сохранённый каталог"
+                        },
                         source = "I-Retail ZIP cache",
                         categoriesCount = cached.categoriesCount,
                         offersCount = cached.offersCount,
@@ -109,8 +122,8 @@ class IretailContentRepository(private val context: Context) {
                     CatalogRefreshResult(
                         success = false,
                         products = emptyList(),
-                        message = "I-Retail недоступен, показан XML-макет",
-                        source = "content XML",
+                        message = "I-Retail недоступен, исправной серверной копии каталога нет",
+                        source = "I-Retail unavailable",
                         channelId = apiConfig.channelId,
                         failureStage = failureStage,
                         failureReason = failureReason,
@@ -139,6 +152,77 @@ class IretailContentRepository(private val context: Context) {
     }
 
     fun loadPaymentMethods(): List<PayMethod> {
+        if (apiConfig.enabled) return emptyList()
+        return loadPaymentMethodsFromXml()
+    }
+
+    fun refreshChannelConfigAsync(onResult: (ChannelConfigRefreshResult) -> Unit) {
+        if (!apiConfig.enabled) {
+            onResult(
+                ChannelConfigRefreshResult(
+                    success = true,
+                    paymentMethods = loadPaymentMethodsFromXml(),
+                    message = "Удалённый I-Retail отключён; используются локальные способы оплаты",
+                    source = "content XML",
+                    channelId = apiConfig.channelId
+                )
+            )
+            return
+        }
+
+        Thread {
+            val result = try {
+                val token = authenticate()
+                val common = apiFields(token)
+                val channel = postFormJson(
+                    "iretail/channel/get",
+                    common + mapOf("channel_id" to apiConfig.channelId)
+                )
+                val services = postFormJson(
+                    "iretail/channel/get-available-services-in",
+                    common + mapOf("channel_id" to apiConfig.channelId)
+                )
+
+                if (!services.optBoolean("status", false)) {
+                    throw IllegalStateException("available-services rejected")
+                }
+
+                val channelResult = channel.optJSONObject("result")
+                val serviceResult = services.optJSONObject("result")
+                    ?: throw IllegalStateException("available-services result missing")
+
+                val paymentMethods = parseServerPaymentMethods(serviceResult.optJSONArray("services"))
+                val channelEnabled = channelResult?.optBooleanNullable("enable")
+                val relatedEnabled = channelResult?.optJSONObject("related")?.optBooleanNullable("enabled")
+                val userVerified = serviceResult.optBooleanNullable("user_verified")
+                val shopVerified = serviceResult.optBooleanNullable("shop_verified")
+
+                ChannelConfigRefreshResult(
+                    success = true,
+                    paymentMethods = paymentMethods,
+                    message = "I-Retail: доступно способов оплаты ${paymentMethods.size}",
+                    source = "I-Retail channel",
+                    channelId = apiConfig.channelId,
+                    channelEnabled = channelEnabled,
+                    relatedEnabled = relatedEnabled,
+                    userVerified = userVerified,
+                    shopVerified = shopVerified
+                )
+            } catch (e: Exception) {
+                ChannelConfigRefreshResult(
+                    success = false,
+                    paymentMethods = emptyList(),
+                    message = "Настройки канала I-Retail недоступны",
+                    source = "I-Retail unavailable",
+                    channelId = apiConfig.channelId,
+                    failureReason = e.javaClass.simpleName.take(80)
+                )
+            }
+            onResult(result)
+        }.start()
+    }
+
+    private fun loadPaymentMethodsFromXml(): List<PayMethod> {
         val xml = readAsset("content/pay-methods.xml")
         return Regex("<method\\s+([^>]*)>(.*?)</method>", RegexOption.DOT_MATCHES_ALL).findAll(xml)
             .mapNotNull { match ->
@@ -164,6 +248,43 @@ class IretailContentRepository(private val context: Context) {
                     PayMethod("7777", "payin_payout", "Online", true, false)
                 )
             }
+    }
+
+    private fun parseServerPaymentMethods(services: JSONArray?): List<PayMethod> {
+        if (services == null) return emptyList()
+        val result = mutableListOf<PayMethod>()
+        for (i in 0 until services.length()) {
+            val service = services.optJSONObject(i) ?: continue
+            val slug = service.optString("slug", "").trim()
+            if (slug.isBlank()) continue
+            val id = service.opt("id")?.toString()?.takeIf { it.isNotBlank() && it != "null" } ?: slug
+            val title = service.optString("title", "").trim()
+                .ifBlank { service.optString("name", "").trim() }
+                .ifBlank { slug }
+            val enabled = if (service.has("enabled")) service.optBoolean("enabled", false) else true
+            result += PayMethod(
+                id = id,
+                slug = slug,
+                title = title,
+                enabled = enabled,
+                phoneRequired = false
+            )
+        }
+        return result.distinctBy { it.slug.lowercase(Locale.ROOT) + "|" + it.id }
+    }
+
+    private fun JSONObject.optBooleanNullable(key: String): Boolean? {
+        if (!has(key) || isNull(key)) return null
+        return when (val raw = opt(key)) {
+            is Boolean -> raw
+            is Number -> raw.toInt() != 0
+            is String -> when (raw.trim().lowercase(Locale.ROOT)) {
+                "1", "true", "yes", "on" -> true
+                "0", "false", "no", "off" -> false
+                else -> null
+            }
+            else -> null
+        }
     }
 
     private fun downloadCatalogZip(accessToken: String): ByteArray =
@@ -296,6 +417,8 @@ class IretailContentRepository(private val context: Context) {
 
     private fun parseCatalogZip(zipBytes: ByteArray): ParsedCatalog {
         var categoriesJson: JSONObject? = null
+        var categoriesEntryPresent = false
+        var offersEntryCount = 0
         val offers = mutableListOf<JSONObject>()
         ZipInputStream(ByteArrayInputStream(zipBytes)).use { zip ->
             var entry = zip.nextEntry
@@ -303,10 +426,16 @@ class IretailContentRepository(private val context: Context) {
                 val name = entry.name.trimStart('/')
                 val text = zip.readBytes().toString(Charsets.UTF_8)
                 when {
-                    name == "categories.json" -> categoriesJson = JSONObject(text)
+                    name == "categories.json" -> {
+                        categoriesJson = JSONObject(text)
+                        categoriesEntryPresent = true
+                    }
                     name.startsWith("offers_") && name.endsWith(".json") -> {
+                        offersEntryCount++
                         val root = JSONObject(text)
-                        val arr = root.optJSONArray("offers") ?: JSONArray()
+                        if (!root.has("offers")) throw IllegalStateException("offers array missing")
+                        val arr = root.optJSONArray("offers")
+                            ?: throw IllegalStateException("offers is not an array")
                         for (i in 0 until arr.length()) {
                             arr.optJSONObject(i)?.let { offers.add(it) }
                         }
@@ -323,7 +452,8 @@ class IretailContentRepository(private val context: Context) {
             .mapNotNull { offerToProduct(it, categoryTitles) }
             .distinctBy { it.id }
             .sortedWith(compareBy<Product> { it.categoryTitle ?: "" }.thenBy { it.name.lowercase(Locale.ROOT) })
-        return ParsedCatalog(products, categoryTitles.size, offers.size)
+        val structureValid = categoriesEntryPresent && offersEntryCount > 0
+        return ParsedCatalog(products, categoryTitles.size, offers.size, structureValid)
     }
 
     private fun collectCategoryTitles(category: JSONObject, result: MutableMap<Int, String>) {
@@ -446,9 +576,9 @@ class IretailContentRepository(private val context: Context) {
 
         candidate.writeBytes(zipBytes)
         val reparsed = parseCatalogZip(candidate.readBytes())
-        if (reparsed.offersCount <= 0 || reparsed.products.isEmpty()) {
+        if (!reparsed.structureValid) {
             candidate.delete()
-            throw IllegalStateException("Проверка нового каталога после записи не пройдена")
+            throw IllegalStateException("Проверка структуры нового каталога после записи не пройдена")
         }
 
         if (cacheFile.exists() && !cacheFile.renameTo(backup)) {
@@ -568,7 +698,8 @@ class IretailContentRepository(private val context: Context) {
     private data class ParsedCatalog(
         val products: List<Product>,
         val categoriesCount: Int,
-        val offersCount: Int
+        val offersCount: Int,
+        val structureValid: Boolean
     )
 
     private class CatalogStageException(
