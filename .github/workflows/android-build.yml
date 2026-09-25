@@ -324,6 +324,9 @@ jobs:
       - name: Verify v0.5.121 locked SBP QR source probe
         run: python3 tools/verify_v0_5_121_sbp_qr_source_probe.py
 
+      - name: Verify v0.5.122 direct server SBP audit
+        run: python3 tools/verify_v0_5_122_sbp_direct_server_audit.py
+
       - name: Verify SBP wire sanitizer runtime
         shell: pwsh
         run: ./tools/Verify-SbpWireSanitizerRuntime.ps1
@@ -368,6 +371,6 @@ jobs:
         if: success()
         uses: actions/upload-artifact@v4
         with:
-          name: iRetail-v0.5.121-debug-apk
+          name: iRetail-v0.5.122-debug-apk
           path: app/build/outputs/apk/debug/*.apk
           if-no-files-found: error
