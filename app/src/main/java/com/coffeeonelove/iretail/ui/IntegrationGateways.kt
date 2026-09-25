@@ -417,7 +417,6 @@ class IretailContentRepository(private val context: Context) {
 
     private fun parseCatalogZip(zipBytes: ByteArray): ParsedCatalog {
         var categoriesJson: JSONObject? = null
-        var categoriesEntryPresent = false
         var offersEntryCount = 0
         val offers = mutableListOf<JSONObject>()
         ZipInputStream(ByteArrayInputStream(zipBytes)).use { zip ->
@@ -428,7 +427,6 @@ class IretailContentRepository(private val context: Context) {
                 when {
                     name == "categories.json" -> {
                         categoriesJson = JSONObject(text)
-                        categoriesEntryPresent = true
                     }
                     name.startsWith("offers_") && name.endsWith(".json") -> {
                         offersEntryCount++
@@ -452,7 +450,7 @@ class IretailContentRepository(private val context: Context) {
             .mapNotNull { offerToProduct(it, categoryTitles) }
             .distinctBy { it.id }
             .sortedWith(compareBy<Product> { it.categoryTitle ?: "" }.thenBy { it.name.lowercase(Locale.ROOT) })
-        val structureValid = categoriesEntryPresent && offersEntryCount > 0
+        val structureValid = offersEntryCount > 0
         return ParsedCatalog(products, categoryTitles.size, offers.size, structureValid)
     }
 
