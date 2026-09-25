@@ -336,6 +336,9 @@ jobs:
       - name: Verify v0.5.125 SBP server config docs audit
         run: python3 tools/verify_v0_5_125_sbp_server_config_docs.py
 
+      - name: Verify v0.5.126 server-managed integrations
+        run: python3 tools/verify_v0_5_126_server_managed_integrations.py
+
       - name: Analyze committed SBP server config docs
         run: python3 tools/analyze_sbp_server_config_docs.py
 
@@ -394,6 +397,6 @@ jobs:
         if: success()
         uses: actions/upload-artifact@v4
         with:
-          name: iRetail-v0.5.125-debug-apk
+          name: iRetail-v0.5.126-debug-apk
           path: app/build/outputs/apk/debug/*.apk
           if-no-files-found: error
