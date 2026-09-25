@@ -344,7 +344,8 @@ jobs:
             "tools/Analyze-FiscalPaymentMarkerAudit.ps1",
             "tools/Verify-FiscalPaymentMarkerAuditRuntime.ps1",
             "tools/Sanitize-SbpWireReport.ps1",
-            "tools/Verify-SbpWireSanitizerRuntime.ps1"
+            "tools/Verify-SbpWireSanitizerRuntime.ps1",
+            "tools/iRetailDirectSbpReadonlyAudit.ps1"
           )
           foreach ($file in $files) {
             [void][scriptblock]::Create((Get-Content -Raw -LiteralPath $file))
