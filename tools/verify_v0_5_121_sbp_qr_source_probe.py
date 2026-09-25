@@ -10,6 +10,7 @@ bridge_ui = (ROOT / "kozenBridge/src/main/java/com/coffeeonelove/iretail/kozenbr
 client = (ROOT / "app/src/main/java/com/coffeeonelove/iretail/pos/KozenAoaPaymentClient.java").read_text(encoding="utf-8")
 main = (ROOT / "app/src/main/java/com/coffeeonelove/iretail/ui/MainActivity.kt").read_text(encoding="utf-8")
 contract = (ROOT / "app/src/main/java/com/coffeeonelove/iretail/ui/SbpPaymentContract.kt").read_text(encoding="utf-8")
+preflight = (ROOT / "MAIN_36_SBP_QR_SOURCE_PREFLIGHT.bat").read_text(encoding="utf-8")
 
 checks = {
     "app version 0.5.121": "versionCode 121" in gradle and "versionName '0.5.121-sbp-qr-source-probe'" in gradle,
@@ -38,6 +39,12 @@ checks = {
     "UI never marks probe order paid": "runtimeOrderPaid=false fiscalCalled=false machineCalled=false" in main,
     "UI renders probe QR on JL22": "sbpLiveQrProbePayload" in main and "ЖИВОЙ QR • НЕ СКАНИРОВАТЬ" in main,
     "no automatic cancel/refund/retry command": "QR_CANCEL" not in client and "QR_REFUND" not in client,
+    "read-only preflight exists": "SBP QR SOURCE READ-ONLY PREFLIGHT" in preflight,
+    "preflight keeps real POS false": "--ez real_pos_enabled true" not in preflight,
+    "preflight never starts live probe intent": "sbp_live_qr_generation_probe" not in preflight,
+    "preflight checks exact SBP route": all(x in preflight for x in ["operationType=42", "transactionType=qrPayment", "currency=643", "tidPresent=true"]),
+    "preflight proves both locks": "liveEnabled=false" in preflight and "probeEnabled=false" in preflight,
+    "preflight sends no financial adb command": not bool(re.search(r"adb[^\n\r]*\b(?:PAYMENT|START_SBP_QR_PROBE|QR_PAYMENT|REFUND|RECONCILIATION)\b", preflight, re.I)),
 }
 
 failed = [name for name, ok in checks.items() if not ok]
