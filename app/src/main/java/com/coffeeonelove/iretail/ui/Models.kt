@@ -86,6 +86,19 @@ data class CatalogRefreshResult(
     val failureDetail: String? = null
 )
 
+data class ChannelConfigRefreshResult(
+    val success: Boolean,
+    val paymentMethods: List<PayMethod>,
+    val message: String,
+    val source: String,
+    val channelId: String = "",
+    val channelEnabled: Boolean? = null,
+    val relatedEnabled: Boolean? = null,
+    val userVerified: Boolean? = null,
+    val shopVerified: Boolean? = null,
+    val failureReason: String? = null
+)
+
 data class LoyaltyLookupResult(
     val success: Boolean,
     val message: String,
