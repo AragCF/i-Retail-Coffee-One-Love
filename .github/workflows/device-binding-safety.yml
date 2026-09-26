@@ -68,17 +68,27 @@ jobs:
       - name: Configure isolated Android23 virtual device
         run: |
           set -e
-          sudo chmod 666 /dev/kvm
-          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses >/dev/null || true
-          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" 'emulator' 'system-images;android-23;default;x86_64'
-          echo no | "$ANDROID_HOME/cmdline-tools/latest/bin/avdmanager" create avd -n Binding23 -k 'system-images;android-23;default;x86_64' --force
           mkdir -p smoke
+          sudo chmod 666 /dev/kvm
+          export PATH="$ANDROID_HOME/platform-tools:$PATH"
+          echo "$ANDROID_HOME/platform-tools" >> "$GITHUB_PATH"
+          unset ANDROID_SDK_HOME
+          export ANDROID_USER_HOME="$HOME/.android"
+          export ANDROID_EMULATOR_HOME="$HOME/.android"
+          export ANDROID_AVD_HOME="$HOME/.android/avd"
+          mkdir -p "$ANDROID_AVD_HOME"
+          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses >/dev/null || true
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" 'platform-tools' 'emulator' 'system-images;android-23;default;x86_64' > smoke/sdk-install.log 2>&1
+          echo no | "$ANDROID_HOME/cmdline-tools/latest/bin/avdmanager" create avd -n Binding23 -k 'system-images;android-23;default;x86_64' -p "$ANDROID_AVD_HOME/Binding23.avd" --force
+          test -f "$ANDROID_AVD_HOME/Binding23.ini"
+          "$ANDROID_HOME/emulator/emulator" -list-avds
           "$ANDROID_HOME/emulator/emulator" -avd Binding23 -no-window -no-audio -no-boot-anim -no-snapshot -gpu swiftshader_indirect -camera-back none -camera-front none > smoke/emulator-start.log 2>&1 &
-          adb wait-for-device
+          timeout 150 adb wait-for-device
           for n in $(seq 1 90); do
             if [ "$(adb shell getprop sys.boot_completed | tr -d '\r')" = 1 ]; then break; fi
             sleep 2
           done
+          test "$(adb shell getprop sys.boot_completed | tr -d '\r')" = 1
           test "$(adb shell getprop ro.build.version.sdk | tr -d '\r')" = 23
           test "$(adb shell getprop ro.kernel.qemu | tr -d '\r')" = 1
           adb shell input keyevent 82
