@@ -27,20 +27,23 @@ jobs:
         with:
           gradle-version: '8.7'
 
-      - name: Verify v0.5.35 root layout
-        run: python3 tools/verify_v0_5_35_root_layout.py
+      - name: Verify repository root layout
+        run: python3 tools/verify_root_layout.py
 
       - name: Verify S1 truthful states
         run: python3 tools/verify_s1_truthful_states.py
 
-      - name: Assemble debug APK
+      - name: Verify v0.5.36 catalog and money
+        run: python3 tools/verify_v0_5_36_catalog_money.py
+
+      - name: Run unit tests and assemble debug APK
         working-directory: .
-        run: gradle --no-daemon --stacktrace assembleDebug
+        run: gradle --no-daemon --stacktrace testDebugUnitTest assembleDebug
 
       - name: Upload debug APK
         if: success()
         uses: actions/upload-artifact@v4
         with:
-          name: iRetail-v0.5.35-debug-apk
+          name: iRetail-v0.5.36-debug-apk
           path: app/build/outputs/apk/debug/*.apk
           if-no-files-found: error

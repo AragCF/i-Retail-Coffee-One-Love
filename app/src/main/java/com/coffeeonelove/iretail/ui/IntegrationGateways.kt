@@ -40,10 +40,13 @@ class IretailContentRepository(private val context: Context) {
         Thread {
             val result = try {
                 val zipBytes = downloadCatalogZip()
-                cacheFile.writeBytes(zipBytes)
                 val parsed = parseCatalogZip(zipBytes)
+                if (parsed.products.isEmpty()) {
+                    throw IllegalStateException("Новая выгрузка I-Retail не содержит пригодных товаров")
+                }
+                cacheFile.writeBytes(zipBytes)
                 CatalogRefreshResult(
-                    success = parsed.products.isNotEmpty(),
+                    success = true,
                     products = parsed.products,
                     message = "I-Retail: загружено ${parsed.products.size} товаров из ${parsed.offersCount} предложений",
                     source = "I-Retail ZIP",
@@ -277,7 +280,7 @@ class IretailContentRepository(private val context: Context) {
         val id = offer.optLong("id", 0L).takeIf { it > 0 }?.toString() ?: return null
         val name = offer.optString("name", "").trim()
         if (name.isBlank()) return null
-        val price = parsePrice(offer.optString("price", "0"))
+        val priceMinor = Money.parseMinor(offer.optString("price", "0")) ?: return null
         val categoryId = offer.optInt("category_id", 0)
         val categoryTitle = categories[categoryId]
         val imageUrl = offer.optJSONArray("pictures")?.optJSONObject(0)?.optString("url")?.takeIf { it.isNotBlank() }
@@ -289,7 +292,7 @@ class IretailContentRepository(private val context: Context) {
             offerId = offer.optString("external_offer_id", id).takeIf { it.isNotBlank() && it != "null" } ?: id,
             name = name,
             volume = volume,
-            price = price,
+            priceMinor = priceMinor,
             category = category,
             available = true,
             heat = category == "micromarket" && offer.optInt("microwave_time", 0) > 0,
@@ -297,12 +300,6 @@ class IretailContentRepository(private val context: Context) {
             imageUrl = imageUrl,
             categoryTitle = categoryTitle
         )
-    }
-
-    private fun parsePrice(value: String): Int = try {
-        BigDecimal(value.replace(',', '.')).setScale(0, RoundingMode.HALF_UP).toInt()
-    } catch (_: Exception) {
-        0
     }
 
     private fun detectVolume(name: String, offer: JSONObject): String {
@@ -329,7 +326,7 @@ class IretailContentRepository(private val context: Context) {
             .mapNotNull { parseAttributes(it.groupValues[1]) }
             .mapNotNull { attrs ->
                 val caption = attrs["caption"]?.trim().orEmpty()
-                val price = attrs["price"]?.substringBefore('.')?.toIntOrNull() ?: return@mapNotNull null
+                val priceMinor = Money.parseMinor(attrs["price"].orEmpty()) ?: return@mapNotNull null
                 val offerId = attrs["offerId"]?.trim().orEmpty()
                 if (caption.isBlank() || offerId.isBlank()) return@mapNotNull null
                 val volume = Regex("(\\d+)\\s*мл", RegexOption.IGNORE_CASE).find(caption)?.value?.replace(" ", "") ?: ""
@@ -345,7 +342,7 @@ class IretailContentRepository(private val context: Context) {
                     offerId = offerId,
                     name = caption.removeSuffix(" $volume").trim(),
                     volume = volume.ifBlank { if (category == "coffee") "200мл" else "1 шт." },
-                    price = price,
+                    priceMinor = priceMinor,
                     category = category,
                     available = true,
                     heat = category == "micromarket",
@@ -353,11 +350,11 @@ class IretailContentRepository(private val context: Context) {
                 )
             }
             .filter { it.category == "coffee" || it.category == "micromarket" }
-            .distinctBy { it.name.lowercase(Locale.ROOT) + "|" + it.price + "|" + it.volume }
+            .distinctBy { it.name.lowercase(Locale.ROOT) + "|" + it.priceMinor + "|" + it.volume }
             .toMutableList()
 
         if (offers.none { it.category == "micromarket" }) {
-            offers.add(Product("local-food-1", "local-food-1", "Сэндвич", "1 шт.", 180, "micromarket", true, heat = true))
+            offers.add(Product("local-food-1", "local-food-1", "Сэндвич", "1 шт.", 18000L, "micromarket", true, heat = true))
         }
         return offers.ifEmpty { fallbackProducts() }
     }
@@ -410,11 +407,11 @@ class IretailContentRepository(private val context: Context) {
     private fun Exception.cleanMessage(): String = message?.take(180) ?: javaClass.simpleName
 
     private fun fallbackProducts(): List<Product> = listOf(
-        Product("coffee-americano", "coffee-americano", "Американо", "200мл", 149, "coffee", true, gcode = "Coffee-01"),
-        Product("coffee-cappuccino", "coffee-cappuccino", "Капучино", "200мл", 149, "coffee", true, gcode = "Coffee-02"),
-        Product("coffee-latte", "coffee-latte", "Латте", "300мл", 179, "coffee", true, gcode = "Coffee-03"),
-        Product("coffee-espresso", "coffee-espresso", "Эспрессо", "100мл", 149, "coffee", true, gcode = "Coffee-04"),
-        Product("food-sandwich", "food-sandwich", "Сэндвич", "1 шт.", 180, "micromarket", true, heat = true)
+        Product("coffee-americano", "coffee-americano", "Американо", "200мл", 14900L, "coffee", true, gcode = "Coffee-01"),
+        Product("coffee-cappuccino", "coffee-cappuccino", "Капучино", "200мл", 14900L, "coffee", true, gcode = "Coffee-02"),
+        Product("coffee-latte", "coffee-latte", "Латте", "300мл", 17900L, "coffee", true, gcode = "Coffee-03"),
+        Product("coffee-espresso", "coffee-espresso", "Эспрессо", "100мл", 14900L, "coffee", true, gcode = "Coffee-04"),
+        Product("food-sandwich", "food-sandwich", "Сэндвич", "1 шт.", 18000L, "micromarket", true, heat = true)
     )
 
     private data class IretailApiConfig(
@@ -442,16 +439,16 @@ class LocalRetailOrderGateway {
     private var sequence = 1000
     private var activeOrder: RuntimeOrder? = null
 
-    fun createOrder(lines: List<CartLine>, grossAmount: Int, ibonusDiscountSum: Int = 0, loyalty: LocalLoyaltyGateway? = null): RuntimeOrder {
+    fun createOrder(lines: List<CartLine>, grossAmountMinor: Long, ibonusDiscountMinor: Long = 0L, loyalty: LocalLoyaltyGateway? = null): RuntimeOrder {
         val number = SimpleDateFormat("yyyyMMdd-HHmmss", Locale.ROOT).format(Date()) + "-" + (++sequence)
-        val payableAmount = (grossAmount - ibonusDiscountSum).coerceAtLeast(0)
+        val payableAmountMinor = (grossAmountMinor - ibonusDiscountMinor).coerceAtLeast(0L)
         val order = RuntimeOrder(
             localId = sequence.toString(),
             externalNumber = number,
-            amount = payableAmount,
+            amountMinor = payableAmountMinor,
             items = lines.map { CartLine(it.product, it.quantity, it.ownCup, it.syrupAdded, it.syrupName) },
-            grossAmount = grossAmount,
-            ibonusDiscountSum = ibonusDiscountSum.coerceAtLeast(0),
+            grossAmountMinor = grossAmountMinor,
+            ibonusDiscountMinor = ibonusDiscountMinor.coerceAtLeast(0L),
             loyaltyExternalId = loyalty?.externalId,
             loyaltyBalanceLabel = loyalty?.balanceLabel
         )
@@ -504,7 +501,7 @@ class LocalMachineGateway {
 class LocalLoyaltyGateway {
     var loggedIn: Boolean = false
         private set
-    var bonusApplied: Int = 0
+    var bonusAppliedMinor: Long = 0L
         private set
     var balanceLabel: String? = null
         private set
@@ -524,7 +521,7 @@ class LocalLoyaltyGateway {
         externalId = result.externalId
         couponsCount = result.couponsCount
         attachedToOrder = true
-        bonusApplied = 0
+        bonusAppliedMinor = 0L
     }
 
     fun loginSuccess(balance: String?) {
@@ -532,26 +529,27 @@ class LocalLoyaltyGateway {
         balanceLabel = balance
         availableBonusAmount = parseBalanceRub(balance).coerceAtLeast(0)
         attachedToOrder = true
-        bonusApplied = 0
+        bonusAppliedMinor = 0L
     }
 
     fun login(cardOrPhone: String): OperationResult {
         loggedIn = cardOrPhone.isNotBlank()
         availableBonusAmount = 0
         attachedToOrder = loggedIn
-        bonusApplied = 0
+        bonusAppliedMinor = 0L
         return if (loggedIn) OperationResult.SUCCESS else OperationResult.ERROR
     }
 
-    fun applyBonus(maxAmount: Int): Int {
+    fun applyBonus(maxAmountMinor: Long): Long {
         attachedToOrder = loggedIn || attachedToOrder
-        bonusApplied = maxAmount.coerceAtMost(availableBonusAmount).coerceAtLeast(0)
-        return bonusApplied
+        val availableMinor = Money.wholeUnitsToMinor(availableBonusAmount.coerceAtLeast(0))
+        bonusAppliedMinor = maxAmountMinor.coerceAtMost(availableMinor).coerceAtLeast(0L)
+        return bonusAppliedMinor
     }
 
     fun clear() {
         loggedIn = false
-        bonusApplied = 0
+        bonusAppliedMinor = 0L
         balanceLabel = null
         availableBonusAmount = 0
         externalId = null

@@ -14,16 +14,8 @@ require("settings.gradle is in repository root", (ROOT / "settings.gradle").is_f
 require("app module is in repository root", (ROOT / "app").is_dir())
 require("docs are in repository root", (ROOT / "docs").is_dir())
 require("tools are in repository root", (ROOT / "tools").is_dir())
+require("Windows build script is in repository root", (ROOT / "BUILD_WINDOWS_CLI.bat").is_file())
 require("old nested project directory is absent", not (ROOT / OLD).exists())
-
-build = (ROOT / "app/build.gradle").read_text(encoding="utf-8")
-builder = (ROOT / "BUILD_WINDOWS_CLI.bat").read_text(encoding="utf-8", errors="replace")
-readme = (ROOT / "README.md").read_text(encoding="utf-8")
-
-require("versionCode 35", "versionCode 35" in build)
-require("versionName 0.5.35-root-layout", "versionName '0.5.35-root-layout'" in build)
-require("Windows build script version 0.5.35", "SCRIPT_VERSION=0.5.35-root-layout" in builder)
-require("README declares root layout", "0.5.35-root-layout" in readme)
 
 active = []
 active.extend(ROOT.glob("*.bat"))
@@ -48,4 +40,4 @@ if bad:
         print(" - " + item)
 require("active scripts/workflows do not reference old nested path", not bad)
 
-print(f"[OK] v0.5.35 root-layout guard: {len(checks)} checks passed")
+print(f"[OK] Repository root-layout guard: {len(checks)} checks passed")
