@@ -12,16 +12,17 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
+          ref: 58622dcbb7de6dfcc7a622522fc5878bd10a7cad
           persist-credentials: false
       - name: Export exact public base without Git credentials
         run: |
           mkdir -p evidence
-          git archive --format=zip 58622dcbb7de6dfcc7a622522fc5878bd10a7cad > evidence/base.zip
-      - name: Read public API documentation and verify existing Retail account without activation
+          git archive --format=zip HEAD > evidence/base.zip
+      - name: Read API documentation and verify Retail account without activation
         run: |
           python3 - <<'PY'
           from pathlib import Path
-          import json, urllib.request, urllib.error, urllib.parse, ssl, hashlib
+          import json, urllib.request, urllib.error, urllib.parse, ssl
           out=Path('evidence')
           cfg=json.loads(Path('app/src/main/assets/content/iretail-api.json').read_text())
           base='https://my.i-retail.com/api/'
