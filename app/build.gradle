@@ -11,8 +11,8 @@ android {
         applicationId 'com.coffeeonelove.iretail'
         minSdk 23
         targetSdk 35
-        versionCode 126
-        versionName '0.5.126-server-managed-integrations'
+        versionCode 127
+        versionName '0.5.127-api-lifecycle-safety'
     }
 
     compileOptions {
@@ -49,4 +49,5 @@ tasks.matching { task ->
 
 dependencies {
     implementation 'com.google.zxing:core:3.5.4'
+    testImplementation 'junit:junit:4.13.2'
 }

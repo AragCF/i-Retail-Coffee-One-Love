@@ -16,8 +16,8 @@ models = (ROOT / "app/src/main/java/com/coffeeonelove/iretail/ui/Models.kt").rea
 contract_path = ROOT / "docs/SERVER_MANAGED_INTEGRATIONS_CONTRACT_v1.0.0.md"
 contract = contract_path.read_text(encoding="utf-8") if contract_path.exists() else ""
 
-require("versionCode 126" in gradle, "versionCode must be 126")
-require("0.5.126-server-managed-integrations" in gradle, "versionName mismatch")
+require(bool(re.search(r"versionCode\s+(\d+)", gradle)) and int(re.search(r"versionCode\s+(\d+)", gradle).group(1)) >= 126, "versionCode must be >=126")
+require(bool(re.search(r"versionName\s+'[0-9]+\.[0-9]+\.[0-9]+[^']*'", gradle)), "versionName missing")
 require("Статус: APPROVED" in contract, "approved server-managed contract missing")
 
 # Catalog: valid empty server catalog must be accepted and local demo products must not reappear.

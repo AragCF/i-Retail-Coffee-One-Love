@@ -53,6 +53,16 @@ class MainActivity : Activity() {
 
     private val handler = Handler(Looper.getMainLooper())
     private val syncHandler = Handler(Looper.getMainLooper())
+    // Screen navigation clears handler, but must not discard completed API reads.
+    private val apiResultHandler = Handler(Looper.getMainLooper())
+    private val catalogReadGate = ApiRequestGate()
+    private val channelReadGate = ApiRequestGate()
+    private val loyaltyReadGate = ApiRequestGate()
+    @Volatile private var apiOwnerDestroyed = false
+    private var apiUiStarted = false
+    private var apiUiNeedsRender = false
+    private var apiUiHasStarted = false
+    private var lastResumeRefreshMs = 0L
     private val orderGateway = LocalRetailOrderGateway()
     private val machineGateway = LocalMachineGateway()
     private val loyaltyGateway = LocalLoyaltyGateway()
@@ -76,6 +86,7 @@ class MainActivity : Activity() {
     private val serverRefreshIntervalMs = 5L * 60L * 1000L
     private val periodicServerRefresh = object : Runnable {
         override fun run() {
+            if (!apiUiStarted || apiOwnerDestroyed || isFinishing) return
             if (::contentRepository.isInitialized && !fiscalPositivePaymentTestMode) {
                 refreshCatalogFromIretail(silent = true)
                 refreshChannelConfigFromIretail(silent = true)
@@ -318,6 +329,16 @@ class MainActivity : Activity() {
     override fun onStart() {
         super.onStart()
         MainUiVisibility.started = true
+        apiUiStarted = true
+        if (::root.isInitialized && apiUiNeedsRender) renderApiChanges()
+        val now = android.os.SystemClock.elapsedRealtime()
+        if (apiUiHasStarted && ::contentRepository.isInitialized && !isFinishing &&
+            !fiscalPositivePaymentTestMode && now - lastResumeRefreshMs >= 30_000L) {
+            lastResumeRefreshMs = now
+            refreshCatalogFromIretail(silent = true)
+            refreshChannelConfigFromIretail(silent = true)
+        }
+        apiUiHasStarted = true
         syncHandler.removeCallbacks(periodicServerRefresh)
         if (!fiscalPositivePaymentTestMode) {
             syncHandler.postDelayed(periodicServerRefresh, serverRefreshIntervalMs)
@@ -326,6 +347,8 @@ class MainActivity : Activity() {
     }
 
     override fun onStop() {
+        apiUiStarted = false
+        loyaltyReadGate.invalidate()
         syncHandler.removeCallbacks(periodicServerRefresh)
         MainUiVisibility.started = false
         super.onStop()
@@ -899,8 +922,15 @@ class MainActivity : Activity() {
     }
 
     private fun refreshCatalogFromIretail(silent: Boolean = false) {
+        if (apiOwnerDestroyed || isFinishing || !::contentRepository.isInitialized) return
+        val ticket = catalogReadGate.tryBegin() ?: return
         contentRepository.refreshProductsAsync { result ->
-            handler.post {
+            if (apiOwnerDestroyed) {
+                catalogReadGate.complete(ticket)
+                return@refreshProductsAsync
+            }
+            apiResultHandler.post {
+                if (!catalogReadGate.complete(ticket) || apiOwnerDestroyed || isFinishing || isDestroyed) return@post
                 android.util.Log.i(
                     "IretailCatalog",
                     "REFRESH success=${result.success} source=${result.source} products=${result.products.size} " +
@@ -928,28 +958,34 @@ class MainActivity : Activity() {
                         else -> result.message
                     }
 
-                    if (!silent &&
+                    if (!silent && apiUiStarted &&
                         (currentScreen == "SCREEN_SAVER_COFFEE" ||
                             currentScreen == "SCREEN_SAVER_LOYALTY" ||
                             currentScreen == "SCREEN_PROMO_DOUBLE_CASHBACK")
                     ) {
                         openScreen("CATALOG_DEFAULT")
                     } else {
-                        rerenderCurrentScreen()
+                        renderApiChanges()
                     }
-                    if (!silent) toast(catalogMessage)
+                    if (!silent) toastApi(catalogMessage)
                 } else {
-                    if (!silent) toast(result.message)
-                    rerenderCurrentScreen()
-                    updateStatusLabel()
+                    if (!silent) toastApi(result.message)
+                    renderApiChanges()
                 }
             }
         }
     }
 
     private fun refreshChannelConfigFromIretail(silent: Boolean = false) {
+        if (apiOwnerDestroyed || isFinishing || !::contentRepository.isInitialized) return
+        val ticket = channelReadGate.tryBegin() ?: return
         contentRepository.refreshChannelConfigAsync { result ->
-            handler.post {
+            if (apiOwnerDestroyed) {
+                channelReadGate.complete(ticket)
+                return@refreshChannelConfigAsync
+            }
+            apiResultHandler.post {
+                if (!channelReadGate.complete(ticket) || apiOwnerDestroyed || isFinishing || isDestroyed) return@post
                 paymentConfigReady = result.success
                 paymentMethods = if (result.success) result.paymentMethods else emptyList()
                 paymentConfigMessage = result.message
@@ -967,12 +1003,33 @@ class MainActivity : Activity() {
                 )
 
                 if (currentScreen == "PAYMENT_METHOD_ALL" || currentScreen == "PAYMENT_METHOD_NO_CASH") {
-                    rerenderCurrentScreen()
+                    renderApiChanges()
                 }
-                if (!silent && !result.success) toast(result.message)
-                updateStatusLabel()
+                if (!silent && !result.success) toastApi(result.message)
+                renderApiChanges()
             }
         }
+    }
+
+    private fun renderApiChanges() {
+        if (apiOwnerDestroyed || isFinishing || isDestroyed) return
+        apiUiNeedsRender = true
+        if (!apiUiStarted || !::root.isInitialized) return
+        apiUiNeedsRender = false
+        root.post {
+            if (apiOwnerDestroyed || isFinishing || isDestroyed) return@post
+            if (!apiUiStarted) {
+                apiUiNeedsRender = true
+                return@post
+            }
+            renderDynamicLayer(currentScreen)
+            renderHotspots(currentScreen)
+            updateStatusLabel()
+        }
+    }
+
+    private fun toastApi(message: String) {
+        if (apiUiStarted && !apiOwnerDestroyed && !isFinishing) toast(message)
     }
 
     override fun onWindowFocusChanged(hasFocus: Boolean) {
@@ -981,6 +1038,13 @@ class MainActivity : Activity() {
     }
 
     override fun onDestroy() {
+        apiOwnerDestroyed = true
+        apiUiStarted = false
+        catalogReadGate.close()
+        channelReadGate.close()
+        loyaltyReadGate.close()
+        apiResultHandler.removeCallbacksAndMessages(null)
+        syncHandler.removeCallbacks(periodicServerRefresh)
         MainUiVisibility.started = false
         if (::cardPaymentClient.isInitialized) cardPaymentClient.shutdown()
         super.onDestroy()
@@ -1027,6 +1091,9 @@ class MainActivity : Activity() {
     }
 
     private fun openScreen(screenId: String, remember: Boolean = true) {
+        if (currentScreen == "LOYALTY_LOGIN" && screenId != currentScreen) {
+            loyaltyReadGate.invalidate()
+        }
         handler.removeCallbacksAndMessages(null)
         recommendationPopupTitle = null
         if (remember && currentScreen != screenId) screenHistory.add(currentScreen)
@@ -3352,20 +3419,33 @@ class MainActivity : Activity() {
     }
 
     private fun submitLoyaltyInput() {
-        if (loyaltyInput.isBlank()) {
+        val query = loyaltyInput.trim()
+        if (query.isBlank()) {
             toast("Введите код карты")
             return
         }
+        if (apiOwnerDestroyed || !apiUiStarted || isFinishing) return
+        val ticket = loyaltyReadGate.tryBegin()
+        if (ticket == null) {
+            toast("Предыдущая проверка карты ещё не завершена")
+            return
+        }
         toast("Проверяем карту лояльности…")
-        contentRepository.lookupLoyaltyAsync(loyaltyInput) { result ->
-            handler.post {
-                if (result.success) {
+        contentRepository.lookupLoyaltyAsync(query) { result ->
+            if (apiOwnerDestroyed) {
+                loyaltyReadGate.complete(ticket)
+                return@lookupLoyaltyAsync
+            }
+            apiResultHandler.post {
+                if (!loyaltyReadGate.complete(ticket) || apiOwnerDestroyed || isFinishing || isDestroyed) return@post
+                if (!apiUiStarted || currentScreen != "LOYALTY_LOGIN" || loyaltyInput.trim() != query) return@post
+                if (result.success && result.loyaltyActive) {
                     loyaltyGateway.loginSuccess(result)
                     toast(result.message)
                     openScreen("LOYALTY_PROFILE")
                 } else {
                     toast(result.message)
-                    rerenderCurrentScreen()
+                    renderApiChanges()
                 }
             }
         }
@@ -3409,6 +3489,7 @@ class MainActivity : Activity() {
     }
 
     private fun resetToIdle() {
+        loyaltyReadGate.invalidate()
         cart.clear()
         pendingProduct = null
         pendingOwnCup = false
@@ -3503,8 +3584,8 @@ class MainActivity : Activity() {
         cart.sumOf { it.product.priceMinor * it.quantity.toLong() }
 
     private fun orderDiscountMinor(): Long {
-        val bonusMinor = loyaltyGateway.bonusApplied.coerceAtLeast(0).toLong() * 100L
-        return bonusMinor.coerceAtMost(cartGrossTotalMinor())
+        // Balance is not authorization to redeem. No server redemption contract yet.
+        return 0L
     }
 
     private fun cartTotalMinor(): Long =
@@ -3561,7 +3642,7 @@ class MainActivity : Activity() {
         statusLabel.visibility = if (demoStatusVisible) View.VISIBLE else View.GONE
         if (demoStatusVisible) {
             val total = cartTotalMinor()
-            statusLabel.text = "UI v0.5.126 | $currentScreen | товаров: ${cart.sumOf { it.quantity }} | сумма: $total ₽ | данные: $catalogDataSource | $catalogMessage | I-Retail services: ${paymentMethods.count { it.enabled }} | configReady=$paymentConfigReady"
+            statusLabel.text = "UI v0.5.127 | $currentScreen | товаров: ${cart.sumOf { it.quantity }} | сумма: $total ₽ | данные: $catalogDataSource | $catalogMessage | I-Retail services: ${paymentMethods.count { it.enabled }} | configReady=$paymentConfigReady"
         }
     }
 

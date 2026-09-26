@@ -2,7 +2,7 @@
 setlocal EnableExtensions DisableDelayedExpansion
 cd /d "%~dp0"
 
-set "EXPECTED_BRANCH=v0.5.125-sbp-server-config-doc-audit"
+set "EXPECTED_BRANCH=v0.5.127-api-lifecycle-safety"
 set "CURRENT_BRANCH="
 
 echo ============================================================

@@ -1,7 +1,7 @@
 @echo off
 setlocal EnableExtensions DisableDelayedExpansion
 
-rem i-Retail Android UI v0.5.126 server-managed integrations
+rem i-Retail Android UI v0.5.127 API lifecycle safety
 rem Windows CLI debug APK build script.
 rem
 rem Important:
@@ -23,7 +23,7 @@ if errorlevel 1 (
     exit /b 9
 )
 
-set "SCRIPT_VERSION=0.5.126-server-managed-integrations"
+set "SCRIPT_VERSION=0.5.127-api-lifecycle-safety"
 set "DO_CLEAN=0"
 set "DO_HARD_CLEAN=0"
 

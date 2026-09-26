@@ -183,15 +183,19 @@ class IretailContentRepository(private val context: Context) {
                     common + mapOf("channel_id" to apiConfig.channelId)
                 )
 
+                if (!channel.optBoolean("status", false)) {
+                    throw IllegalStateException("channel rejected")
+                }
                 if (!services.optBoolean("status", false)) {
                     throw IllegalStateException("available-services rejected")
                 }
 
                 val channelResult = channel.optJSONObject("result")
+                    ?: throw IllegalStateException("channel result missing")
                 val serviceResult = services.optJSONObject("result")
                     ?: throw IllegalStateException("available-services result missing")
 
-                val paymentMethods = parseServerPaymentMethods(serviceResult.optJSONArray("services"))
+                val paymentMethods = parseServerPaymentMethods(serviceResult.getJSONArray("services"))
                 val channelEnabled = channelResult?.optBooleanNullable("enable")
                 val relatedEnabled = channelResult?.optJSONObject("related")?.optBooleanNullable("enabled")
                 val userVerified = serviceResult.optBooleanNullable("user_verified")
@@ -254,14 +258,14 @@ class IretailContentRepository(private val context: Context) {
         if (services == null) return emptyList()
         val result = mutableListOf<PayMethod>()
         for (i in 0 until services.length()) {
-            val service = services.optJSONObject(i) ?: continue
+            val service = services.getJSONObject(i)
             val slug = service.optString("slug", "").trim()
-            if (slug.isBlank()) continue
+            if (slug.isBlank()) throw IllegalStateException("service slug missing")
             val id = service.opt("id")?.toString()?.takeIf { it.isNotBlank() && it != "null" } ?: slug
             val title = service.optString("title", "").trim()
                 .ifBlank { service.optString("name", "").trim() }
                 .ifBlank { slug }
-            val enabled = if (service.has("enabled")) service.optBoolean("enabled", false) else true
+            val enabled = if (service.has("enabled")) service.optBooleanNullable("enabled") == true else true
             result += PayMethod(
                 id = id,
                 slug = slug,
@@ -277,7 +281,11 @@ class IretailContentRepository(private val context: Context) {
         if (!has(key) || isNull(key)) return null
         return when (val raw = opt(key)) {
             is Boolean -> raw
-            is Number -> raw.toInt() != 0
+            is Number -> when (raw.toDouble()) {
+                1.0 -> true
+                0.0 -> false
+                else -> null
+            }
             is String -> when (raw.trim().lowercase(Locale.ROOT)) {
                 "1", "true", "yes", "on" -> true
                 "0", "false", "no", "off" -> false
@@ -716,7 +724,9 @@ class LocalRetailOrderGateway {
     fun createOrder(lines: List<CartLine>, grossAmountMinor: Long, ibonusDiscountMinor: Long = 0L, loyalty: LocalLoyaltyGateway? = null): RuntimeOrder {
         val number = SimpleDateFormat("yyyyMMdd-HHmmss", Locale.ROOT).format(Date()) + "-" + (++sequence)
         val safeGrossMinor = grossAmountMinor.coerceAtLeast(0L)
-        val safeDiscountMinor = ibonusDiscountMinor.coerceIn(0L, safeGrossMinor)
+        // This gateway has no proof of a server-authorized bonus redemption.
+        // Keep the compatibility argument, but never trust it as an approved discount.
+        val safeDiscountMinor = 0L
         val payableMinor = (safeGrossMinor - safeDiscountMinor).coerceAtLeast(0L)
         val order = RuntimeOrder(
             localId = sequence.toString(),
@@ -794,6 +804,10 @@ class LocalLoyaltyGateway {
         private set
 
     fun loginSuccess(result: LoyaltyLookupResult) {
+        if (!result.success || !result.loyaltyActive) {
+            clear()
+            return
+        }
         loggedIn = true
         balanceLabel = result.balanceLabel
         availableBonusAmount = result.availableBonusAmount.coerceAtLeast(0)
@@ -821,7 +835,8 @@ class LocalLoyaltyGateway {
 
     fun applyBonus(maxAmount: Int): Int {
         attachedToOrder = loggedIn || attachedToOrder
-        bonusApplied = maxAmount.coerceAtMost(availableBonusAmount).coerceAtLeast(0)
+        // Read-only loyalty stage: caller-supplied amount cannot authorize redemption.
+        bonusApplied = 0
         return bonusApplied
     }
 
