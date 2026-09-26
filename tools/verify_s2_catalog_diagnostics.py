@@ -1,4 +1,5 @@
 from pathlib import Path
+import re
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -7,14 +8,30 @@ gateways = (ROOT / "app/src/main/java/com/coffeeonelove/iretail/ui/IntegrationGa
 main = (ROOT / "app/src/main/java/com/coffeeonelove/iretail/ui/MainActivity.kt").read_text(encoding="utf-8")
 diag = (ROOT / "S2_02_CATALOG_DIAGNOSTICS.bat").read_text(encoding="utf-8")
 selector = (ROOT / "tools/Select-JL22Device.ps1").read_text(encoding="utf-8")
+gradle = (ROOT / "app/build.gradle").read_text(encoding="utf-8")
+
+# From v0.5.126, an explicitly empty offer array is a valid server snapshot.
+# Preserve validation and diagnostics; reject invalid structure instead of emptiness.
+version_match = re.search(r"\bversionCode\s+(\d+)", gradle)
+version_code = int(version_match.group(1)) if version_match else 0
+server_managed = version_code >= 126
+if server_managed:
+    validation_present = all(fragment in gateways for fragment in (
+        'if (!parsed.structureValid)',
+        'CatalogStageException("validate", "INVALID_CATALOG_STRUCTURE"',
+        'if (!reparsed.structureValid)',
+    ))
+else:
+    validation_present = 'CatalogStageException("validate", "EMPTY_CATALOG"' in gateways
 
 checks = {
+    "app version is readable": version_match is not None,
     "CatalogRefreshResult has failureStage": "val failureStage: String? = null" in models,
     "CatalogRefreshResult has failureReason": "val failureReason: String? = null" in models,
     "authentication stage exists": 'CatalogStageException("authentication"' in gateways,
     "download stage exists": 'CatalogStageException("download"' in gateways,
     "parse stage exists": 'CatalogStageException("parse"' in gateways,
-    "validate stage exists": 'CatalogStageException("validate", "EMPTY_CATALOG"' in gateways,
+    "validate stage follows the active contract": validation_present,
     "cache stage exists": 'CatalogStageException("cache"' in gateways,
     "HTTP errors are reduced to status code": '"HTTP_$httpCode"' in gateways,
     "DNS failure is classified": '"UNKNOWN_HOST"' in gateways,
@@ -33,6 +50,13 @@ checks = {
     "diagnostic script captures filtered catalog log": "IretailCatalog:I" in diag and "AndroidRuntime:E *:S" in diag,
     "diagnostic script does not capture full logcat": "logcat -d -v threadtime >" not in diag,
 }
+
+if server_managed:
+    checks.update({
+        "valid empty catalog is not an API error": '"EMPTY_CATALOG"' not in gateways,
+        "offer array must exist": 'if (!root.has("offers"))' in gateways,
+        "offer array must have the right type": 'throw IllegalStateException("offers is not an array")' in gateways,
+    })
 
 failed = [name for name, ok in checks.items() if not ok]
 for name, ok in checks.items():
