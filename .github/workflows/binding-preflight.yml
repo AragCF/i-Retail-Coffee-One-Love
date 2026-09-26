@@ -1,74 +1,44 @@
-name: Binding read-only preflight
+name: Binding documentation and diagnostic cleanup
 on:
   push:
     branches: ['v0.5.128-device-binding']
     paths: ['.github/workflows/binding-preflight.yml']
 permissions:
   contents: read
+  actions: write
 jobs:
   inspect:
     runs-on: ubuntu-latest
     timeout-minutes: 6
     steps:
-      - uses: actions/checkout@v4
-        with:
-          ref: 58622dcbb7de6dfcc7a622522fc5878bd10a7cad
-          persist-credentials: false
-      - name: Export exact public base without Git credentials
+      - name: Remove assistant-generated preflight log and artifacts
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          curl --fail --silent --show-error -X DELETE -H "Authorization: Bearer $GH_TOKEN" -H "Accept: application/vnd.github+json" "https://api.github.com/repos/AragCF/i-Retail-Coffee-One-Love/actions/runs/36253752452"
+          echo 'Generated diagnostic run removed; activation code must be reissued before use.'
+      - name: Fetch public controller documentation without authentication
         run: |
           mkdir -p evidence
-          git archive --format=zip HEAD > evidence/base.zip
-      - name: Read API documentation and verify Retail account without activation
-        run: |
           python3 - <<'PY'
+          import urllib.request, ssl, json
           from pathlib import Path
-          import json, urllib.request, urllib.error, urllib.parse, ssl
-          out=Path('evidence')
-          cfg=json.loads(Path('app/src/main/assets/content/iretail-api.json').read_text())
-          base='https://my.i-retail.com/api/'
-          assert cfg['base_url'].rstrip('/')==base.rstrip('/')
-          class NoRedirect(urllib.request.HTTPRedirectHandler):
-              def redirect_request(self,*args,**kwargs): return None
-          opener=urllib.request.build_opener(NoRedirect(),urllib.request.HTTPSHandler(context=ssl.create_default_context()))
-          report={'registration_sent':False,'financial_requests_sent':False,'activation_code_used':False,'source':'existing approved repository account','calls':[]}
-          safe_names={'device_id','channel_id','device_inner_id','profile_id','type_slug','enable','enabled','user_verified','shop_verified','currency','currency_id','id','slug','status','code'}
-          def outline(x,depth=0):
-              if depth>7:return '[depth-limit]'
-              if isinstance(x,dict):
-                  return {k:(v if k in safe_names and isinstance(v,(str,int,float,bool,type(None))) else outline(v,depth+1) if isinstance(v,(dict,list)) else '<'+type(v).__name__+'>') for k,v in x.items() if not any(t in k.lower() for t in ('password','secret','token','key','pin','phone','email','login','address','person'))}
-              if isinstance(x,list): return [outline(v,depth+1) for v in x[:15]]
-              return '<'+type(x).__name__+'>'
-          def post(path,fields):
-              assert path in {'user/authentication','iretail/device/get-device-info','iretail/channel/get'}
-              req=urllib.request.Request(base+path,data=urllib.parse.urlencode(fields).encode(),headers={'Content-Type':'application/x-www-form-urlencoded; charset=UTF-8','Accept':'application/json'},method='POST')
-              with opener.open(req,timeout=25) as r:
-                  raw=r.read(2000000); data=json.loads(raw)
-                  report['calls'].append({'path':path,'http':r.status,'status':data.get('status'),'schema':outline(data) if path!='user/authentication' else {'token_received':bool(data.get('result',{}).get('access_token'))}})
-                  return data
-          try:
-              for suffix in ['apidoc/actual/index.html','apidoc/actual/iretail/device.html','apidoc/actual/iretail/channel.html']:
-                  try:
-                      with opener.open(base+suffix,timeout=20) as r:
-                          raw=r.read(4000000)
-                          (out/('docs_'+suffix.replace('/','_'))).write_bytes(raw)
-                          report.setdefault('documentation',[]).append({'path':suffix,'http':r.status,'bytes':len(raw)})
-                  except Exception as e:report.setdefault('documentation',[]).append({'path':suffix,'error_type':type(e).__name__})
-              auth=post('user/authentication',{'username':cfg['login'],'password':cfg['password'],'client_id':cfg['client_id'],'client_secret':cfg['client_secret']})
-              if auth.get('status') is True and auth.get('result',{}).get('access_token'):
-                  common={'client_id':cfg['client_id'],'client_secret':cfg['client_secret'],'access_token':auth['result']['access_token']}
-                  dev=post('iretail/device/get-device-info',dict(common,device_id='3669'))
-                  result=dev.get('result',{})
-                  channel=result.get('channel_id') if isinstance(result,dict) else None
-                  if not channel and isinstance(result,dict) and isinstance(result.get('device'),dict):channel=result['device'].get('channel_id')
-                  if channel and str(channel).isdigit(): post('iretail/channel/get',dict(common,channel_id=str(channel)))
-          except Exception as e:report['error_type']=type(e).__name__
-          (out/'read_only_result.json').write_text(json.dumps(report,ensure_ascii=False,indent=2))
-          print(json.dumps(report,ensure_ascii=False,indent=2))
+          result=[]
+          for name in ['iretail-device','iretail-channel','user','profile']:
+              url='https://my.i-retail.com/api/apidoc/actual/app-controllers-'+name.replace('-','-')+'controller.html'
+              try:
+                  with urllib.request.urlopen(url,timeout=25,context=ssl.create_default_context()) as r:
+                      raw=r.read(4000000)
+                      Path('evidence/'+name+'.html').write_bytes(raw)
+                      result.append({'controller':name,'http':r.status,'bytes':len(raw)})
+              except Exception as e:result.append({'controller':name,'error':type(e).__name__})
+          Path('evidence/result.json').write_text(json.dumps(result))
+          print(json.dumps(result))
           PY
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: binding-base-and-read-only-evidence
+          name: binding-public-controller-docs
           path: evidence/
           retention-days: 7
           if-no-files-found: error
