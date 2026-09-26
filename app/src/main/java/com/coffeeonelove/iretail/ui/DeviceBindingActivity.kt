@@ -51,7 +51,7 @@ class DeviceBindingActivity : Activity() {
             setPadding(dp(26), dp(22), dp(26), dp(24))
             setBackgroundColor(Color.WHITE)
         }
-        scroll.addView(body, ScrollView.LayoutParams(-1, -2))
+        scroll.addView(body, FrameLayout.LayoutParams(-1, -2))
         val width = minOf(resources.displayMetrics.widthPixels, dp(700))
         frame.addView(scroll, FrameLayout.LayoutParams(width, -1, Gravity.CENTER_HORIZONTAL))
         setContentView(frame)

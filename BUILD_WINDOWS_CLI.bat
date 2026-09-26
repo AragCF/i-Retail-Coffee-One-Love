@@ -23,7 +23,7 @@ if errorlevel 1 (
     exit /b 9
 )
 
-set "SCRIPT_VERSION=0.5.127-api-lifecycle-safety"
+set "SCRIPT_VERSION=0.5.128-device-binding"
 set "DO_CLEAN=0"
 set "DO_HARD_CLEAN=0"
 

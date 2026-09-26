@@ -77,7 +77,7 @@ class ApiLifecycleSafetyTest {
         assertEquals(0, gateway.applyBonus(100))
     }
     @Test fun orderGatewayCannotAcceptInventedBonusDiscount() {
-        val gateway = LocalRetailOrderGateway()
+        val gateway = LocalRetailOrderGateway { true }
         val product = Product("test", name = "Synthetic coffee", volume = "200ml",
             price = 123, category = "coffee", available = true, priceMinor = 12345L)
         val line = CartLine(product)

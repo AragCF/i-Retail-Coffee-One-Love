@@ -1116,6 +1116,10 @@ public final class KozenAoaPaymentClient {
      * callback events and status. The user must NOT scan the generated QR in this probe.
      */
     public void startSbpLiveQrGenerationProbe(SbpLiveQrProbeListener listener) {
+        if (!com.coffeeonelove.iretail.ui.DeviceBindingAccess.financialAllowed()) {
+            if (listener != null) main.post(() -> listener.onFinal(PaymentResult.local("-", "BLOCKED", "API_PHASE_NO_FINANCIAL", "Финансовые пробы отключены")));
+            return;
+        }
         if (listener == null) return;
         if (shutdown) {
             main.post(() -> listener.onFinal(PaymentResult.local(
@@ -1392,6 +1396,10 @@ public final class KozenAoaPaymentClient {
      */
     public void startPayment(String amountRub, Listener listener) {
         if (listener == null) return;
+        if (!com.coffeeonelove.iretail.ui.DeviceBindingAccess.financialAllowed()) {
+            deliverResult(listener, PaymentResult.local("-", "BLOCKED", "API_PHASE_NO_FINANCIAL", "Платежи отложены: проверяем API и привязку"));
+            return;
+        }
         if (shutdown) {
             deliverResult(listener, PaymentResult.local("-", "FAILED", "CLIENT_SHUTDOWN", "Платёжный клиент остановлен"));
             return;

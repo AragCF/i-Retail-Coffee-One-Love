@@ -2,7 +2,7 @@
 setlocal EnableExtensions DisableDelayedExpansion
 cd /d "%~dp0"
 
-set "EXPECTED_APP_VERSION=0.5.127-api-lifecycle-safety"
+set "EXPECTED_APP_VERSION=0.5.128-device-binding"
 set "EXPECTED_BRIDGE_VERSION=0.5.7-sbp-qr-source-probe"
 set "JL22="
 set "KOZEN="

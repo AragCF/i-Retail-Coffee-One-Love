@@ -60,6 +60,11 @@
             </intent-filter>
         </receiver>
         <activity
+            android:name=".ui.DeviceBindingActivity"
+            android:exported="false"
+            android:launchMode="singleTask"
+            android:windowSoftInputMode="adjustResize" />
+        <activity
             android:name=".ui.MainActivity"
             android:exported="true"
             android:launchMode="singleTask">

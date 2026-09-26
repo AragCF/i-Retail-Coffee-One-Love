@@ -24,20 +24,35 @@ import java.util.zip.ZipInputStream
  * сохранять локальный кэш и показывать кэш при отсутствии сети.
  */
 class IretailContentRepository(private val context: Context) {
+    private val bindingRecord: JSONObject? by lazy {
+        DeviceBindingStore.get(context).configuredRecord()
+    }
     private val apiConfig: IretailApiConfig by lazy { loadApiConfig() }
-    private val cacheFile: File by lazy { File(context.filesDir, "iretail_catalog_cache.zip") }
+    private val cacheFile: File by lazy {
+        val record = bindingRecord ?: throw BindingFailure("UNBOUND")
+        val directory = File(context.noBackupFilesDir, "catalog/" + BindingRecordPolicy.cacheScope(record))
+        if (!directory.exists() && !directory.mkdirs()) throw BindingFailure("CATALOG_DIRECTORY")
+        File(directory, "iretail_catalog_cache.zip")
+    }
+    companion object { private val CATALOG_CACHE_LOCK = Any() }
+    private fun hasBoundConfiguration(): Boolean = bindingRecord != null
+
 
     fun isRemoteCatalogEnabled(): Boolean = apiConfig.enabled
 
     fun loadProducts(): List<Product> {
-        if (cacheFile.exists()) {
-            val cached = try { parseCatalogZip(cacheFile.readBytes()) } catch (_: Exception) { null }
-            if (cached?.structureValid == true) return cached.products
-        }
+        if (!hasBoundConfiguration()) return emptyList()
+        val cached = readCatalogCache()
+        if (cached?.structureValid == true) return cached.products
         return if (apiConfig.enabled) emptyList() else loadProductsFromXmlAsset()
     }
 
     fun refreshProductsAsync(onResult: (CatalogRefreshResult) -> Unit) {
+        if (!hasBoundConfiguration()) {
+            onResult(CatalogRefreshResult(false, emptyList(), "Сначала привяжите устройство", "I-Retail unbound",
+                failureStage = "binding", failureReason = "UNBOUND"))
+            return
+        }
         if (!apiConfig.enabled) {
             onResult(
                 CatalogRefreshResult(
@@ -100,7 +115,7 @@ class IretailContentRepository(private val context: Context) {
                 val failureStage = stageError?.stage ?: "unknown"
                 val failureReason = stageError?.safeReason ?: safeCatalogFailureReason(e)
                 val failureDetail = stageError?.safeDetail ?: safeCatalogFailureDetail(e)
-                val cached = try { parseCatalogZip(cacheFile.readBytes()) } catch (_: Exception) { null }
+                val cached = readCatalogCache()
                 if (cached?.structureValid == true) {
                     CatalogRefreshResult(
                         success = true,
@@ -136,6 +151,10 @@ class IretailContentRepository(private val context: Context) {
     }
 
     fun lookupLoyaltyAsync(input: String, onResult: (LoyaltyLookupResult) -> Unit) {
+        if (!DeviceBindingStore.get(context).isReady()) {
+            onResult(LoyaltyLookupResult(false, "Сначала завершите привязку устройства"))
+            return
+        }
         val query = input.trim()
         if (query.isBlank()) {
             onResult(LoyaltyLookupResult(false, "Введите код карты, телефон или email"))
@@ -145,7 +164,7 @@ class IretailContentRepository(private val context: Context) {
             val result = try {
                 lookupLoyalty(query)
             } catch (e: Exception) {
-                LoyaltyLookupResult(false, "Лояльность I-Retail недоступна: ${e.cleanMessage()}")
+                LoyaltyLookupResult(false, "Лояльность I-Retail недоступна (${safeCatalogFailureReason(e)})")
             }
             onResult(result)
         }.start()
@@ -157,6 +176,11 @@ class IretailContentRepository(private val context: Context) {
     }
 
     fun refreshChannelConfigAsync(onResult: (ChannelConfigRefreshResult) -> Unit) {
+        if (!hasBoundConfiguration()) {
+            onResult(ChannelConfigRefreshResult(false, emptyList(), "Сначала привяжите устройство", "I-Retail unbound",
+                failureReason = "UNBOUND"))
+            return
+        }
         if (!apiConfig.enabled) {
             onResult(
                 ChannelConfigRefreshResult(
@@ -192,6 +216,8 @@ class IretailContentRepository(private val context: Context) {
 
                 val channelResult = channel.optJSONObject("result")
                     ?: throw IllegalStateException("channel result missing")
+                require(DeviceBindingProtocol.id(channelResult.opt("id")) == apiConfig.channelId) { "CHANNEL_MISMATCH" }
+                require(DeviceBindingProtocol.id(channelResult.opt("profile_id")) == apiConfig.profileId) { "PROFILE_MISMATCH" }
                 val serviceResult = services.optJSONObject("result")
                     ?: throw IllegalStateException("available-services result missing")
 
@@ -265,7 +291,8 @@ class IretailContentRepository(private val context: Context) {
             val title = service.optString("title", "").trim()
                 .ifBlank { service.optString("name", "").trim() }
                 .ifBlank { slug }
-            val enabled = if (service.has("enabled")) service.optBooleanNullable("enabled") == true else true
+            // TSO/API uses settings.enable; XML uses enabled. Unknown is not authorization.
+            val enabled = service.optJSONObject("settings")?.optBooleanNullable("enable") == true
             result += PayMethod(
                 id = id,
                 slug = slug,
@@ -399,6 +426,7 @@ class IretailContentRepository(private val context: Context) {
     }
 
     private fun postFormBytes(path: String, fields: Map<String, String>): ByteArray {
+        check(hasBoundConfiguration()) { "UNBOUND" }
         val url = URL(apiConfig.baseUrl.trimEnd('/') + "/" + path.trimStart('/'))
         val payload = fields.entries.joinToString("&") { entry ->
             URLEncoder.encode(entry.key, "UTF-8") + "=" + URLEncoder.encode(entry.value, "UTF-8")
@@ -409,6 +437,8 @@ class IretailContentRepository(private val context: Context) {
         }
         val conn = (rawConnection as HttpURLConnection).apply {
             requestMethod = "POST"
+            instanceFollowRedirects = false
+            setFixedLengthStreamingMode(payload.size)
             connectTimeout = 15000
             readTimeout = 30000
             doOutput = true
@@ -419,7 +449,7 @@ class IretailContentRepository(private val context: Context) {
         val code = conn.responseCode
         val stream = if (code in 200..299) conn.inputStream else conn.errorStream
         val body = stream?.use { it.readBytes() } ?: ByteArray(0)
-        if (code !in 200..299) throw IllegalStateException("HTTP $code: ${body.toString(Charsets.UTF_8).take(160)}")
+        if (code !in 200..299) throw IllegalStateException("HTTP $code")
         return body
     }
 
@@ -574,31 +604,31 @@ class IretailContentRepository(private val context: Context) {
         return offers.ifEmpty { fallbackProducts() }
     }
 
-    private fun persistValidatedCatalog(zipBytes: ByteArray) {
-        val candidate = File(context.filesDir, "iretail_catalog_cache.zip.new")
-        val backup = File(context.filesDir, "iretail_catalog_cache.zip.bak")
-        candidate.delete()
-        backup.delete()
-
-        candidate.writeBytes(zipBytes)
-        val reparsed = parseCatalogZip(candidate.readBytes())
-        if (!reparsed.structureValid) {
-            candidate.delete()
-            throw IllegalStateException("Проверка структуры нового каталога после записи не пройдена")
+    private fun readCatalogCache(): ParsedCatalog? = synchronized(CATALOG_CACHE_LOCK) {
+        for (file in listOf(cacheFile, File(cacheFile.path + ".bak"))) {
+            val parsed = try { parseCatalogZip(file.readBytes()) } catch (_: Exception) { null }
+            if (parsed?.structureValid == true) return@synchronized parsed
         }
+        null
+    }
 
-        if (cacheFile.exists() && !cacheFile.renameTo(backup)) {
-            candidate.delete()
-            throw IllegalStateException("Не удалось сохранить резервную копию каталога")
+    private fun persistValidatedCatalog(zipBytes: ByteArray) = synchronized(CATALOG_CACHE_LOCK) {
+        val validated = parseCatalogZip(zipBytes)
+        if (!validated.structureValid) throw IllegalStateException("INVALID_CATALOG_STRUCTURE")
+        val atomic = android.util.AtomicFile(cacheFile)
+        var stream: java.io.FileOutputStream? = null
+        try {
+            stream = atomic.startWrite()
+            stream.write(zipBytes)
+            stream.fd.sync()
+            val candidate = cacheFile
+            val reparsed = parseCatalogZip(candidate.readBytes())
+            if (!reparsed.structureValid) throw IllegalStateException("INVALID_CATALOG_STRUCTURE")
+            atomic.finishWrite(stream)
+        } catch (e: Exception) {
+            if (stream != null) atomic.failWrite(stream)
+            throw e
         }
-
-        if (!candidate.renameTo(cacheFile)) {
-            if (backup.exists()) backup.renameTo(cacheFile)
-            candidate.delete()
-            throw IllegalStateException("Не удалось заменить кэш каталога")
-        }
-
-        backup.delete()
     }
 
     private fun readAsset(path: String): String = try {
@@ -619,21 +649,18 @@ class IretailContentRepository(private val context: Context) {
         .replace("&gt;", ">")
 
     private fun loadApiConfig(): IretailApiConfig {
-        val text = readAsset("content/iretail-api.json")
-        if (text.isBlank()) return IretailApiConfig()
-        val json = JSONObject(text)
+        val record = bindingRecord ?: return IretailApiConfig(enabled = true)
+        val identity = BindingRecordPolicy.identity(record)
+        val channel = BindingRecordPolicy.configuration(record)
+        val credentials = BindingCredentials.from(record.getJSONObject("credentials"))
         return IretailApiConfig(
-            enabled = json.optBoolean("enabled", true),
-            baseUrl = json.optString("base_url", "https://my.i-retail.com/api/"),
-            login = json.optString("login", ""),
-            password = json.optString("password", ""),
-            clientId = json.optString("client_id", "IRETAIL_TERMINAL"),
-            clientSecret = json.optString("client_secret", "2758bb5da44242c8cc36f070ec09655d"),
-            profileId = json.optString("profile_id", "2512"),
-            channelId = json.optString("channel_id", "5676"),
-            currencyId = json.optString("currency_id", "643"),
-            deviceCode = json.optString("device_code", "6287"),
-            deviceId = json.optString("device_id", "6287")
+            enabled = true, baseUrl = DeviceBindingProtocol.BASE_URL,
+            login = credentials.username, password = credentials.password,
+            clientId = credentials.clientId, clientSecret = credentials.clientSecret,
+            profileId = DeviceBindingProtocol.id(channel.opt("profile_id")),
+            channelId = identity.channelId,
+            currencyId = DeviceBindingProtocol.id(channel.getJSONObject("currency").opt("id")),
+            deviceCode = record.getString("device_code_encoded"), deviceId = identity.deviceId
         )
     }
 
@@ -693,12 +720,12 @@ class IretailContentRepository(private val context: Context) {
         val login: String = "",
         val password: String = "",
         val clientId: String = "IRETAIL_TERMINAL",
-        val clientSecret: String = "2758bb5da44242c8cc36f070ec09655d",
-        val profileId: String = "2512",
-        val channelId: String = "5676",
-        val currencyId: String = "643",
-        val deviceCode: String = "6287",
-        val deviceId: String = "6287"
+        val clientSecret: String = "",
+        val profileId: String = "",
+        val channelId: String = "",
+        val currencyId: String = "",
+        val deviceCode: String = "",
+        val deviceId: String = ""
     )
 
     private data class ParsedCatalog(
@@ -717,11 +744,12 @@ class IretailContentRepository(private val context: Context) {
     private class AuthenticationRejectedException : IllegalStateException("authentication rejected")
 }
 
-class LocalRetailOrderGateway {
+class LocalRetailOrderGateway(private val canCreateOrder: () -> Boolean = { DeviceBindingAccess.isReady() }) {
     private var sequence = 1000
     private var activeOrder: RuntimeOrder? = null
 
     fun createOrder(lines: List<CartLine>, grossAmountMinor: Long, ibonusDiscountMinor: Long = 0L, loyalty: LocalLoyaltyGateway? = null): RuntimeOrder {
+        check(canCreateOrder()) { "UNBOUND_ORDER_BLOCKED" }
         val number = SimpleDateFormat("yyyyMMdd-HHmmss", Locale.ROOT).format(Date()) + "-" + (++sequence)
         val safeGrossMinor = grossAmountMinor.coerceAtLeast(0L)
         // This gateway has no proof of a server-authorized bonus redemption.
@@ -746,6 +774,7 @@ class LocalRetailOrderGateway {
     }
 
     fun startPayment(method: PaymentMethod): OperationResult {
+        if (!canCreateOrder()) return OperationResult.ERROR
         val order = activeOrder ?: return OperationResult.ERROR
         order.status = OrderStatus.PAYMENT_STARTED
         order.paymentMethod = method
@@ -753,6 +782,7 @@ class LocalRetailOrderGateway {
     }
 
     fun markPaymentConfirmed(): OperationResult {
+        if (!canCreateOrder()) return OperationResult.ERROR
         val order = activeOrder ?: return OperationResult.ERROR
         order.status = OrderStatus.PAID
         order.fiscalReceiptUrl = null

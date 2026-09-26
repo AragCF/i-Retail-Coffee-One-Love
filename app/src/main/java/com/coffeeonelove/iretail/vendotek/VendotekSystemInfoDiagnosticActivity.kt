@@ -37,6 +37,11 @@ class VendotekSystemInfoDiagnosticActivity : Activity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        if (!com.coffeeonelove.iretail.ui.DeviceBindingStore.get(this).isReady()) {
+            startActivity(android.content.Intent(this, com.coffeeonelove.iretail.ui.MainActivity::class.java))
+            finish()
+            return
+        }
         buildUi()
         executor.execute { runProbe() }
     }

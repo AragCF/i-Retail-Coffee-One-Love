@@ -51,6 +51,11 @@ class SmartSkyPosTransactionLookupActivity : Activity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        if (!com.coffeeonelove.iretail.ui.DeviceBindingStore.get(this).isReady()) {
+            startActivity(android.content.Intent(this, com.coffeeonelove.iretail.ui.MainActivity::class.java))
+            finish()
+            return
+        }
         requestedTerminalId = intent.getStringExtra(EXTRA_TERMINAL_ID)?.trim().orEmpty()
         requestedReceiptNumber = intent.getStringExtra(EXTRA_RECEIPT_NUMBER)?.trim().orEmpty()
         buildUi()

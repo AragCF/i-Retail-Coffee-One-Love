@@ -195,18 +195,12 @@ class OrderSyncDraftBuilder(private val context: Context) {
 
     private fun readNonSecretConfig(): DraftConfig {
         return try {
-            val text = context.assets.open("content/iretail-api.json")
-                .bufferedReader(Charsets.UTF_8)
-                .use { it.readText() }
-            val json = JSONObject(text)
-            DraftConfig(
-                channelId = json.optString("channel_id", ""),
-                currencyId = json.optString("currency_id", "643"),
-                deviceId = json.optString("device_id", "")
-            )
-        } catch (_: Exception) {
-            DraftConfig()
-        }
+            val record = DeviceBindingStore.get(context).configuredRecord() ?: return DraftConfig()
+            val identity = BindingRecordPolicy.identity(record)
+            val channel = BindingRecordPolicy.configuration(record)
+            DraftConfig(channelId = identity.channelId, deviceId = identity.deviceId,
+                currencyId = DeviceBindingProtocol.id(channel.getJSONObject("currency").opt("id")))
+        } catch (_: Exception) { DraftConfig() }
     }
 
     private fun readEvidence(): AuditEvidence {

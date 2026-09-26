@@ -72,7 +72,11 @@ object MachineModeStore {
 
 /** Process-local visibility signal used by the standalone foreground keeper. */
 object MainUiVisibility {
-    @Volatile var started: Boolean = false
+    @Volatile private var customerStarted: Boolean = false
+    @Volatile var bindingStarted: Boolean = false
+    var started: Boolean
+        get() = customerStarted || bindingStarted
+        set(value) { customerStarted = value }
 }
 
 /** Starts the i-Retail UI after boot only for standalone coffee-machine mode. */

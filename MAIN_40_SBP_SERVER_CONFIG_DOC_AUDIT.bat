@@ -2,7 +2,7 @@
 setlocal EnableExtensions DisableDelayedExpansion
 cd /d "%~dp0"
 
-set "EXPECTED_BRANCH=v0.5.127-api-lifecycle-safety"
+set "EXPECTED_BRANCH=v0.5.128-device-binding"
 set "CURRENT_BRANCH="
 
 echo ============================================================

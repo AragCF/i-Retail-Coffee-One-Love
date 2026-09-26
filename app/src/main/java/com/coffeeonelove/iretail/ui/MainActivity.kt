@@ -222,11 +222,12 @@ class MainActivity : Activity() {
         machineModeConfig = MachineModeStore.resolve(this, intent)
         realPosEnabled = machineModeConfig.realPosEnabled
         applyMachineModeRuntime(machineModeConfig)
+        if (!requireDeviceBinding()) return
 
         val positiveTestRequested = intent?.getBooleanExtra("fiscal_positive_payment_test", false) == true
         val debuggable = (applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE) != 0
         fiscalPositivePaymentTestMode =
-            positiveTestRequested && debuggable && machineModeConfig.standalone && realPosEnabled
+            positiveTestRequested && debuggable && machineModeConfig.standalone && realPosEnabled && DeviceBindingAccess.financialAllowed()
         if (positiveTestRequested && !fiscalPositivePaymentTestMode) {
             android.util.Log.e(
                 "FiscalPositivePaymentTest",
@@ -292,6 +293,7 @@ class MainActivity : Activity() {
     override fun onNewIntent(intent: android.content.Intent?) {
         super.onNewIntent(intent)
         setIntent(intent)
+        if (!requireDeviceBinding()) return
 
         val configureOnly = intent?.getBooleanExtra("configure_only", false) == true
         val preserveControlledRuntime =
@@ -328,6 +330,7 @@ class MainActivity : Activity() {
 
     override fun onStart() {
         super.onStart()
+        if (isFinishing || !requireDeviceBinding()) return
         MainUiVisibility.started = true
         apiUiStarted = true
         if (::root.isInitialized && apiUiNeedsRender) renderApiChanges()
@@ -599,6 +602,7 @@ class MainActivity : Activity() {
     }
 
     private fun maybeRunSbpLiveQrGenerationProbe(intent: android.content.Intent?, source: String) {
+        if (!DeviceBindingAccess.financialAllowed()) return
         if (intent?.getBooleanExtra("sbp_live_qr_generation_probe", false) != true) return
         intent.removeExtra("sbp_live_qr_generation_probe")
 
@@ -1055,6 +1059,18 @@ class MainActivity : Activity() {
         goBackSafely()
     }
 
+    private fun requireDeviceBinding(): Boolean {
+        if (DeviceBindingStore.get(this).isReady()) return true
+        if (!isFinishing) {
+            android.util.Log.i("IretailBinding", "CUSTOMER_UI_BLOCKED")
+            startActivity(android.content.Intent(this, DeviceBindingActivity::class.java).apply {
+                addFlags(android.content.Intent.FLAG_ACTIVITY_CLEAR_TOP or android.content.Intent.FLAG_ACTIVITY_SINGLE_TOP)
+            })
+            finish()
+        }
+        return false
+    }
+
     private fun buildRootView() {
         root = FrameLayout(this)
         screenImage = ImageView(this).apply {
@@ -1091,6 +1107,7 @@ class MainActivity : Activity() {
     }
 
     private fun openScreen(screenId: String, remember: Boolean = true) {
+        if (!requireDeviceBinding()) return
         if (currentScreen == "LOYALTY_LOGIN" && screenId != currentScreen) {
             loyaltyReadGate.invalidate()
         }
@@ -3164,6 +3181,7 @@ class MainActivity : Activity() {
             .toSet()
 
     private fun paymentMethodAllowedByServer(method: PaymentMethod): Boolean {
+        if (!DeviceBindingAccess.financialAllowed()) return false
         if (fiscalPositivePaymentTestMode) return true
         if (!paymentConfigReady) return false
         if (paymentConfigChannelEnabled == false || paymentConfigRelatedEnabled == false) return false
@@ -3178,6 +3196,7 @@ class MainActivity : Activity() {
     }
 
     private fun paymentMethodBlockedCaption(method: PaymentMethod): String {
+        if (!DeviceBindingAccess.financialAllowed()) return "Платежи отложены: проверяем API"
         if (!paymentConfigReady) return "Настройки I-Retail недоступны"
         if (paymentConfigChannelEnabled == false || paymentConfigRelatedEnabled == false) return "Канал выключен в I-Retail"
         return when (method) {
@@ -3199,6 +3218,11 @@ class MainActivity : Activity() {
     }
 
     private fun startPayment(method: PaymentMethod) {
+        if (!requireDeviceBinding()) return
+        if (!DeviceBindingAccess.financialAllowed()) {
+            toast("Финансовые операции отложены. Сейчас проверяем привязку и API.")
+            return
+        }
         if (cart.isEmpty()) {
             toast("Нельзя оплатить пустой заказ")
             return
@@ -3243,6 +3267,7 @@ class MainActivity : Activity() {
     }
 
     private fun startRealCardPayment() {
+        if (!requireDeviceBinding() || !DeviceBindingAccess.financialAllowed()) return
         val order = orderGateway.currentOrder()
         if (order == null || order.amountMinor <= 0L) {
             toast("Не удалось определить сумму заказа")
@@ -3360,6 +3385,7 @@ class MainActivity : Activity() {
     }
 
     private fun openDispenseByCart() {
+        if (!requireDeviceBinding() || !DeviceBindingAccess.financialAllowed()) return
         orderGateway.markCooking()
         val count = cart.sumOf { it.quantity }
         when {
@@ -3370,6 +3396,7 @@ class MainActivity : Activity() {
     }
 
     private fun finishDispense() {
+        if (!requireDeviceBinding() || !DeviceBindingAccess.financialAllowed()) return
         val result = machineGateway.dispenseCoffee(orderGateway.currentOrder())
         if (result.success) {
             orderGateway.markReady()
@@ -3419,6 +3446,7 @@ class MainActivity : Activity() {
     }
 
     private fun submitLoyaltyInput() {
+        if (!requireDeviceBinding()) return
         val query = loyaltyInput.trim()
         if (query.isBlank()) {
             toast("Введите код карты")
@@ -3642,7 +3670,7 @@ class MainActivity : Activity() {
         statusLabel.visibility = if (demoStatusVisible) View.VISIBLE else View.GONE
         if (demoStatusVisible) {
             val total = cartTotalMinor()
-            statusLabel.text = "UI v0.5.127 | $currentScreen | товаров: ${cart.sumOf { it.quantity }} | сумма: $total ₽ | данные: $catalogDataSource | $catalogMessage | I-Retail services: ${paymentMethods.count { it.enabled }} | configReady=$paymentConfigReady"
+            statusLabel.text = "UI v0.5.128 | $currentScreen | товаров: ${cart.sumOf { it.quantity }} | сумма: $total ₽ | данные: $catalogDataSource | $catalogMessage | I-Retail services: ${paymentMethods.count { it.enabled }} | configReady=$paymentConfigReady"
         }
     }
 
