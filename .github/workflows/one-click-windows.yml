@@ -1,0 +1,27 @@
+name: One click Windows runner
+on:
+  push:
+    branches: ['v0.5.128-device-binding']
+    paths: ['tools/Run-OneClick.ps1', 'tools/START_IRETAIL.bat', 'tools/Test-OneClick.ps1', '.github/workflows/one-click-windows.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  windows-powershell51:
+    runs-on: windows-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Test Windows PowerShell 5.1 and real local Git
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          & tools/Test-OneClick.ps1 -SourceRoot $pwd.Path 2>&1 | Tee-Object one-click-test-results.log
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: one-click-windows-tests
+          path: one-click-test-results.log
+          if-no-files-found: error
