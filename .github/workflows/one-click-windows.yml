@@ -2,7 +2,7 @@ name: One click Windows runner
 on:
   push:
     branches: ['v0.5.128-device-binding']
-    paths: ['tools/Run-OneClick.ps1', 'tools/START_IRETAIL.bat', 'tools/Test-OneClick.ps1', '.github/workflows/one-click-windows.yml']
+    paths: ['tools/Run-OneClick.ps1', 'tools/START_IRETAIL.bat', 'tools/Test-OneClick.ps1', 'tools/Test-OneClickInstaller.ps1', '.github/workflows/one-click-windows.yml']
   workflow_dispatch:
 permissions:
   contents: read
@@ -21,9 +21,18 @@ jobs:
           $root = $pwd.Path
           $log = Join-Path $root 'one-click-test-results.log'
           & tools/Test-OneClick.ps1 -SourceRoot $root 6>&1 2>&1 | Tee-Object -FilePath $log
+      - name: Test published installer payload without a physical device
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $root = $pwd.Path
+          $log = Join-Path $root 'one-click-installer-results.log'
+          & tools/Test-OneClickInstaller.ps1 -SourceRoot $root 6>&1 2>&1 | Tee-Object -FilePath $log
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: one-click-windows-tests
-          path: one-click-test-results.log
+          path: |
+            one-click-test-results.log
+            one-click-installer-results.log
           if-no-files-found: error
