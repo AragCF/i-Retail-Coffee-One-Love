@@ -18,7 +18,9 @@ jobs:
         shell: powershell
         run: |
           $ErrorActionPreference = 'Stop'
-          & tools/Test-OneClick.ps1 -SourceRoot $pwd.Path 2>&1 | Tee-Object one-click-test-results.log
+          $root = $pwd.Path
+          $log = Join-Path $root 'one-click-test-results.log'
+          & tools/Test-OneClick.ps1 -SourceRoot $root 6>&1 2>&1 | Tee-Object -FilePath $log
       - uses: actions/upload-artifact@v4
         if: always()
         with:

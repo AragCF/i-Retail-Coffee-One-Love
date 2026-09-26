@@ -74,6 +74,16 @@ $build=Get-BuildSummary "> Task :app:compileDebugKotlin FAILED`ne: file:///a/Sec
 Check (($build | ConvertTo-Json -Depth 5) -notmatch 'NEVER_PUBLISH_THIS') 'Build output minimized'
 Check ($build.compiler_locations.Count -eq 1 -and $build.tasks.Count -eq 1) 'Compiler location/task preserved'
 
+$instantCrash=@'
+09-26 17:01:03.001   456   456 E AndroidRuntime: FATAL EXCEPTION: NEVER_PUBLISH_THIS
+09-26 17:01:03.002   456   456 E AndroidRuntime: Process: com.coffeeonelove.iretail, PID: 456
+09-26 17:01:03.003   456   456 E AndroidRuntime: java.lang.RuntimeException: NEVER_PUBLISH_THIS
+'@
+$before=$script:Events.Count
+Parse-SafeLog $instantCrash
+Check ($script:Events.Count -eq $before+2) 'Immediate crash captured even before ps sees its PID'
+Check ((ConvertTo-Json -InputObject @($script:Events.ToArray()) -Depth 5) -notmatch 'NEVER_PUBLISH_THIS') 'Immediate crash excludes message secrets'
+
 # Native Git integration, all remotes are disposable local bare repositories.
 $seed=Join-Path $testRoot 'seed'; $mirror=Join-Path $testRoot 'mirror.git'; $work=Join-Path $testRoot 'work ! копия'
 $branch='v0.5.128-device-binding'
@@ -106,6 +116,16 @@ $null=Git-Run @('remote','set-url','origin',$mirror)
 Write-Utf8 (Join-Path $work 'app\unexpected.kt') 'do not compile this'
 Expect {Assert-CleanSource} 'UNTRACKED_SOURCE_FILES_PRESERVED'
 Remove-Item -LiteralPath (Join-Path $work 'app\unexpected.kt')
+$null=Git-Run @('switch','--create','fixture-local-branch')
+Write-Utf8 (Join-Path $work 'local-only.txt') 'LOCAL_ONLY_COMMIT'
+$null=Git-Run @('add','local-only.txt'); $null=Git-Run @('commit','-m','local user change')
+$localCommit=(Git-Run @('rev-parse','HEAD')).Out.Trim()
+$null=Git-Run @('update-ref',('refs/heads/'+$branch),$localCommit,$source)
+Expect {Update-Source $branch $source} 'LOCAL_BRANCH_AHEAD_OR_DIVERGED'
+Check ((Git-Run @('rev-parse','HEAD')).Out.Trim() -eq $localCommit) 'Ahead branch is not reset'
+# Restore only the synthetic fixture ref, not production data.
+$null=Git-Run @('update-ref',('refs/heads/'+$branch),$source,$localCommit)
+$null=Git-Run @('switch',$branch)
 Write-Utf8 (Join-Path $work 'source.txt') 'LOCAL_SECRET_DO_NOT_PUBLISH'
 Write-Utf8 (Join-Path $work 'staged.txt') 'STAGED_SECRET_DO_NOT_PUBLISH'
 $null=Git-Run @('add','staged.txt')
@@ -161,6 +181,7 @@ function Adb-Run {
     [pscustomobject]@{ExitCode=0;Out=$out;Err='';TimedOut=$false}
 }
 function Wait-Observation {
+    $script:LastProcessState='RUNNING'; $script:LastLinkState='ONLINE'
     $script:LastBinding=[pscustomobject]@{kind='binding';stage='READY';busy=$false;ready=$true;legacy_unresolved=$false}
     return 1
 }

@@ -7,7 +7,7 @@
 # Windows PowerShell 5.1. This file is loaded from a pinned fetched Git object.
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version 2.0
-$script:RunnerVersion = '1.0.0'
+$script:RunnerVersion = '1.0.1'
 $script:Repo = [IO.Path]::GetFullPath($RepoRoot).TrimEnd([char[]]'\/')
 $script:Local = $null
 $script:Serial = ''
@@ -132,6 +132,15 @@ function Add-Event([hashtable]$Data) {
     $script:Events.Add([pscustomobject]$entry)
 }
 function Parse-SafeLog([string]$Text,[switch]$SeedOnly) {
+    # A short-lived crashed process may be absent from ps. Learn its PID before
+    # parsing FATAL EXCEPTION, which precedes the Process line in logcat.
+    if(-not $SeedOnly) {
+        foreach($candidate in ($Text -split '\r?\n')) {
+            if($candidate -match '^\d\d-\d\d\s+\d\d:\d\d:\d\d\.\d+\s+(\d+)\s+\d+\s+[EF]\s+AndroidRuntime\s*:\s*Process: com\.coffeeonelove\.iretail, PID: (\d+)\s*$' -and $Matches[1] -eq $Matches[2]) {
+                $null=$script:Pids.Add($Matches[1])
+            }
+        }
+    }
     foreach($line in ($Text -split '\r?\n')) {
         if(-not $line) { continue }
         $sha=[Security.Cryptography.SHA256]::Create()
@@ -258,6 +267,7 @@ function Get-BuildSummary([string]$Text) {
     [pscustomobject]@{tasks=@($tasks.ToArray());compiler_locations=@($locations.ToArray());raw_output_included=$false}
 }
 function Make-PublicBundle([string]$RunDir,[object]$Report,[object]$Build) {
+    Add-Type -AssemblyName System.IO.Compression
     Add-Type -AssemblyName System.IO.Compression.FileSystem
     $public=Join-Path $RunDir 'public'
     $null=New-Item -ItemType Directory -Path $public -Force
@@ -412,6 +422,7 @@ function Invoke-OneClick {
         if($script:LastBinding -and ($script:LastBinding.busy -or $script:LastBinding.stage -in @('REGISTERING','RESPONSE_RECEIVED'))) { throw 'DEVICE_OPERATION_BUSY' }
         Assert-CleanSource
         if((Git-Run @('rev-parse','HEAD')).Out.Trim() -cne $TargetCommit) { throw 'SOURCE_CHANGED_DURING_BUILD' }
+        Assert-Target
         $install=Adb-Run @('install','-r',$apk) -Seconds 180
         if($install.ExitCode -ne 0 -or $install.Out -notmatch '(?m)^Success\s*$') {
             if(($install.Out+$install.Err) -match 'INSTALL_FAILED_UPDATE_INCOMPATIBLE') { throw 'SIGNING_KEY_MISMATCH' }
@@ -427,10 +438,14 @@ function Invoke-OneClick {
         $report.observed_seconds=Wait-Observation
         $report.completed_steps=5
         $report.last_binding=$script:LastBinding
+        $report['last_process_state']=$script:LastProcessState
+        $report['last_adb_state']=$script:LastLinkState
         $report.result='OBSERVATION_FINISHED_NO_BINDING_STATE'
         if($script:LastBinding) {
             $report.result=if($script:LastBinding.ready){'BINDING_READY_OBSERVED'}else{'BINDING_NOT_READY'}
         }
+        if($script:LastLinkState -eq 'UNAVAILABLE') { $report.result='ADB_UNAVAILABLE_AT_FINISH' }
+        elseif($script:LastProcessState -eq 'NOT_RUNNING') { $report.result='APP_NOT_RUNNING_AT_FINISH' }
         if(@($script:Events | Where-Object { $_.kind -eq 'crash' }).Count -gt 0) { $report.result='APP_CRASH_OBSERVED' }
         $exitCode=0
     } catch {
