@@ -1,0 +1,104 @@
+name: Device binding safety
+on:
+  push:
+    branches: ['v0.5.128-device-binding']
+    paths: ['app/**', 'tools/*DeviceBinding*', 'tools/verify_v0_5_128_device_binding.py', '.github/workflows/device-binding-safety.yml', 'MAIN_41_DEVICE_BINDING_SAFE_TEST.bat']
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  binding-jvm:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.7'
+      - name: Binding source and credentials boundaries
+        run: python3 tools/verify_v0_5_128_device_binding.py
+      - name: Execute all JVM cases
+        run: gradle --no-daemon :app:testDebugUnitTest :app:assembleDebug :app:assembleDebugAndroidTest
+      - name: Assert complete test results
+        run: |
+          python3 - <<'PY'
+          import xml.etree.ElementTree as ET
+          from pathlib import Path
+          for name, expected in [('DeviceBindingTest',26),('ApiLifecycleSafetyTest',10)]:
+              r=ET.parse(Path('app/build/test-results/testDebugUnitTest/TEST-com.coffeeonelove.iretail.ui.'+name+'.xml')).getroot()
+              assert int(r.get('tests','0'))>=expected
+              assert all(int(r.get(k,'0'))==0 for k in ('failures','errors','skipped'))
+              print(name, dict(r.attrib))
+          PY
+      - name: PowerShell parser checks without devices or secrets
+        shell: pwsh
+        run: |
+          $tokens=$null; $errors=$null
+          [void][System.Management.Automation.Language.Parser]::ParseFile((Join-Path $PWD 'tools/Run-DeviceBindingSafeTest.ps1'),[ref]$tokens,[ref]$errors)
+          if ($errors.Count) { throw ($errors -join '; ') }
+          Write-Host 'BINDING_POWERSHELL_PARSE_OK'
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: binding-jvm-results
+          path: app/build/test-results/testDebugUnitTest/*.xml
+          if-no-files-found: error
+      - uses: actions/upload-artifact@v4
+        with:
+          name: binding-android-test-apks
+          path: |
+            app/build/outputs/apk/debug/*.apk
+            app/build/outputs/apk/androidTest/debug/*.apk
+          if-no-files-found: error
+  android23-keystore-and-launch:
+    needs: binding-jvm
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: binding-android-test-apks
+          path: apks
+      - name: Configure isolated Android23 virtual device
+        run: |
+          set -e
+          sudo chmod 666 /dev/kvm
+          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses >/dev/null || true
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" 'emulator' 'system-images;android-23;default;x86_64'
+          echo no | "$ANDROID_HOME/cmdline-tools/latest/bin/avdmanager" create avd -n Binding23 -k 'system-images;android-23;default;x86_64' --force
+          mkdir -p smoke
+          "$ANDROID_HOME/emulator/emulator" -avd Binding23 -no-window -no-audio -no-boot-anim -no-snapshot -gpu swiftshader_indirect -camera-back none -camera-front none > smoke/emulator-start.log 2>&1 &
+          adb wait-for-device
+          for n in $(seq 1 90); do
+            if [ "$(adb shell getprop sys.boot_completed | tr -d '\r')" = 1 ]; then break; fi
+            sleep 2
+          done
+          test "$(adb shell getprop ro.build.version.sdk | tr -d '\r')" = 23
+          test "$(adb shell getprop ro.kernel.qemu | tr -d '\r')" = 1
+          adb shell input keyevent 82
+          adb shell settings put global window_animation_scale 0
+          adb shell settings put global transition_animation_scale 0
+          adb shell settings put global animator_duration_scale 0
+      - name: Run emulator-only binding and encrypted-storage checks
+        run: |
+          set -eo pipefail
+          APP=$(find apks -name app-debug.apk -print -quit)
+          TEST=$(find apks -name app-debug-androidTest.apk -print -quit)
+          test -n "$APP" && test -n "$TEST"
+          adb install "$APP"
+          adb install "$TEST"
+          adb shell am instrument -w com.coffeeonelove.iretail.test/com.coffeeonelove.iretail.ui.BindingSmokeInstrumentation | tee smoke/result.txt
+          grep -q BINDING_ANDROID23_SMOKE_OK smoke/result.txt
+          if grep -q BINDING_ANDROID23_SMOKE_FAILED smoke/result.txt; then exit 1; fi
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: binding-android23-runtime-evidence
+          path: smoke/
+          if-no-files-found: error

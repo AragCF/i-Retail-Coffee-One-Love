@@ -13,6 +13,7 @@ android {
         targetSdk 35
         versionCode 128
         versionName '0.5.128-device-binding'
+        testInstrumentationRunner 'com.coffeeonelove.iretail.ui.BindingSmokeInstrumentation'
     }
 
     compileOptions {
@@ -29,11 +30,7 @@ android {
     }
 }
 
-
-// v0.4.2 upgrade guard.
-// Some Windows users unpack new archives over an old v0.3/v0.4 folder.
-// ZIP extraction does not remove files that disappeared from the archive, so stale Kotlin
-// sources may remain and break compilation. Remove known obsolete files before compiling.
+// v0.4.2 upgrade guard: obsolete files left by old ZIP overlays must not compile.
 tasks.register('removeObsoleteV03Sources') {
     doLast {
         delete file('src/main/java/com/coffeeonelove/iretail/ui/MockGateways.kt')
@@ -45,7 +42,6 @@ tasks.matching { task ->
 }.configureEach {
     dependsOn tasks.named('removeObsoleteV03Sources')
 }
-
 
 dependencies {
     implementation 'com.google.zxing:core:3.5.4'
