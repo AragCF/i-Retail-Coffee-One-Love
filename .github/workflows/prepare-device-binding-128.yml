@@ -28,7 +28,15 @@ jobs:
         with:
           gradle-version: '8.7'
       - name: Apply only baseline-checked approved changes
-        run: python3 tools/prepare_device_binding_128.py
+        run: |
+          python3 tools/prepare_device_binding_128.py
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('app/src/main/java/com/coffeeonelove/iretail/ui/DeviceBindingActivity.kt')
+          s=p.read_text()
+          assert s.count('ScrollView.LayoutParams(-1, -2)')==1
+          p.write_text(s.replace('ScrollView.LayoutParams(-1, -2)','FrameLayout.LayoutParams(-1, -2)'))
+          PY
       - name: Preserve existing API and money safety checks
         run: |
           python3 tools/verify_s2_catalog_money.py
